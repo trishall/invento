@@ -60,7 +60,7 @@ a{color:var(--saddle)}
 .brand .bx{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;overflow:hidden}.brand .bx svg{width:100%;height:100%;display:block}
 .brand small{display:block;font-weight:500;color:var(--muted);letter-spacing:.14em;font-size:9px;text-transform:uppercase}
 
-#bottomnav{position:fixed;left:0;right:0;bottom:0;height:calc(var(--nav-h) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:#FBFAF7;border-top:1px solid var(--line);display:flex;z-index:40}
+#bottomnav{position:fixed;left:0;right:0;bottom:0;height:calc(var(--nav-h) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:var(--card);border-top:1px solid var(--line);display:flex;z-index:40}
 #bottomnav a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-decoration:none;color:var(--muted);font-size:10.5px;font-weight:600;letter-spacing:.02em;position:relative}
 #bottomnav a.on{color:var(--saddle)}
 #bottomnav a svg{width:22px;height:22px}
@@ -71,13 +71,13 @@ a{color:var(--saddle)}
 
 @media(min-width:920px){
   #bottomnav{display:none}
-  #side{display:flex;flex-direction:column;width:228px;border-right:1px solid var(--line);background:#FBFAF7;position:sticky;top:0;height:100dvh;padding:18px 12px;gap:4px}
+  #side{display:flex;flex-direction:column;width:228px;border-right:1px solid var(--line);background:var(--card);position:sticky;top:0;height:100dvh;padding:18px 12px;gap:4px}
   #side .brand{padding:4px 10px 16px}
   #side a{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;text-decoration:none;color:var(--ink);font-weight:600;font-size:14px;position:relative}
   #side a svg{width:19px;height:19px;color:var(--muted)}
   #side a.on{background:var(--saddle-bg);color:var(--saddle-dk)}
   #side a.on svg{color:var(--saddle)}
-  #side a:hover:not(.on){background:#F1EEE7}
+  #side a:hover:not(.on){background:var(--bg)}
   #side .navbadge{position:static;margin-left:auto}
   #main{padding:calc(var(--top-h) + 18px) 26px 60px}
   #topbar{left:228px}
@@ -144,6 +144,27 @@ hr.sep{border:none;border-top:1px solid var(--line);margin:14px 0}
 .dline{display:flex;align-items:center;gap:11px;padding:11px;border:1px solid var(--line);border-radius:12px;background:var(--card);margin-bottom:8px}
 .dline img{width:46px;height:46px;border-radius:9px;object-fit:cover;flex:0 0 auto}
 .dline .ph{width:46px;height:46px;border-radius:9px;background:var(--saddle-bg);color:var(--saddle);display:grid;place-items:center;flex:0 0 auto}
+.modeslider{display:flex;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:4px;gap:4px;margin-bottom:16px;box-shadow:var(--shadow)}
+.modeslider button{flex:1;border:none;background:transparent;padding:11px 8px;border-radius:10px;font-size:14px;font-weight:700;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:background .15s,color .15s}
+.modeslider button svg{width:17px;height:17px}
+.modeslider button.on{background:var(--saddle);color:#fff}
+.modeslider button.on svg{color:#fff}
+.marketbar{display:flex;align-items:center;gap:10px;background:var(--saddle-bg);border-radius:12px;padding:11px 14px;margin-bottom:14px}
+.marketbar .mk{font-weight:800;color:var(--saddle-dk);flex:1;display:flex;align-items:center;gap:8px}
+.marketbar .mk svg{width:19px;height:19px;color:var(--saddle)}
+.marketbar button{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:7px 12px;font-size:12.5px;font-weight:700;color:var(--saddle-dk);cursor:pointer}
+.dbig{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:40px 16px;border-radius:20px;border:none;background:var(--saddle);color:#fff;cursor:pointer;font-size:22px;font-weight:800;width:100%;box-shadow:0 6px 20px rgba(111,65,30,.35);min-height:170px}
+.dbig svg{width:52px;height:52px}
+.dbig.ret{background:var(--brass)}
+.dbig .sub{font-size:13px;font-weight:600;opacity:.92}
+.condbtns{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.condbtn{display:flex;flex-direction:column;align-items:center;gap:8px;padding:20px 12px;border-radius:14px;border:2px solid var(--line);background:var(--card);cursor:pointer;font-size:15px;font-weight:800;color:var(--ink)}
+.condbtn svg{width:28px;height:28px}
+.condbtn.good.on{border-color:var(--green);background:var(--green-bg);color:var(--green)}
+.condbtn.bad.on{border-color:var(--red);background:var(--red-bg);color:var(--red)}
+.splitbox{background:var(--saddle-bg);border-radius:10px;padding:10px 12px;margin-top:8px;font-size:13px}
+.splitbox .sl{display:flex;justify-content:space-between;padding:3px 0;color:var(--saddle-dk)}
+.splitbox .sl b{font-weight:800}
 /* quick actions */
 .quick{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 @media(min-width:680px){.quick{grid-template-columns:repeat(6,1fr)}}
@@ -157,7 +178,7 @@ hr.sep{border:none;border-top:1px solid var(--line);margin:14px 0}
 .chip{flex:0 0 auto;border:1px solid var(--line2);background:var(--card);border-radius:999px;padding:6px 13px;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted)}
 .chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
 .tag{display:inline-flex;align-items:center;gap:5px;background:var(--kraft);border:1px dashed #D8C29A;color:#6E5526;border-radius:7px;padding:2px 8px 2px 6px;font-size:11.5px;font-weight:600}
-.tag::before{content:'';width:5px;height:5px;border-radius:50%;background:#fff;border:1px solid #C9B083}
+.tag::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--card);border:1px solid var(--brass)}
 .skutag{display:inline-block;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;background:var(--kraft);border:1px dashed #D8C29A;border-radius:6px;padding:1px 7px;color:#6E5526}
 
 /* ---------- pills / badges ---------- */
@@ -592,7 +613,7 @@ const store={
 };
 
 /* ---------- app state ---------- */
-const DEFAULT_META=()=>({company:'',user:'',currency:'$',lowDefault:5,view:'grid',sort:'updated',seq:{pl:0,po:0,ds:0},setup:{},locTerm:'Location',locTermPlural:'',perms:{additem:true,delitem:true,adjqty:true,editloc:true,trash:true,export:true,dispatch:true}});
+const DEFAULT_META=()=>({company:'',user:'',currency:'$',lowDefault:5,view:'grid',sort:'updated',seq:{pl:0,po:0,ds:0,rt:0},setup:{},market:'dom',locTerm:'Location',locTermPlural:'',perms:{additem:true,delitem:true,adjqty:true,editloc:true,trash:true,export:true,dispatch:true}});
 const S={meta:DEFAULT_META(),folders:[],items:[],txns:[],lists:[],pos:[],trash:[],dispatches:[]};
 const UNITS=['unit','pcs','pair','set','box','pack','roll','sq.ft','sq.m','m','cm','ft','kg','g','L','ml','dozen'];
 
@@ -919,8 +940,8 @@ function route(){
   const h=(location.hash||'#home').slice(1);
   const [p,a,b]=h.split('/');
   const main=$('#main');main.scrollTop=0;window.scrollTo(0,0);
-  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null)};
-  setActiveNav(p==='item'||p==='edit'||p==='folders'?'stock':(p==='list'||p==='po'?'flows':(p==='trash'||p==='import'?'more':p)));
+  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null)};
+  setActiveNav(p==='item'||p==='edit'||p==='folders'?'stock':(p==='list'||p==='po'?'flows':(p==='trash'||p==='import'?'more':(p==='return'?'dispatch':p))));
   (map[p]||vHome)();
   updateBadges();
 }
@@ -1014,6 +1035,7 @@ function vStock(fid){
   pool=sortItems(pool);
   const st=deepStats(fid);
   let h='';
+  if(!fid && can('dispatch'))h+=modeSlider('inv');
   // breadcrumbs
   let crumbs='<a href="#stock">All stock</a>';let cf=f;const segs=[];while(cf){segs.unshift(cf);cf=fById(cf.parent)}
   segs.forEach(sg=>{crumbs+=ico('chev')+'<a href="#stock/'+sg.id+'">'+esc(sg.name)+'</a>'});
@@ -1045,6 +1067,7 @@ function vStock(fid){
   if(f&&can('editloc')){h+='<div class="row mt"><button class="btn sm" data-act="renfolder" data-id="'+f.id+'">'+ico('edit')+'Rename '+locL()+'</button>'+(can('editloc')?'<button class="btn sm danger" data-act="delfolder" data-id="'+f.id+'">'+ico('trash')+'Delete '+locL()+'</button>':'')+'</div>'}
   $('#main').innerHTML=h;
   // wire
+  if(!fid)wireModeSlider();
   const q=$('#q');q.oninput=()=>{view.q=q.value;rerenderStockBody(fid)};
   q.onkeydown=e=>{if(e.key==='Enter')q.blur()};
   if($('#clrq'))$('#clrq').onclick=()=>{view.q='';vStock(fid)};
@@ -1182,7 +1205,7 @@ function vEdit(id,folderArg){
   const prefillCode=sessionStorage.getItem('newcode')||'';if(isNew&&prefillCode){i.code=prefillCode;sessionStorage.removeItem('newcode')}
   let h='<div class="card pad">';
   h+='<div class="field"><label>Item name *</label><input class="in" id="f-name" value="'+esc(i.name)+'" placeholder="e.g. Leather Duffle — Vintage Brown"></div>';
-  h+='<div class="f2"><div class="field"><label>'+(isNew?'Opening quantity':'Quantity')+'</label><input class="in num" id="f-qty" inputmode="decimal" value="'+fmtQty(i.qty)+'" '+(isNew?'':'readonly style="background:#EFECE6;color:var(--muted)"')+'>'+(isNew?'':'<div class="hint">Adjust stock from the item page (Add / Remove) so every movement is tracked.</div>')+'</div>'+
+  h+='<div class="f2"><div class="field"><label>'+(isNew?'Opening quantity':'Quantity')+'</label><input class="in num" id="f-qty" inputmode="decimal" value="'+fmtQty(i.qty)+'" '+(isNew?'':'readonly style="background:var(--bg);color:var(--muted)"')+'>'+(isNew?'':'<div class="hint">Adjust stock from the item page (Add / Remove) so every movement is tracked.</div>')+'</div>'+
      '<div class="field"><label>Unit</label><select class="in" id="f-unit">'+UNITS.map(u=>'<option'+(i.unit===u?' selected':'')+'>'+u+'</option>').join('')+'</select></div></div>';
   h+='<div class="field"><label>'+locTerm()+'</label><select class="in" id="f-folder">'+folderSelect(i.folder)+'</select></div>';
   h+='<div class="f2"><div class="field"><label>Price (sell)</label><input class="in num" id="f-price" inputmode="decimal" value="'+esc(i.price)+'" placeholder="0"></div>'+
@@ -1577,6 +1600,49 @@ function vFlows(tab){
 }
 
 /* ---------- pick lists ---------- */
+/* ============================================================
+   DISPATCH / RETURN — helpers
+   ============================================================ */
+const DAMAGED_FOLDER_NAME='Damaged Items';
+function getMarket(){return (S.meta&&S.meta.market)||'dom'}
+async function setMarket(m){S.meta.market=m;await saveNow('meta')}
+function marketLabel(m){return (m||getMarket())==='intl'?'International':'Domestic'}
+// per-item stock split across locations (only items sharing the same SKU/name live in one record,
+// but the same product may exist as separate records in different folders — group by primary sku or name)
+function stockSplit(item){
+  if(!item)return [];
+  const key=(item.sku||'').toLowerCase()||('name:'+(item.name||'').toLowerCase());
+  const sibs=S.items.filter(x=>{
+    const k=(x.sku||'').toLowerCase()||('name:'+(x.name||'').toLowerCase());
+    return k===key;
+  });
+  return sibs.map(x=>({id:x.id,folder:x.folder,path:folderPath(x.folder),qty:+x.qty||0})).sort((a,b)=>b.qty-a.qty);
+}
+function damagedFolderId(){
+  const f=S.folders.find(x=>x.name===DAMAGED_FOLDER_NAME&&!x.parent);
+  return f?f.id:null;
+}
+async function ensureDamagedFolder(){
+  let id=damagedFolderId();
+  if(id)return id;
+  const nf={id:uid('f'),name:DAMAGED_FOLDER_NAME,parent:null,createdAt:Date.now()};
+  S.folders.push(nf);await saveNow('folders');
+  return nf.id;
+}
+// find or create the record for an item within a specific folder (so damaged units sit together)
+async function recordInFolder(srcItem,folderId){
+  const key=(srcItem.sku||'').toLowerCase()||('name:'+(srcItem.name||'').toLowerCase());
+  let rec=S.items.find(x=>{
+    const k=(x.sku||'').toLowerCase()||('name:'+(x.name||'').toLowerCase());
+    return k===key && (x.folder||null)===(folderId||null);
+  });
+  if(rec)return rec;
+  // clone the source item record into that folder, qty 0
+  rec=newItem(Object.assign({},JSON.parse(JSON.stringify(srcItem)),{id:uid('i'),folder:folderId,qty:0,thumb:srcItem.thumb||'',createdAt:Date.now(),updatedAt:Date.now()}));
+  S.items.push(rec);
+  return rec;
+}
+
 /* ============================================================
    DISPATCH — helpers
    ============================================================ */
@@ -2326,55 +2392,65 @@ async function paintUsers(){
    ============================================================ */
 let dDraft=null; // {orderId, dest, lines:[{itemId?,name,qty,photo?,thumb?,code?}], ts}
 
+function modeSlider(active){
+  return '<div class="modeslider">'+
+    '<button data-mode="inv" class="'+(active==='inv'?'on':'')+'">'+ico('box')+'Inventory</button>'+
+    '<button data-mode="dispatch" class="'+(active==='dispatch'?'on':'')+'">'+ico('truck')+'Dispatch</button>'+
+    '<button data-mode="return" class="'+(active==='return'?'on':'')+'">'+ico('undo')+'Return</button>'+
+    '</div>';
+}
+function wireModeSlider(){
+  $$('#main [data-mode]').forEach(b=>b.onclick=()=>{
+    const m=b.dataset.mode;
+    if(m==='inv')go('#stock');
+    else if(m==='dispatch')go('#dispatch');
+    else go('#return');
+  });
+}
+function marketBar(){
+  return '<div class="marketbar"><span class="mk">'+ico(getMarket()==='intl'?'plane':'truck')+marketLabel()+' market</span><button id="mk-switch">Switch market</button></div>';
+}
+function wireMarketBar(){
+  const b=$('#mk-switch');if(!b)return;
+  b.onclick=()=>{
+    openModal('<h3>Choose market</h3><p class="sub mb">All dispatches and returns stay in this market until you change it again.</p>'+
+      '<div class="destbtns"><button class="destbtn '+(getMarket()==='dom'?'on':'')+'" data-mk="dom">'+ico('truck')+'Domestic</button><button class="destbtn '+(getMarket()==='intl'?'on':'')+'" data-mk="intl">'+ico('plane')+'International</button></div>');
+    $$('#modal [data-mk]').forEach(x=>x.onclick=async()=>{await setMarket(x.dataset.mk);closeModal();route()});
+  };
+}
+function ensureMarketThen(cb){
+  // ask once if never set this session/account
+  if(S.meta && S.meta.market){cb();return;}
+  openModal('<h3>Which market?</h3><p class="sub mb">Pick the market you are working in. It stays selected until you switch it.</p>'+
+    '<div class="destbtns"><button class="destbtn" data-mk="dom">'+ico('truck')+'Domestic</button><button class="destbtn" data-mk="intl">'+ico('plane')+'International</button></div>');
+  $$('#modal [data-mk]').forEach(x=>x.onclick=async()=>{await setMarket(x.dataset.mk);closeModal();cb();});
+}
+
 function vDispatch(sub,arg){
   if(!can('dispatch')){toast('You do not have permission to dispatch','err');go('#home');return}
-  // hub
-  if(!sub){
-    topTitle('Dispatch','#home');
-    const t30=dispatchTotals(30);
-    let h='<h1 class="page">Dispatch</h1>';
-    h+='<div class="bigbtns">'+
-      '<button class="bigbtn" id="d-new">'+ico('send')+'<div>New dispatch</div><div class="sub">Scan or photograph items sent</div></button>'+
-      '<button class="bigbtn" onclick="location.hash=\'#dispatch/sales\'">'+ico('trend')+'<div>Sales & reorder</div><div class="sub">Best-sellers, what to restock</div></button>'+
-      '</div>';
-    h+='<div class="stats mb"><div class="stat"><div class="n num">'+t30.orders+'</div><div class="l">Orders · 30d</div></div><div class="stat"><div class="n num">'+fmtQty(t30.units)+'</div><div class="l">Units out</div></div><div class="stat"><div class="n num">'+fmtQty(t30.dom)+'</div><div class="l">Domestic</div></div><div class="stat"><div class="n num">'+fmtQty(t30.intl)+'</div><div class="l">International</div></div></div>';
-    h+='<div class="section-h"><h2>Recent dispatches</h2></div>';
-    const ds=(S.dispatches||[]).slice().sort((a,b)=>b.ts-a.ts).slice(0,30);
-    if(!ds.length)h+='<div class="empty">'+ico('truck')+'<div class="t">No dispatches yet</div><div class="s">Tap “New dispatch”, enter the order ID, and scan or photograph what you send. Each one is saved so you can repeat it later.</div></div>';
-    else{
-      h+='<div class="ilist">';
-      ds.forEach(d=>{
-        const units=sum(d.lines||[],l=>+l.qty||0);
-        h+='<div class="irow" data-dview="'+d.id+'"><span class="th" style="background:var(--saddle-bg);color:var(--saddle)">'+ico(d.dest==='intl'?'plane':'truck')+'</span>'+
-          '<div class="grow"><div class="nm ellip">'+esc(d.orderId||d.number)+'</div><div class="meta num">'+(d.lines||[]).length+' items · '+fmtQty(units)+' units · '+(d.dest==='intl'?'International':'Domestic')+' · '+ago(d.ts)+'</div></div>'+
-          ico('chev','muted')+'</div>';
-      });
-      h+='</div>';
-    }
-    $('#main').innerHTML=h;
-    $('#d-new').onclick=()=>startDispatch();
-    $$('#main [data-dview]').forEach(r=>r.onclick=()=>go('#dispatch/view/'+r.dataset.dview));
-    return;
-  }
   if(sub==='sales'){return vDispatchSales();}
   if(sub==='view'){return vDispatchView(arg);}
   if(sub==='new'){return vDispatchNew();}
-  go('#dispatch');
+  // hub
+  topTitle('Dispatch','#home');
+  let h=modeSlider('dispatch')+marketBar();
+  h+='<button class="dbig" id="d-go">'+ico('send')+'<div>Dispatch</div><div class="sub">Scan or photograph items going out</div></button>';
+  h+='<div class="row mt" style="gap:9px"><button class="btn grow" onclick="location.hash=\'#dispatch/sales\'">'+ico('trend')+'Sales & reorder</button></div>';
+  $('#main').innerHTML=h;
+  wireModeSlider();wireMarketBar();
+  $('#d-go').onclick=()=>ensureMarketThen(()=>startDispatch());
 }
 
 function startDispatch(){
-  openModal('<h3>New dispatch</h3>'+
+  openModal('<h3>Dispatch · '+marketLabel()+'</h3>'+
     '<div class="field"><label>Order ID</label><input class="in" id="d-oid" placeholder="e.g. #1042, ETSY-558, AMZ-9921" autocomplete="off"></div>'+
-    '<label style="font-weight:700;font-size:13px;display:block;margin:4px 0 8px">Destination</label>'+
-    '<div class="destbtns mb"><button class="destbtn" data-dest="dom">'+ico('truck')+'Domestic</button><button class="destbtn" data-dest="intl">'+ico('plane')+'International</button></div>'+
     '<button class="btn pri block" id="d-start" disabled>'+ico('send')+'Start dispatch</button>');
-  let dest=null;
   $('#d-oid').focus();
-  const refresh=()=>{$('#d-start').disabled=!($('#d-oid').value.trim()&&dest)};
+  const refresh=()=>{$('#d-start').disabled=!$('#d-oid').value.trim()};
   $('#d-oid').oninput=refresh;
-  $$('#modal [data-dest]').forEach(b=>b.onclick=()=>{dest=b.dataset.dest;$$('#modal [data-dest]').forEach(x=>x.classList.toggle('on',x===b));refresh()});
+  $('#d-oid').onkeydown=e=>{if(e.key==='Enter'&&$('#d-oid').value.trim())$('#d-start').click()};
   $('#d-start').onclick=()=>{
-    dDraft={orderId:$('#d-oid').value.trim(),dest:dest,lines:[],ts:Date.now()};
+    dDraft={orderId:$('#d-oid').value.trim(),dest:getMarket(),lines:[],ts:Date.now()};
     closeModal();go('#dispatch/new');
   };
 }
@@ -2576,6 +2652,194 @@ function vDispatchSales(){
 }
 
 /* ============================================================
+   RETURN — views
+   ============================================================ */
+let rDraft=null; // {refId, dest, lines:[{itemId,name,code,qty,cond:'good'|'bad',thumb}], ts}
+
+function vReturn(sub,arg){
+  if(!can('dispatch')){toast('You do not have permission for returns','err');go('#home');return}
+  if(sub==='view'){return vReturnView(arg);}
+  if(sub==='new'){return vReturnNew();}
+  // hub
+  topTitle('Return','#home');
+  let h=modeSlider('return')+marketBar();
+  h+='<button class="dbig ret" id="r-go">'+ico('undo')+'<div>Return</div><div class="sub">Bring items back into stock</div></button>';
+  $('#main').innerHTML=h;
+  wireModeSlider();wireMarketBar();
+  $('#r-go').onclick=()=>ensureMarketThen(()=>startReturn());
+}
+
+function startReturn(){
+  openModal('<h3>Return · '+marketLabel()+'</h3>'+
+    '<div class="field"><label>Reference (order ID / RMA — optional)</label><input class="in" id="r-ref" placeholder="e.g. RET-204, #1042" autocomplete="off"></div>'+
+    '<button class="btn pri block" id="r-start">'+ico('undo')+'Start return</button>');
+  $('#r-ref').focus();
+  $('#r-ref').onkeydown=e=>{if(e.key==='Enter')$('#r-start').click()};
+  $('#r-start').onclick=()=>{
+    rDraft={refId:$('#r-ref').value.trim()||('Return '+new Date().toLocaleDateString()),dest:getMarket(),lines:[],ts:Date.now()};
+    closeModal();go('#return/new');
+  };
+}
+
+function vReturnNew(){
+  if(!rDraft){go('#return');return}
+  topTitle('Return · '+rDraft.refId,'#return');
+  let h='<div class="row mb wrap"><h1 class="page" style="margin:0">'+esc(rDraft.refId)+'</h1><span class="pill '+(rDraft.dest==='intl'?'info':'gray')+'">'+marketLabel(rDraft.dest)+'</span></div>';
+  h+='<div class="dcapture"><button class="dcapbtn scan" id="r-scan">'+ico('scan')+'Scan SKU</button><button class="dcapbtn photo" id="r-name">'+ico('box')+'By name</button></div>';
+  h+='<div class="section-h"><h2>Items being returned</h2><span class="num" style="font-weight:800">'+sum(rDraft.lines,l=>+l.qty||0)+'</span></div>';
+  h+='<div id="r-lines">'+returnLinesHTML()+'</div>';
+  h+='<div class="row wrap mt" style="gap:9px"><button class="btn grow" id="r-cancel">Cancel</button><button class="btn pri grow" id="r-save" '+(rDraft.lines.length?'':'disabled')+'>'+ico('check')+'Save return'+(rDraft.lines.length?' ('+rDraft.lines.length+')':'')+'</button></div>';
+  $('#main').innerHTML=h;
+  $('#r-scan').onclick=()=>returnScan();
+  $('#r-name').onclick=()=>returnByName();
+  wireReturnLineEvents();
+  $('#r-cancel').onclick=async()=>{const ok=await confirmDlg('Discard this return?','Nothing has been saved yet.','Discard',true);if(ok){rDraft=null;go('#return')}};
+  $('#r-save').onclick=()=>saveReturn();
+}
+
+function returnLinesHTML(){
+  if(!rDraft.lines.length)return '<div class="sub mb">Nothing added — <b>Scan SKU</b> or add <b>By name</b>. For each item choose Good or Damaged; we’ll tell you where to place it.</div>';
+  let h='';
+  rDraft.lines.forEach((ln,ix)=>{
+    const it=ln.itemId?iById(ln.itemId):null;
+    h+='<div class="dline" style="flex-wrap:wrap">'+
+      (ln.thumb?'<img src="'+ln.thumb+'" alt="">':'<span class="ph">'+ico('box')+'</span>')+
+      '<div class="grow"><div class="nm ellip" style="font-weight:700">'+esc(ln.name||ln.code||'Item')+'</div>'+(ln.code?'<div class="meta mono">'+esc(ln.code)+'</div>':'')+'</div>'+
+      '<div class="stepper" style="max-width:118px"><button data-rm="'+ix+'">−</button><input class="num" data-rq="'+ix+'" inputmode="decimal" value="'+fmtQty(ln.qty)+'"><button data-rp="'+ix+'">+</button></div>'+
+      '<button class="icobtn ghost" data-rx="'+ix+'" aria-label="Remove" style="width:30px;height:30px">'+ico('x')+'</button>'+
+      '<div class="condbtns" style="width:100%;margin-top:9px;grid-template-columns:1fr 1fr"><button class="condbtn good '+(ln.cond==='good'?'on':'')+'" data-rcg="'+ix+'">'+ico('check')+'Good</button><button class="condbtn bad '+(ln.cond==='bad'?'on':'')+'" data-rcb="'+ix+'">'+ico('x')+'Damaged</button></div>'+
+      placementHTML(ln)+
+      '</div>';
+  });
+  return h;
+}
+function placementHTML(ln){
+  if(!ln.itemId)return '<div class="splitbox" style="width:100%">Not in catalog — saved as a record only. Add it as an item first to track stock & location.</div>';
+  const it=iById(ln.itemId);if(!it)return '';
+  if(ln.cond==='bad'){
+    const dmgId=damagedFolderId();
+    const dmgRec=dmgId?stockSplit(it).find(s=>s.folder===dmgId):null;
+    return '<div class="splitbox" style="width:100%"><div class="sl"><span>📍 Place in</span><b>'+esc(DAMAGED_FOLDER_NAME)+(dmgRec&&dmgRec.qty>0?' (has '+fmtQty(dmgRec.qty)+' already)':' (new)')+'</b></div></div>';
+  }
+  // good: show split + where it lands (its own folder)
+  const split=stockSplit(it);
+  let s='<div class="splitbox" style="width:100%"><div class="sl"><span>📍 Place in</span><b>'+esc(folderPath(it.folder))+'</b></div>';
+  if(split.length>1){s+='<div style="border-top:1px solid var(--line2);margin:5px 0;opacity:.5"></div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;opacity:.7;margin-bottom:2px">Current stock across '+locLP()+'</div>';
+    split.forEach(sp=>{s+='<div class="sl"><span>'+esc(sp.path)+'</span><b>'+fmtQty(sp.qty)+'</b></div>'})}
+  s+='</div>';
+  return s;
+}
+function wireReturnLineEvents(){
+  const redraw=()=>{$('#r-lines').innerHTML=returnLinesHTML();wireReturnLineEvents();const sv=$('#r-save');if(sv){sv.disabled=!rDraft.lines.length;sv.innerHTML=ico('check')+'Save return'+(rDraft.lines.length?' ('+rDraft.lines.length+')':'')}};
+  $$('#r-lines [data-rm]').forEach(b=>b.onclick=()=>{const x=rDraft.lines[+b.dataset.rm];x.qty=Math.max(1,round4((+x.qty||1)-1));redraw()});
+  $$('#r-lines [data-rp]').forEach(b=>b.onclick=()=>{const x=rDraft.lines[+b.dataset.rp];x.qty=round4((+x.qty||0)+1);redraw()});
+  $$('#r-lines [data-rq]').forEach(inp=>inp.onchange=()=>{const x=rDraft.lines[+inp.dataset.rq];const v=round4(parseFloat(inp.value));x.qty=v>0?v:1;redraw()});
+  $$('#r-lines [data-rx]').forEach(b=>b.onclick=()=>{rDraft.lines.splice(+b.dataset.rx,1);redraw()});
+  $$('#r-lines [data-rcg]').forEach(b=>b.onclick=()=>{rDraft.lines[+b.dataset.rcg].cond='good';redraw()});
+  $$('#r-lines [data-rcb]').forEach(b=>b.onclick=()=>{rDraft.lines[+b.dataset.rcb].cond='bad';redraw()});
+}
+function addReturnLineByCode(code){
+  const it=findByCode(code);
+  const ex=it?rDraft.lines.find(l=>l.itemId===it.id):rDraft.lines.find(l=>l.code===code&&!l.itemId);
+  if(ex){ex.qty=round4((+ex.qty||0)+1);}
+  else rDraft.lines.push({itemId:it?it.id:null,name:it?it.name:'',code:code,qty:1,cond:'good',thumb:it?it.thumb:''});
+  beep(true);
+}
+function returnByName(){
+  let h='<h3>Add item by name</h3><div class="searchbar mb">'+ico('search')+'<input id="rn-q" placeholder="Search product name or SKU" autocomplete="off"></div><div id="rn-res" class="ilist" style="max-height:300px;overflow-y:auto"></div>';
+  openModal(h);
+  const q=$('#rn-q');q.focus();
+  const res=$('#rn-res');
+  const draw=()=>{
+    const v=q.value.trim().toLowerCase();
+    const pool=v?sortItems(S.items.filter(i=>matches(i,v))).slice(0,10):[];
+    res.innerHTML=pool.length?pool.map(i=>'<div class="irow" data-pick="'+i.id+'"><span class="th">'+(i.thumb?'<img src="'+i.thumb+'" alt="">':ico('box'))+'</span><div class="grow"><div class="nm ellip">'+esc(i.name)+'</div><div class="meta num">'+(i.sku?esc(i.sku)+' · ':'')+fmtQty(i.qty)+' in stock</div></div></div>').join(''):(v?'<div class="sub" style="padding:10px 4px">No matches.</div>':'<div class="sub" style="padding:10px 4px">Type to search your catalog.</div>');
+    $$('#rn-res [data-pick]').forEach(r=>r.onclick=()=>{const it=iById(r.dataset.pick);if(!it)return;const ex=rDraft.lines.find(l=>l.itemId===it.id);if(ex)ex.qty=round4((+ex.qty||0)+1);else rDraft.lines.push({itemId:it.id,name:it.name,code:it.sku||'',qty:1,cond:'good',thumb:it.thumb||''});closeModal();vReturnNew();});
+  };
+  q.oninput=draw;draw();
+}
+function returnScan(){
+  let h='<div class="scanwrap" id="rsw"><div class="scanbox"><div class="laser"></div></div><video id="rsv" playsinline muted></video></div>';
+  h+='<div class="row mt" style="gap:9px"><div class="searchbar grow">'+ico('scan')+'<input id="rs-manual" placeholder="or type a SKU and press Enter" autocomplete="off"></div></div>';
+  h+='<div id="rs-feed" class="sub mt" style="min-height:22px"></div>';
+  h+='<button class="btn pri block mt" id="rs-done">'+ico('check')+'Done scanning</button>';
+  openModal(h,true);
+  const feed=$('#rs-feed'),manual=$('#rs-manual');
+  manual.onkeydown=e=>{if(e.key==='Enter'){const v=manual.value.trim();if(v){addReturnLineByCode(v);feed.innerHTML='Added <b>'+esc(v)+'</b>';manual.value=''}}};
+  let stop=null,lastCode='',lastTs=0;
+  const teardown=()=>{if(stop){try{stop()}catch(e){}stop=null}};
+  (async()=>{
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){feed.textContent='Camera not available — type the SKU above.';return}
+    let stream;try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});}catch(e){feed.textContent='Camera blocked. Allow access or type the SKU above.';return}
+    const v=$('#rsv');if(!v){try{stream.getTracks().forEach(t=>t.stop())}catch(e){}return}
+    v.srcObject=stream;await v.play().catch(()=>{});
+    stop=()=>{try{stream.getTracks().forEach(t=>t.stop())}catch(e){}};
+    if(!('BarcodeDetector' in window)){feed.innerHTML='Live scan not supported here — type SKUs above.';return}
+    let fmts;try{fmts=await BarcodeDetector.getSupportedFormats()}catch(e){fmts=[]}
+    const det=new BarcodeDetector({formats:fmts.length?fmts:['code_128','ean_13','qr_code','code_39','ean_8','upc_a','upc_e']});
+    const loop=async()=>{if(!stop)return;try{const cs=await det.detect(v);if(cs&&cs.length){const c=cs[0].rawValue;const now=Date.now();if(c&&(c!==lastCode||now-lastTs>2200)){lastCode=c;lastTs=now;addReturnLineByCode(c);const it=findByCode(c);feed.innerHTML='Added <b>'+esc(it?it.name:c)+'</b>'+(it?'':' <span class="muted">(not in catalog)</span>')}}}catch(e){}if(stop)setTimeout(()=>requestAnimationFrame(loop),180)};
+    requestAnimationFrame(loop);
+  })();
+  $('#rs-done').onclick=()=>{teardown();closeModal();vReturnNew();};
+  const ov=$('#ovl');const obs=new MutationObserver(()=>{if(!ov.classList.contains('show')){teardown();obs.disconnect()}});obs.observe(ov,{attributes:true,attributeFilter:['class']});
+}
+
+async function saveReturn(){
+  if(!rDraft||!rDraft.lines.length)return;
+  if(!can('dispatch')){toast('No permission','err');return}
+  const good=rDraft.lines.filter(l=>l.itemId&&l.cond!=='bad');
+  const bad=rDraft.lines.filter(l=>l.itemId&&l.cond==='bad');
+  const ok=await confirmDlg('Save return '+esc(rDraft.refId)+'?',
+    rDraft.lines.length+' line'+(rDraft.lines.length>1?'s':'')+'.<br>'+
+    (good.length?good.length+' good → back to stock. ':'')+
+    (bad.length?bad.length+' damaged → '+DAMAGED_FOLDER_NAME+'.':'')+
+    (rDraft.lines.some(l=>!l.itemId)?'<br>Items not in catalog are logged only.':''),
+    'Save return');
+  if(!ok)return;
+  const sv=$('#r-save');if(sv){sv.disabled=true;sv.textContent='Saving…'}
+  let dmgFolder=null;
+  if(bad.length)dmgFolder=await ensureDamagedFolder();
+  const savedLines=[];
+  for(const ln of rDraft.lines){
+    if(!ln.itemId){savedLines.push({itemId:null,name:ln.name,code:ln.code,qty:+ln.qty||0,cond:ln.cond});continue;}
+    const src=iById(ln.itemId);if(!src){continue;}
+    const q=+ln.qty||0;
+    if(ln.cond==='bad'){
+      const rec=await recordInFolder(src,dmgFolder);
+      const old=+rec.qty||0;rec.qty=round4(old+q);rec.updatedAt=Date.now();
+      logTx('in',{itemId:rec.id,itemName:rec.name,fromQ:old,toQ:rec.qty,qty:q,reason:'Return (damaged) · '+rDraft.refId,detail:'Return '+rDraft.refId+' → '+DAMAGED_FOLDER_NAME});
+      savedLines.push({itemId:rec.id,name:rec.name,code:rec.sku||ln.code,qty:q,cond:'bad',placedIn:folderPath(rec.folder)});
+    } else {
+      const old=+src.qty||0;src.qty=round4(old+q);src.updatedAt=Date.now();
+      logTx('in',{itemId:src.id,itemName:src.name,fromQ:old,toQ:src.qty,qty:q,reason:'Return (good) · '+rDraft.refId,detail:'Return '+rDraft.refId});
+      savedLines.push({itemId:src.id,name:src.name,code:src.sku||ln.code,qty:q,cond:'good',placedIn:folderPath(src.folder)});
+    }
+  }
+  S.meta.seq.rt=(S.meta.seq.rt||0)+1;
+  const rec={id:uid('r'),number:'RET-'+String(S.meta.seq.rt).padStart(4,'0'),refId:rDraft.refId,dest:rDraft.dest,ts:Date.now(),by:userName(),kind:'return',lines:savedLines};
+  S.dispatches.unshift(rec); // returns stored alongside dispatches, flagged kind:'return'
+  await Promise.all([saveNow('items'),saveNow('folders'),saveNow('dispatches'),saveNow('meta')]);
+  logTx('dispatch',{detail:'Return '+rDraft.refId+' · '+rDraft.lines.length+' lines'});
+  rDraft=null;updateBadges();
+  toast('Return saved · stock updated','ok');
+  go('#return');
+}
+
+function vReturnView(id){
+  const d=(S.dispatches||[]).find(x=>x.id===id);
+  if(!d){go('#return');return}
+  topTitle(d.refId||d.number,'#return');
+  let h='<div class="row mb wrap"><h1 class="page" style="margin:0">'+esc(d.refId||d.number)+'</h1><span class="pill ok">Return</span></div>';
+  h+='<div class="sub mb">'+esc(d.number)+' · '+fmtDT(d.ts)+(d.by?' · by '+esc(d.by):'')+'</div>';
+  h+='<div class="ilist">';
+  (d.lines||[]).forEach(ln=>{
+    h+='<div class="dline"><span class="ph">'+ico(ln.cond==='bad'?'x':'check')+'</span><div class="grow"><div class="nm" style="font-weight:700">'+esc(ln.name||ln.code||'Item')+'</div><div class="meta">'+(ln.cond==='bad'?'<span style="color:var(--red)">Damaged</span>':'<span style="color:var(--green)">Good</span>')+(ln.placedIn?' · '+esc(ln.placedIn):'')+'</div></div><div class="num" style="font-weight:800">+'+fmtQty(ln.qty)+'</div></div>';
+  });
+  h+='</div>';
+  $('#main').innerHTML=h;
+}
+
+/* ============================================================
    GLOBAL ACTIONS + INIT
    ============================================================ */
 document.addEventListener('click',e=>{
@@ -2597,7 +2861,7 @@ document.addEventListener('click',e=>{
 /* ============================================================
    SETUP / CONNECT SCREENS
    ============================================================ */
-const FB_RULES="rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    function uD() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }\n    function active() { return request.auth != null && uD().status == 'active'; }\n    function admin() { return active() && uD().role in ['admin','mainframe']; }\n    function mainframe() { return active() && uD().role == 'mainframe'; }\n    function perms() {\n      return exists(/databases/$(database)/documents/meta/app)\n        ? get(/databases/$(database)/documents/meta/app).data.get('perms', {})\n        : {};\n    }\n    function userCan(key) { return admin() || perms().get(key, true) == true; }\n    function settingsUnchanged() {\n      return request.resource.data.get('perms', {}) == resource.data.get('perms', {})\n        && request.resource.data.get('company', '') == resource.data.get('company', '')\n        && request.resource.data.get('currency', '') == resource.data.get('currency', '')\n        && request.resource.data.get('locTerm', '') == resource.data.get('locTerm', '')\n        && request.resource.data.get('lowDefault', 0) == resource.data.get('lowDefault', 0);\n    }\n\n    match /users/{uid} {\n      allow read: if request.auth != null && (request.auth.uid == uid || admin());\n      allow create: if request.auth != null && request.auth.uid == uid && (\n        (request.resource.data.role == 'user' && request.resource.data.status == 'pending') ||\n        (request.auth.token.email == 'trishal@invento.app' && request.resource.data.role == 'mainframe')\n      );\n      allow update: if mainframe()\n        || (admin() && resource.data.role == 'user' && request.resource.data.role == 'user')\n        || (request.auth != null && request.auth.uid == uid\n            && request.resource.data.role == resource.data.role\n            && request.resource.data.status == resource.data.status);\n      allow delete: if mainframe();\n    }\n\n    match /txns/{id}        { allow read, create: if active(); allow update: if false; allow delete: if admin(); }\n    match /trash/{id}       { allow read: if active(); allow create, update, delete: if (admin() || userCan('trash') || userCan('delitem')); }\n    match /meta/{doc}       { allow read: if active(); allow create: if admin(); allow update: if admin() || (active() && settingsUnchanged()); }\n    match /items/{id}       { allow read: if active(); allow create, update: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')); allow delete: if (admin() || userCan('delitem')); }\n    match /folders/{id}     { allow read: if active(); allow create, update: if userCan('editloc'); allow delete: if (admin() || userCan('editloc')); }\n    match /lists/{id}       { allow read, create, update: if active(); allow delete: if admin(); }\n    match /pos/{id}         { allow read, create, update: if active(); allow delete: if admin(); }\n    match /dispatches/{id}  { allow read: if active(); allow create, update: if (admin() || userCan('dispatch')); allow delete: if admin(); }\n    match /photos/{id}      { allow read: if active(); allow write: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')); }\n  }\n}";
+const FB_RULES="rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    function uD() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }\n    function active() { return request.auth != null && uD().status == 'active'; }\n    function admin() { return active() && uD().role in ['admin','mainframe']; }\n    function mainframe() { return active() && uD().role == 'mainframe'; }\n    function perms() {\n      return exists(/databases/$(database)/documents/meta/app)\n        ? get(/databases/$(database)/documents/meta/app).data.get('perms', {})\n        : {};\n    }\n    function userCan(key) { return admin() || perms().get(key, true) == true; }\n    function settingsUnchanged() {\n      return request.resource.data.get('perms', {}) == resource.data.get('perms', {})\n        && request.resource.data.get('company', '') == resource.data.get('company', '')\n        && request.resource.data.get('currency', '') == resource.data.get('currency', '')\n        && request.resource.data.get('locTerm', '') == resource.data.get('locTerm', '')\n        && request.resource.data.get('lowDefault', 0) == resource.data.get('lowDefault', 0);\n    }\n\n    match /users/{uid} {\n      allow read: if request.auth != null && (request.auth.uid == uid || admin());\n      allow create: if request.auth != null && request.auth.uid == uid && (\n        (request.resource.data.role == 'user' && request.resource.data.status == 'pending') ||\n        (request.auth.token.email == 'trishal@invento.app' && request.resource.data.role == 'mainframe')\n      );\n      allow update: if mainframe()\n        || (admin() && resource.data.role == 'user' && request.resource.data.role == 'user')\n        || (request.auth != null && request.auth.uid == uid\n            && request.resource.data.role == resource.data.role\n            && request.resource.data.status == resource.data.status);\n      allow delete: if mainframe();\n    }\n\n    match /txns/{id}        { allow read, create: if active(); allow update: if false; allow delete: if admin(); }\n    match /trash/{id}       { allow read: if active(); allow create, update, delete: if (admin() || userCan('trash') || userCan('delitem')); }\n    match /meta/{doc}       { allow read: if active(); allow create: if admin(); allow update: if admin() || (active() && settingsUnchanged()); }\n    match /items/{id}       { allow read: if active(); allow create, update: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')); allow delete: if (admin() || userCan('delitem')); }\n    match /folders/{id}     { allow read: if active(); allow create, update: if (userCan('editloc') || userCan('dispatch')); allow delete: if (admin() || userCan('editloc')); }\n    match /lists/{id}       { allow read, create, update: if active(); allow delete: if admin(); }\n    match /pos/{id}         { allow read, create, update: if active(); allow delete: if admin(); }\n    match /dispatches/{id}  { allow read: if active(); allow create, update: if (admin() || userCan('dispatch')); allow delete: if admin(); }\n    match /photos/{id}      { allow read: if active(); allow write: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')); }\n  }\n}";
 function authEmail(u){u=String(u||'').trim().toLowerCase();return u.indexOf('@')>0?u:u.replace(/[^a-z0-9._-]/g,'')+'@invento.app'}
 function authErrMsg(e){
   const c=(e&&e.code)||'';
@@ -2673,7 +2937,7 @@ function vSetup(err){
     '<li>Team members <b>sign up themselves</b> in the app (just a user ID + password, no email/OTP) — new accounts wait until an admin approves them in More → Team members. The ID <span class="mono">trishal</span> becomes the mainframe owner automatically.</li>'+
     '<li>Click the <b>&lt;/&gt;</b> (Web) icon on Project Overview → register app → copy the <span class="mono">firebaseConfig</span> block</li>'+
     '<li>Paste it below → Connect → sign in. Then share this file (or the team link from More) with your staff — they sign in with their own ID.</li></ol></div>'+
-    '<div class="card pad mb"><div class="eyebrow" style="margin-bottom:6px">Security rules (step 3)</div><pre class="mono" id="ruletext" style="font-size:11.5px;background:#F7F4EE;border:1px solid var(--line);border-radius:10px;padding:10px;white-space:pre-wrap">'+esc(FB_RULES)+'</pre><button class="btn sm" id="rule-copy">'+ico('copy')+'Copy rules</button></div>'+
+    '<div class="card pad mb"><div class="eyebrow" style="margin-bottom:6px">Security rules (step 3)</div><pre class="mono" id="ruletext" style="font-size:11.5px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;white-space:pre-wrap">'+esc(FB_RULES)+'</pre><button class="btn sm" id="rule-copy">'+ico('copy')+'Copy rules</button></div>'+
     '<div class="card pad mb"><div class="field"><label>Paste your firebaseConfig here</label><textarea class="in mono" id="cfg-in" style="min-height:130px" placeholder=\'const firebaseConfig = {\n  apiKey: "AIza…",\n  authDomain: "godown-xxxx.firebaseapp.com",\n  projectId: "godown-xxxx",\n  …\n};\'></textarea></div><button class="btn pri block" id="cfg-go">'+ico('bolt')+'Connect &amp; sync</button></div>'+
     '<button class="btn block" id="cfg-local">Skip — use on this device only (no sync)</button>';
   $('#rule-copy').onclick=()=>{try{navigator.clipboard.writeText(FB_RULES);toast('Rules copied','ok')}catch(e){toast('Select and copy the text above','err')}};
