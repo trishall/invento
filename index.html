@@ -25,6 +25,17 @@
   --shadow-lg:0 8px 30px rgba(34,28,21,.18);
   --nav-h:62px; --top-h:56px;
 }
+:root[data-theme="dark"]{
+  --bg:#17130F; --card:#221C16; --ink:#F2EBE0; --muted:#A89D8C; --faint:#7C7264;
+  --line:#322A22; --line2:#42382D;
+  --saddle:#C68A4E; --saddle-dk:#A87238; --saddle-bg:#352519;
+  --brass:#CBA85A; --kraft:#3A2D1E;
+  --green:#5BB07E; --green-bg:#1E3328;
+  --red:#D9715F; --red-bg:#3A211C;
+  --amber:#D29A3F; --amber-bg:#34281A;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.35);
+  --shadow-lg:0 8px 30px rgba(0,0,0,.6);
+}
 *{box-sizing:border-box;margin:0;padding:0}
 svg[viewBox='0 0 24 24']{width:18px;height:18px}
 .irow>svg,.listcard>svg{width:20px;height:20px;flex:0 0 auto;color:var(--faint)}
@@ -43,7 +54,7 @@ a{color:var(--saddle)}
 #app{display:flex;min-height:100dvh}
 #side{display:none}
 #main{flex:1;min-width:0;padding:calc(var(--top-h) + 14px) 14px calc(var(--nav-h) + 24px);max-width:1060px;margin:0 auto;width:100%}
-#topbar{position:fixed;top:0;left:0;right:0;height:var(--top-h);background:rgba(239,236,230,.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:0 14px;z-index:40}
+#topbar{position:fixed;top:0;left:0;right:0;height:var(--top-h);background:var(--bg);background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:0 14px;z-index:40}
 #topbar .tb-title{font-weight:700;font-size:17px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .brand{display:flex;align-items:center;gap:9px;font-weight:800;letter-spacing:.04em}
 .brand .bx{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;overflow:hidden}.brand .bx svg{width:100%;height:100%;display:block}
@@ -116,6 +127,23 @@ hr.sep{border:none;border-top:1px solid var(--line);margin:14px 0}
 .section-h h2{font-size:15.5px;font-weight:700}
 .section-h a{font-size:13px;font-weight:600;text-decoration:none;margin-left:auto}
 
+.bigbtns{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:6px 0 14px}
+.bigbtn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:30px 14px;border-radius:18px;border:2px solid var(--line);background:var(--card);cursor:pointer;font-size:18px;font-weight:800;color:var(--ink);box-shadow:var(--shadow);min-height:140px;text-align:center}
+.bigbtn svg{width:42px;height:42px;color:var(--saddle)}
+.bigbtn.sel{border-color:var(--saddle);background:var(--saddle-bg)}
+.bigbtn .sub{font-size:12px;font-weight:600;color:var(--muted)}
+.destbtns{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.destbtn{display:flex;flex-direction:column;align-items:center;gap:9px;padding:22px 12px;border-radius:16px;border:2px solid var(--line);background:var(--card);cursor:pointer;font-size:16px;font-weight:800;color:var(--ink)}
+.destbtn svg{width:32px;height:32px;color:var(--saddle)}
+.destbtn.on{border-color:var(--saddle);background:var(--saddle-bg);color:var(--saddle-dk)}
+.dcapture{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0}
+.dcapbtn{display:flex;flex-direction:column;align-items:center;gap:10px;padding:26px 12px;border-radius:16px;border:none;cursor:pointer;font-size:17px;font-weight:800;color:#fff}
+.dcapbtn svg{width:38px;height:38px}
+.dcapbtn.scan{background:var(--saddle)}
+.dcapbtn.photo{background:var(--brass)}
+.dline{display:flex;align-items:center;gap:11px;padding:11px;border:1px solid var(--line);border-radius:12px;background:var(--card);margin-bottom:8px}
+.dline img{width:46px;height:46px;border-radius:9px;object-fit:cover;flex:0 0 auto}
+.dline .ph{width:46px;height:46px;border-radius:9px;background:var(--saddle-bg);color:var(--saddle);display:grid;place-items:center;flex:0 0 auto}
 /* quick actions */
 .quick{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 @media(min-width:680px){.quick{grid-template-columns:repeat(6,1fr)}}
@@ -192,6 +220,22 @@ textarea.in{resize:vertical;min-height:70px}
 .irow .selbox{position:static;background:#EEEAE2;border-color:var(--line2);color:transparent;flex:0 0 auto}
 .irow.sel .selbox{background:var(--saddle);border-color:var(--saddle);color:#fff}
 .irow.sel .selbox svg{opacity:1}
+/* account menu */
+.tb-acct{position:relative;flex:0 0 auto}
+.tb-acct .av{width:34px;height:34px;border-radius:50%;background:var(--saddle);color:#fff;border:none;display:grid;place-items:center;font-weight:800;font-size:14px;cursor:pointer}
+.acctmenu{position:absolute;top:42px;right:0;width:240px;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-lg);padding:7px;z-index:60;display:none}
+.acctmenu.show{display:block}
+.acctmenu .who{padding:10px 11px 9px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.acctmenu .who .n{font-weight:800;font-size:14.5px;color:var(--ink)}
+.acctmenu .who .r{font-size:12px;color:var(--muted);margin-top:2px}
+.acctmenu button{display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:transparent;border:none;padding:11px 11px;border-radius:9px;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer}
+.acctmenu button:hover{background:var(--bg)}
+.acctmenu button svg{width:18px;height:18px;color:var(--muted);flex:0 0 auto}
+.acctmenu .sep{height:1px;background:var(--line);margin:6px 2px}
+.acctmenu .seg2{display:flex;gap:6px;padding:4px 4px 6px}
+.acctmenu .seg2 button{justify-content:center;border:1px solid var(--line);font-size:13px;padding:9px 8px}
+.acctmenu .seg2 button.on{background:var(--saddle);border-color:var(--saddle);color:#fff}
+.acctmenu .seg2 button.on svg{color:#fff}
 .crumbs{display:flex;align-items:center;gap:4px;font-size:13px;font-weight:600;color:var(--muted);overflow-x:auto;scrollbar-width:none;white-space:nowrap;padding:2px}
 .crumbs::-webkit-scrollbar{display:none}
 .crumbs a{text-decoration:none;color:var(--muted)}
@@ -236,7 +280,7 @@ table.t th{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:v
 table.t td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
 table.t tr:last-child td{border-bottom:none}
 table.t td.r,table.t th.r{text-align:right}
-table.t tfoot td{font-weight:800;background:#FAF8F4}
+table.t tfoot td{font-weight:800;background:color-mix(in srgb,var(--ink) 4%,var(--card))}
 
 /* ---------- modal / sheet ---------- */
 #ovl{position:fixed;inset:0;background:rgba(28,22,16,.45);z-index:60;display:none;align-items:flex-end;justify-content:center}
@@ -324,6 +368,7 @@ body.printing #printArea{display:block;padding:8mm}
     <div class="brand"><span class="bx"><svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#8A5226"/><circle cx="32" cy="17.5" r="4" fill="#E8B04B"/><path d="M19 28h26v17a3 3 0 0 1-3 3H22a3 3 0 0 1-3-3z" fill="none" stroke="#F4E9D8" stroke-width="3.4" stroke-linejoin="round"/><path d="M19 28l-5.5-6.5M45 28l5.5-6.5" fill="none" stroke="#F4E9D8" stroke-width="3.4" stroke-linecap="round"/><path d="M32 33v9" stroke="#F4E9D8" stroke-width="3.4" stroke-linecap="round"/></svg></span><span>INVENTO<small>by Trishal</small></span></div>
     <a href="#home" data-nav="home" id="sn-home"></a>
     <a href="#stock" data-nav="stock" id="sn-stock"></a>
+    <a href="#dispatch" data-nav="dispatch" id="sn-dispatch"></a>
     <a href="#scan" data-nav="scan" id="sn-scan"></a>
     <a href="#flows" data-nav="flows" id="sn-flows"></a>
     <a href="#labels" data-nav="labels" id="sn-labels"></a>
@@ -337,7 +382,7 @@ body.printing #printArea{display:block;padding:8mm}
   <a href="#home" data-nav="home" id="bn-home"></a>
   <a href="#stock" data-nav="stock" id="bn-stock"></a>
   <a href="#scan" data-nav="scan" class="scan-btn" id="bn-scan" aria-label="Scan"></a>
-  <a href="#flows" data-nav="flows" id="bn-flows"></a>
+  <a href="#dispatch" data-nav="dispatch" id="bn-dispatch"></a>
   <a href="#more" data-nav="more" id="bn-more"></a>
 </nav>
 <div id="bulkbar"></div>
@@ -363,6 +408,14 @@ const IC = {
   folder:'<path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4l2 2.5h9A1.5 1.5 0 0 1 21 9v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18z"/>',
   scan:'<path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8"/><path d="M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8"/><path d="M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16"/><path d="M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16"/><path d="M4 12h16"/>',
   flows:'<path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><path d="M4 6h.01"/><path d="M4 12h.01"/><path d="M4 18h.01"/><circle cx="4" cy="6" r="1.2"/><circle cx="4" cy="12" r="1.2"/><circle cx="4" cy="18" r="1.2"/>',
+lock:'<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>',
+moon:'<path d="M20 14.5A8 8 0 1 1 9.5 4a6 6 0 0 0 10.5 10.5z"/>',
+logout:'<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5"/><path d="M5 12h12"/>',
+truck:'<path d="M3 6h11v9H3z"/><path d="M14 9h4l3 3v3h-7z"/><circle cx="7" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/>',
+plane:'<path d="M21 15.5 13 11V5a1.5 1.5 0 0 0-3 0v6l-8 4.5V18l8-2.5V20l-2 1.5V23l3.5-1 3.5 1v-1.5L13 20v-4.5l8 2.5z"/>',
+send:'<path d="M22 2 11 13"/><path d="M22 2l-7 20-4-9-9-4z"/>',
+trend:'<path d="M3 17l6-6 4 4 7-7"/><path d="M17 8h4v4"/>',
   more:'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
   plus:'<path d="M12 5v14"/><path d="M5 12h14"/>',
   minus:'<path d="M5 12h14"/>',
@@ -463,10 +516,20 @@ const MAINFRAME_ID='trishal';
 let myProfile=null;
 const isAdminU=()=>MODE!=='cloud'||(myProfile&&(myProfile.role==='admin'||myProfile.role==='mainframe'));
 const isMF=()=>MODE==='cloud'&&myProfile&&myProfile.role==='mainframe';
+const PERM_KEYS=['additem','delitem','adjqty','editloc','trash','export','dispatch'];
+const PERM_LABELS={additem:'Add & edit items',delitem:'Delete items (to trash)',adjqty:'Add / remove stock quantity',editloc:'Create & edit locations',trash:'Restore & permanently delete',export:'Export / download data',dispatch:'Create dispatches (send orders out)'};
+const PERM_DEFAULT={additem:true,delitem:true,adjqty:true,editloc:true,trash:true,export:true,dispatch:true};
+const PERM_HINT={additem:'Create new items and edit existing ones (name, price, SKU, photo).',delitem:'Send items to Trash. Turn off to prevent accidental removals.',adjqty:'The daily floor job — add received stock, remove sold/damaged with a reason.',editloc:'Create, rename or delete locations.',trash:'Restore items from Trash or delete them permanently.',export:'Download CSV, backups, and use Import.',dispatch:'Open Dispatch, scan/photograph and send orders out (reduces stock).'};
+function can(act){
+  if(MODE!=='cloud')return true;            // trial mode = full access
+  if(isAdminU())return true;                 // admin & mainframe = always allowed
+  const p=(S.meta&&S.meta.perms)||PERM_DEFAULT;
+  return p[act]!==false;                      // regular user: governed by toggle (default allow)
+}
 const cap1=s=>{s=String(s||'');return s?s.charAt(0).toUpperCase()+s.slice(1):s};
 const shadows={};
 const dirty={};
-const SYNC_COLS=['items','folders','lists','pos','trash'];
+const SYNC_COLS=['items','folders','lists','pos','trash','dispatches'];
 
 function getSavedCfg(){
   if(FB_CONFIG && FB_CONFIG.projectId) return FB_CONFIG;
@@ -529,8 +592,8 @@ const store={
 };
 
 /* ---------- app state ---------- */
-const DEFAULT_META=()=>({company:'',user:'',currency:'$',lowDefault:5,view:'grid',sort:'updated',seq:{pl:0,po:0},setup:{},locTerm:'Location',locTermPlural:''});
-const S={meta:DEFAULT_META(),folders:[],items:[],txns:[],lists:[],pos:[],trash:[]};
+const DEFAULT_META=()=>({company:'',user:'',currency:'$',lowDefault:5,view:'grid',sort:'updated',seq:{pl:0,po:0,ds:0},setup:{},locTerm:'Location',locTermPlural:'',perms:{additem:true,delitem:true,adjqty:true,editloc:true,trash:true,export:true,dispatch:true}});
+const S={meta:DEFAULT_META(),folders:[],items:[],txns:[],lists:[],pos:[],trash:[],dispatches:[]};
 const UNITS=['unit','pcs','pair','set','box','pack','roll','sq.ft','sq.m','m','cm','ft','kg','g','L','ml','dozen'];
 
 function clean(o){const c=JSON.parse(JSON.stringify(o));Object.keys(c).forEach(k=>{if(k[0]==='_')delete c[k]});return c}
@@ -679,6 +742,7 @@ async function initCloud(cfg){
   wireCol('folders',db.collection('folders').orderBy('createdAt'),s=>mergeCol('folders',s.docs));
   wireCol('lists',db.collection('lists'),s=>mergeCol('lists',s.docs));
   wireCol('pos',db.collection('pos'),s=>mergeCol('pos',s.docs));
+  wireCol('dispatches',db.collection('dispatches').orderBy('ts','desc').limit(800),s=>mergeCol('dispatches',s.docs));
   wireCol('trash',db.collection('trash').orderBy('deletedAt','desc'),s=>mergeCol('trash',s.docs));
   wireCol('txns',db.collection('txns').where('ts','>=',Date.now()-30*86400000).orderBy('ts','desc').limit(1500),s=>{S.txns=s.docs.map(d=>{const x=d.data();x.id=d.id;return x})});
   wireCol('meta',db.collection('meta').doc('app'),s=>{
@@ -706,9 +770,9 @@ async function purgeOldTxns(){
 }
 async function loadLocal(){
   MODE='local';
-  const [m,f,i,t,l,p,tr]=await Promise.all([store.get('meta'),store.get('folders'),store.get('items'),store.get('txns'),store.get('lists'),store.get('pos'),store.get('trash')]);
+  const [m,f,i,t,l,p,tr,dp]=await Promise.all([store.get('meta'),store.get('folders'),store.get('items'),store.get('txns'),store.get('lists'),store.get('pos'),store.get('trash'),store.get('dispatches')]);
   S.meta=Object.assign(DEFAULT_META(),m||{});fixCurrency();
-  S.folders=f||[];S.items=i||[];S.txns=t||[];S.lists=l||[];S.pos=p||[];S.trash=tr||[];
+  S.folders=f||[];S.items=i||[];S.txns=t||[];S.lists=l||[];S.pos=p||[];S.trash=tr||[];S.dispatches=dp||[];
 }
 async function loadAll(){
   if(!CLOUD_ENABLED){await loadLocal();return 'local'}
@@ -785,22 +849,61 @@ async function loadSample(){
 /* ============================================================
    ROUTER + NAV
    ============================================================ */
-const NAV=[['home','Home','home'],['stock','Stock','box'],['scan','Scan','scan'],['flows','Workflows','flows'],['labels','Labels','label'],['reports','Reports','report'],['more','More','more']];
+const NAV=[['home','Home','home'],['stock','Stock','box'],['dispatch','Dispatch','truck'],['scan','Scan','scan'],['flows','Workflows','flows'],['labels','Labels','label'],['reports','Reports','report'],['more','More','more']];
 function paintNav(){
   NAV.forEach(([k,label,icon])=>{
     const sn=$('#sn-'+k);if(sn)sn.innerHTML=ico(icon)+'<span>'+label+'</span>'+(k==='home'?'<span class="navbadge" id="sbadge" style="display:none"></span>':'');
   });
-  [['home','Home','home'],['stock','Stock','box'],['flows','Lists','flows'],['more','More','more']].forEach(([k,label,icon])=>{
+  [['home','Home','home'],['stock','Stock','box'],['dispatch','Dispatch','truck'],['more','More','more']].forEach(([k,label,icon])=>{
     const bn=$('#bn-'+k);if(bn)bn.innerHTML=ico(icon)+'<span>'+label+'</span>'+(k==='home'?'<span class="navbadge" id="bbadge" style="display:none"></span>':'');
   });
   $('#bn-scan').innerHTML='<span class="ring">'+ico('scan')+'</span>';
 }
 function updateBadges(){const n=lowItems().length;['#sbadge','#bbadge'].forEach(s=>{const el=$(s);if(el){el.style.display=n?'grid':'none';el.textContent=n}})}
 function setActiveNav(key){$$('#side a,#bottomnav a').forEach(a=>a.classList.toggle('on',a.dataset.nav===key))}
-function topbar(html){$('#topbar').innerHTML=html}
+function getTheme(){try{return localStorage.getItem('invento_theme')||'light'}catch(e){return 'light'}}
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t==='dark'?'dark':'light');
+  const m=document.querySelector('meta[name=theme-color]');if(m)m.setAttribute('content',t==='dark'?'#17130F':'#221C15');
+  try{localStorage.setItem('invento_theme',t)}catch(e){}
+}
+function toggleTheme(){applyTheme(getTheme()==='dark'?'light':'dark');refreshAcctMenu()}
+function acctInitial(){const n=userName()||'U';return n.charAt(0).toUpperCase()}
+function roleLabel(){
+  if(MODE!=='cloud')return 'Single-device mode';
+  if(myProfile&&myProfile.role==='mainframe')return 'Mainframe owner';
+  if(myProfile&&myProfile.role==='admin')return 'Admin';
+  return 'Team member';
+}
+function signedIn(){return MODE!=='cloud'?bootDone:(!!fbUser && !!myProfile && myProfile.status==='active' && bootDone)}
+function acctButtonHTML(){
+  if(!signedIn())return '<button class="icobtn ghost right" id="theme-only" aria-label="Theme">'+ico(getTheme()==='dark'?'sun':'moon')+'</button>';
+  return '<div class="tb-acct right"><button class="av" id="acct-btn" aria-label="Account">'+acctInitial()+'</button><div class="acctmenu" id="acct-menu"></div></div>';
+}
+function refreshAcctMenu(){
+  const m=$('#acct-menu');if(!m)return;
+  const th=getTheme();
+  let h='<div class="who"><div class="n">'+esc(userName())+'</div><div class="r">'+esc(roleLabel())+'</div></div>';
+  h+='<div class="seg2"><button data-th="light" class="'+(th!=='dark'?'on':'')+'">'+ico('sun')+'Light</button><button data-th="dark" class="'+(th==='dark'?'on':'')+'">'+ico('moon')+'Dark</button></div>';
+  h+='<div class="sep"></div>';
+  h+='<button id="acct-settings">'+ico('gear')+'Settings</button>';
+  if(MODE==='cloud')h+='<button id="acct-signout">'+ico('logout')+'Sign out</button>';
+  m.innerHTML=h;
+  $$('#acct-menu [data-th]').forEach(b=>b.onclick=()=>{applyTheme(b.dataset.th);refreshAcctMenu()});
+  const st=$('#acct-settings');if(st)st.onclick=()=>{closeAcct();go('#more')};
+  const so=$('#acct-signout');if(so)so.onclick=async()=>{closeAcct();const ok=await confirmDlg('Sign out?','You will need your user ID and password to sign back in.','Sign out');if(!ok)return;try{await firebase.auth().signOut()}catch(e){};location.reload()};
+}
+function closeAcct(){const m=$('#acct-menu');if(m)m.classList.remove('show')}
+function wireAcct(){
+  const t=$('#theme-only');if(t)t.onclick=()=>{toggleTheme();const t2=$('#theme-only');if(t2)t2.innerHTML=ico(getTheme()==='dark'?'sun':'moon')};
+  const b=$('#acct-btn');if(!b)return;
+  b.onclick=e=>{e.stopPropagation();const m=$('#acct-menu');const open=m.classList.contains('show');closeAcct();if(!open){refreshAcctMenu();m.classList.add('show')}};
+}
+document.addEventListener('click',e=>{if(!e.target.closest('.tb-acct'))closeAcct()});
+function topbar(html){$('#topbar').innerHTML=html;wireAcct()}
 function topTitle(title,backHash,extra){
   topbar((backHash?'<a class="icobtn ghost" href="'+backHash+'" aria-label="Back">'+ico('back')+'</a>':'<div class="brand"><span class="bx">'+LOGO+'</span></div>')+
-  '<div class="tb-title">'+esc(title)+'</div>'+(extra||''));
+  '<div class="tb-title">'+esc(title)+'</div>'+(extra||'')+acctButtonHTML());
 }
 
 let scannerStop=null; // active camera teardown
@@ -816,7 +919,7 @@ function route(){
   const h=(location.hash||'#home').slice(1);
   const [p,a,b]=h.split('/');
   const main=$('#main');main.scrollTop=0;window.scrollTo(0,0);
-  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers};
+  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null)};
   setActiveNav(p==='item'||p==='edit'||p==='folders'?'stock':(p==='list'||p==='po'?'flows':(p==='trash'||p==='import'?'more':p)));
   (map[p]||vHome)();
   updateBadges();
@@ -826,12 +929,12 @@ function route(){
    HOME / DASHBOARD
    ============================================================ */
 function vHome(){
-  topbar('<div class="brand"><span class="bx">'+LOGO+'</span><span style="font-size:15px">INVENTO<small>'+esc(S.meta.company||'by Trishal')+'</small></span></div><a class="icobtn ghost right" href="#more" aria-label="Settings">'+ico('gear')+'</a>');
+  topbar('<div class="brand"><span class="bx">'+LOGO+'</span><span style="font-size:15px">INVENTO<small>'+esc(S.meta.company||'by Trishal')+'</small></span></div>'+acctButtonHTML());
   const st=deepStats(null);const low=lowItems();
   const fresh=S.items.length===0&&S.folders.length===0;
   let h='';
   if(fresh){
-    h+='<div class="welcome"><div class="eyebrow" style="color:#C9A86C">Welcome</div><h2>Set up Invento</h2><p>Track items, locations, quantities and labels — built for the workshop floor. Start clean, import a spreadsheet, or try it with sample leather-goods data.</p><div class="row wrap"><button class="btn dark" style="background:#F4E9D8;color:#3A2A18;border-color:#F4E9D8" data-act="newitem">'+ico('plus')+'Add first item</button><a class="btn" style="background:transparent;color:#F4E9D8;border-color:rgba(244,233,216,.5)" href="#import">Import CSV</a><button class="btn" style="background:transparent;color:#F4E9D8;border-color:rgba(244,233,216,.5)" id="loadSample">Load sample data</button></div></div>';
+    h+='<div class="welcome"><div class="eyebrow" style="color:#C9A86C">Welcome</div><h2>Set up Invento</h2><p>Track items, locations, quantities and labels — built for the workshop floor. Start clean, import a spreadsheet, or try it with sample leather-goods data.</p><div class="row wrap">'+(can('additem')?'<button class="btn dark" style="background:#F4E9D8;color:#3A2A18;border-color:#F4E9D8" data-act="newitem">'+ico('plus')+'Add first item</button>':'')+(can('export')?'<a class="btn" style="background:transparent;color:#F4E9D8;border-color:rgba(244,233,216,.5)" href="#import">Import CSV</a>':'')+'<button class="btn" style="background:transparent;color:#F4E9D8;border-color:rgba(244,233,216,.5)" id="loadSample">Load sample data</button></div></div>';
   }
   h+='<div class="stats">'+
     '<a href="#stock" class="stat" style="text-decoration:none;color:inherit"><div class="eyebrow">Items</div><div class="v num">'+st.count+'</div></a>'+
@@ -839,10 +942,10 @@ function vHome(){
     '<div class="stat"><div class="eyebrow">Stock value</div><div class="v num">'+fmtMoney(st.value,0)+'</div></div>'+
     '<a href="#reports/low" class="stat'+(low.length?' alert':'')+'" style="text-decoration:none;color:inherit"><div class="eyebrow">Low stock</div><div class="v num">'+low.length+'</div></a></div>';
   h+='<div class="section-h"><h2>Quick actions</h2></div><div class="quick">'+
-    '<button data-act="newitem">'+ico('plus')+'Add item</button>'+
-    '<button data-act="newfolder">'+ico('folder')+'Add folder</button>'+
+    (can('additem')?'<button data-act="newitem">'+ico('plus')+'Add item</button>':'')+
+    (can('editloc')?'<button data-act="newfolder">'+ico('folder')+'Add '+locL()+'</button>':'')+
     '<button onclick="location.hash=\'#scan\'">'+ico('scan')+'Scan</button>'+
-    '<button onclick="location.hash=\'#import\'">'+ico('up')+'Import</button>'+
+    (can('export')?'<button onclick="location.hash=\'#import\'">'+ico('up')+'Import</button>':'')+
     '<button data-act="newlist">'+ico('pick')+'Pick list</button>'+
     '<button onclick="location.hash=\'#labels\'">'+ico('label')+'Labels</button></div>';
   if(low.length){
@@ -900,8 +1003,8 @@ function vStock(fid){
   fid=fid&&fById(fid)?fid:null;
   const f=fById(fid);
   topTitle(f?f.name:'Stock',f?('#stock'+(f.parent?'/'+f.parent:'')):null,
-    '<button class="icobtn ghost" data-act="newfolder" data-parent="'+(fid||'')+'" aria-label="New folder">'+ico('folder')+'</button>'+
-    '<button class="icobtn" data-act="newitem" data-folder="'+(fid||'')+'" aria-label="Add item" style="background:var(--saddle);border-color:var(--saddle);color:#fff">'+ico('plus')+'</button>');
+    (can('editloc')?'<button class="icobtn ghost" data-act="newfolder" data-parent="'+(fid||'')+'" aria-label="New location">'+ico('folder')+'</button>':'')+
+    (can('additem')?'<button class="icobtn" data-act="newitem" data-folder="'+(fid||'')+'" aria-label="Add item" style="background:var(--saddle);border-color:var(--saddle);color:#fff">'+ico('plus')+'</button>':''));
   const subs=childFolders(fid);
   let pool,searching=view.q.trim().length>0;
   if(searching){pool=S.items.filter(i=>matches(i,view.q.trim()))}
@@ -933,13 +1036,13 @@ function vStock(fid){
   h+='<div class="row mb small muted"><span class="num">'+(searching?pool.length+' result'+(pool.length===1?'':'s'):st.count+' items · '+fmtMoney(st.value,0)+(f?' in this folder':''))+'</span><button class="btn sm ghost right" id="selToggle">'+(view.selectMode?'Done':'Select')+'</button></div>';
   // items
   if(pool.length===0&&(searching||!subs.length)){
-    h+='<div class="empty">'+ico('box')+'<div class="t">'+(searching?'Nothing found':'No items here yet')+'</div><div class="s">'+(searching?'Try a different name, SKU or tag.':'Add your first item or import a CSV to get going.')+'</div>'+(!searching?'<div class="row" style="justify-content:center"><button class="btn pri" data-act="newitem" data-folder="'+(fid||'')+'">'+ico('plus')+'Add item</button><a class="btn" href="#import">Import CSV</a></div>':'')+'</div>';
+    h+='<div class="empty">'+ico('box')+'<div class="t">'+(searching?'Nothing found':'No items here yet')+'</div><div class="s">'+(searching?'Try a different name, SKU or tag.':'Add your first item or import a CSV to get going.')+'</div>'+(!searching&&can('additem')?'<div class="row" style="justify-content:center"><button class="btn pri" data-act="newitem" data-folder="'+(fid||'')+'">'+ico('plus')+'Add item</button>'+(can('export')?'<a class="btn" href="#import">Import CSV</a>':'')+'</div>':'')+'</div>';
   } else if(S.meta.view==='grid'){
     h+='<div class="igrid">'+pool.map(cardHTML).join('')+'</div>';
   } else {
     h+='<div class="ilist">'+pool.map(i=>rowHTML(i,{selectable:true})).join('')+'</div>';
   }
-  if(f){h+='<div class="row mt"><button class="btn sm" data-act="renfolder" data-id="'+f.id+'">'+ico('edit')+'Rename folder</button>'+(isAdminU()?'<button class="btn sm danger" data-act="delfolder" data-id="'+f.id+'">'+ico('trash')+'Delete folder</button>':'')+'</div>'}
+  if(f&&can('editloc')){h+='<div class="row mt"><button class="btn sm" data-act="renfolder" data-id="'+f.id+'">'+ico('edit')+'Rename '+locL()+'</button>'+(can('editloc')?'<button class="btn sm danger" data-act="delfolder" data-id="'+f.id+'">'+ico('trash')+'Delete '+locL()+'</button>':'')+'</div>'}
   $('#main').innerHTML=h;
   // wire
   const q=$('#q');q.oninput=()=>{view.q=q.value;rerenderStockBody(fid)};
@@ -984,7 +1087,7 @@ function renderBulk(){
     '<button data-b="tag">'+ico('tag')+'Tag</button>'+
     '<button data-b="label">'+ico('label')+'Labels</button>'+
     '<button data-b="csv">'+ico('down')+'CSV</button>'+
-    (isAdminU()?'<button data-b="del">'+ico('trash')+'Delete</button>':'')+
+    (can('delitem')?'<button data-b="del">'+ico('trash')+'Delete</button>':'')+
     '<button data-b="x">'+ico('x')+'Clear</button>';
   $$('#bulkbar [data-b]').forEach(b=>b.onclick=()=>bulkAct(b.dataset.b));
 }
@@ -993,7 +1096,7 @@ async function bulkAct(k){
   if(k==='x'){view.sel.clear();renderBulk();route();return}
   if(k==='move'){moveDlg(its);return}
   if(k==='label'){sessionStorage.setItem('lblsel',JSON.stringify(ids));go('#labels');return}
-  if(k==='csv'){exportItemsCSV(its);return}
+  if(k==='csv'){if(!can('export')){toast('You do not have permission to export','err');return}exportItemsCSV(its);return}
   if(k==='tag'){openModal('<h3>Add tag to '+its.length+' items</h3><div class="field"><input class="in" id="bt" placeholder="e.g. sale, export, b-grade" list="tagsdl"><datalist id="tagsdl">'+allTags().map(t=>'<option value="'+esc(t)+'">').join('')+'</datalist></div><button class="btn pri block" id="btgo">Add tag</button>');
     $('#btgo').onclick=()=>{const t=$('#bt').value.trim();if(!t)return;its.forEach(i=>{i.tags=i.tags||[];if(!i.tags.includes(t))i.tags.push(t);i.updatedAt=Date.now()});save('items');logTx('edited',{detail:'Tag "'+t+'" added to '+its.length+' items'});closeModal();toast('Tag added','ok');route()};return}
   if(k==='del'){const ok=await confirmDlg('Delete '+its.length+' items?','They move to Trash and can be restored from More → Trash.','Delete',true);if(!ok)return;
@@ -1009,7 +1112,7 @@ async function setPhotos(id,arr){if(arr&&arr.length)await store.set('p:'+id,arr)
 function vItem(id){
   const i=iById(id);
   if(!i){toast('Item not found','err');go('#stock');return}
-  topTitle(i.name,'#stock'+(i.folder?'/'+i.folder:''),'<button class="icobtn ghost" data-act="edititem" data-id="'+i.id+'" aria-label="Edit">'+ico('edit')+'</button>');
+  topTitle(i.name,'#stock'+(i.folder?'/'+i.folder:''),can('additem')?'<button class="icobtn ghost" data-act="edititem" data-id="'+i.id+'" aria-label="Edit">'+ico('edit')+'</button>':'');
   const low=isLow(i);
   let h='';
   h+='<div class="gallery mb" id="gal"><div class="g">'+(i.thumb?'<img src="'+i.thumb+'" alt="">':ico('photo'))+'</div></div>';
@@ -1018,10 +1121,10 @@ function vItem(id){
   h+='<div class="card pad mb"><div class="eyebrow" style="margin-bottom:7px">Quantity on hand</div>'+
     '<div class="row" style="justify-content:space-between;align-items:baseline"><div class="num" id="qbig" style="font-size:34px;font-weight:800;letter-spacing:-.01em">'+fmtQty(i.qty)+'<span class="muted" style="font-size:15px;font-weight:600"> '+esc(i.unit||'')+'</span></div><span class="num muted" id="qval" style="font-size:13px">Value '+fmtMoney(itemValue(i))+'</span></div>'+
     (i.min!==''&&i.min!=null?'<div class="small muted" style="margin-top:2px">Low-stock alert at '+fmtQty(i.min)+'</div>':'')+
-    '<div class="row mt" style="gap:8px;flex-wrap:wrap"><div class="stepper" style="max-width:150px;flex:0 0 auto"><button id="adj-m" aria-label="Less">−</button><input id="adj-n" class="num" inputmode="decimal" value="1"><button id="adj-p" aria-label="More">+</button></div>'+
-    '<select class="in" id="adj-r" style="flex:1;min-width:120px;padding:9px 10px">'+ADJ_REASONS.map(r=>'<option>'+r+'</option>').join('')+'</select></div>'+
-    '<div class="row mt" style="gap:8px"><button class="btn grow danger" id="adj-out" style="font-weight:800">− Remove</button><button class="btn grow pri" id="adj-in" style="font-weight:800">+ Add</button></div>'+
-    '<div class="hint" style="margin-top:7px">Stock only moves by adding or removing — every change lands in the movement history with its reason.</div></div>';
+    (can('adjqty')?'<div class="row mt" style="gap:8px;flex-wrap:wrap"><div class="stepper" style="max-width:150px;flex:0 0 auto"><button id="adj-m" aria-label="Less">−</button><input id="adj-n" class="num" inputmode="decimal" value="1"><button id="adj-p" aria-label="More">+</button></div>'+
+    '<select class="in" id="adj-r" style="flex:1;min-width:120px;padding:9px 10px">'+ADJ_REASONS.map(r=>'<option>'+r+'</option>').join('')+'</select></div>':'')+
+    (can('adjqty')?'<div class="row mt" style="gap:8px"><button class="btn grow danger" id="adj-out" style="font-weight:800">− Remove</button><button class="btn grow pri" id="adj-in" style="font-weight:800">+ Add</button></div>'+
+    '<div class="hint" style="margin-top:7px">Stock only moves by adding or removing — every change lands in the movement history with its reason.</div>':'<div class="hint" style="margin-top:7px">You do not have permission to change stock quantity.</div>')+'</div>';
   h+='<div class="actgrid mb">'+
     '<button class="btn" data-act="moveitem" data-id="'+i.id+'">'+ico('move')+'Move</button>'+
     '<button class="btn" data-act="cloneitem" data-id="'+i.id+'">'+ico('copy')+'Clone</button>'+
@@ -1040,14 +1143,14 @@ function vItem(id){
   const hist=S.txns.filter(t=>t.itemId===i.id).slice(0,15);
   h+='<div class="section-h"><h2>History</h2></div>';
   h+=hist.length?'<div class="card" style="padding:4px 14px"><div class="hist">'+hist.map(txHTML).join('')+'</div></div>':'<div class="sub">No history yet.</div>';
-  if(isAdminU())h+='<button class="btn danger block mt" data-act="delitem" data-id="'+i.id+'">'+ico('trash')+'Move to trash</button>';
+  if(can('delitem'))h+='<button class="btn danger block mt" data-act="delitem" data-id="'+i.id+'">'+ico('trash')+'Move to trash</button>';
   $('#main').innerHTML=h;
   // photos
   getPhotos(i.id).then(ps=>{if(!ps.length)return;const g=$('#gal');if(!g)return;g.innerHTML=ps.map(p=>'<div class="g"><img src="'+p+'" alt=""></div>').join('')});
   // qty controls — delta only
   const an=$('#adj-n');
-  $('#adj-m').onclick=()=>{an.value=fmtQty(Math.max(1,round4((parseFloat(an.value)||1)-1)))};
-  $('#adj-p').onclick=()=>{an.value=fmtQty(round4((parseFloat(an.value)||0)+1))};
+  if($('#adj-m'))$('#adj-m').onclick=()=>{an.value=fmtQty(Math.max(1,round4((parseFloat(an.value)||1)-1)))};
+  if($('#adj-p'))$('#adj-p').onclick=()=>{an.value=fmtQty(round4((parseFloat(an.value)||0)+1))};
   const adj=dir=>{
     let n=round4(parseFloat(an.value));
     if(!(n>0)){toast('Enter how many to '+(dir>0?'add':'remove'),'err');return}
@@ -1061,8 +1164,8 @@ function vItem(id){
     an.value='1';updateBadges();beep(true);
     toast((dir>0?'Added ':'Removed ')+fmtQty(n)+' — now '+fmtQty(nv),'ok');
   };
-  $('#adj-out').onclick=()=>adj(-1);
-  $('#adj-in').onclick=()=>adj(1);
+  if($('#adj-out'))$('#adj-out').onclick=()=>adj(-1);
+  if($('#adj-in'))$('#adj-in').onclick=()=>adj(1);
 }
 
 /* ============================================================
@@ -1105,6 +1208,7 @@ function vEdit(id,folderArg){
   const draft=sessionStorage.getItem('draft');const scanned=sessionStorage.getItem('scannedcode');
   if(draft&&scanned!=null){try{const d=JSON.parse(draft);$('#f-name').value=d.name;$('#f-qty').value=d.qty;$('#f-unit').value=d.unit;$('#f-folder').value=d.folder||'';$('#f-price').value=d.price;$('#f-cost').value=d.cost;$('#f-sku').value=d.sku;$('#f-min').value=d.min;$('#f-tags').value=d.tags.join(', ');$('#f-notes').value=d.notes;$('#f-code').value=scanned||d.code}catch(e){}sessionStorage.removeItem('draft');sessionStorage.removeItem('scannedcode')}
   $('#f-save').onclick=async()=>{
+    if(!can('additem')){toast('You do not have permission to save items','err');return}
     const d=readForm();
     if(!d.name){toast('Name is required','err');$('#f-name').focus();return}
     if(!d.code&&d.sku)d.code=d.sku;
@@ -1473,6 +1577,42 @@ function vFlows(tab){
 }
 
 /* ---------- pick lists ---------- */
+/* ============================================================
+   DISPATCH — helpers
+   ============================================================ */
+async function nextDispatchNo(){
+  const n=await nextSeq('ds');
+  return 'DSP-'+String(n).padStart(4,'0');
+}
+// sales velocity: units dispatched per day over last N days, per item
+function salesStats(days){
+  const since=Date.now()-(days||30)*86400000;
+  const m={};
+  (S.dispatches||[]).forEach(d=>{
+    if(d.ts<since)return;
+    (d.lines||[]).forEach(ln=>{
+      if(!ln.itemId)return;
+      const e=m[ln.itemId]||(m[ln.itemId]={itemId:ln.itemId,name:ln.name||'',qty:0,orders:0,intl:0,dom:0});
+      const q=+ln.qty||0;e.qty+=q;e.orders++;
+      if(d.dest==='intl')e.intl+=q;else e.dom+=q;
+    });
+  });
+  const arr=Object.values(m).map(e=>{
+    const it=iById(e.itemId);
+    const perDay=e.qty/(days||30);
+    const stock=it?(+it.qty||0):0;
+    const daysLeft=perDay>0?stock/perDay:Infinity;
+    return Object.assign(e,{stock:stock,perDay:perDay,daysLeft:daysLeft,unit:it?it.unit:'',exists:!!it});
+  });
+  return arr;
+}
+function dispatchTotals(days){
+  const since=Date.now()-(days||30)*86400000;
+  let orders=0,units=0,intl=0,dom=0;
+  (S.dispatches||[]).forEach(d=>{if(d.ts<since)return;orders++;(d.lines||[]).forEach(l=>{const q=+l.qty||0;units+=q;if(d.dest==='intl')intl+=q;else dom+=q})});
+  return {orders,units,intl,dom};
+}
+
 async function createList(name){
   const n=await nextSeq('pl');
   const l={id:uid('l'),name:name||('Pick list PL-'+String(n).padStart(4,'0')),status:'draft',items:[],notes:'',createdAt:Date.now(),updatedAt:Date.now()};
@@ -1855,6 +1995,7 @@ function vReports(r){
    IMPORT (CSV)
    ============================================================ */
 function vImport(){
+  if(!can('export')){toast('You do not have permission to import','err');go('#more');return}
   topTitle('Import CSV','#more');
   $('#main').innerHTML='<h1 class="page">Import items from CSV</h1>'+
     '<div class="card pad mb"><p class="sub" style="margin-bottom:10px">Minimum columns: <b>Name</b> and <b>Quantity</b>. Also understood: '+locTerm()+', Unit, Price, Cost (USD), Min, SKU, Barcode, Tags, Notes. Headers are matched automatically — export from Excel or Sheets as CSV.</p>'+
@@ -1958,11 +2099,13 @@ function vImport(){
 function vMore(){
   topTitle('More','#home');
   let h='<h1 class="page">More</h1>';
+  const rows=[['#folders',ico('folder'),'Manage '+locLP(),'Rename, nest, organise '+locLP()]];
+  if(can('export'))rows.push(['#import',ico('csv'),'Import CSV','Bring items in from Excel / Sheets']);
+  rows.push(['#trash',ico('trash'),'Trash','Restore deleted items ('+S.trash.length+')']);
+  if(MODE==='cloud'&&isAdminU())rows.push(['#users',ico('flows'),'Team members','Approve, revoke, promote accounts']);
+  if(MODE==='cloud'&&isAdminU())rows.push(['#perms',ico('lock'),'Permissions','Choose what regular users can do']);
   h+='<div class="ilist mb">'+
-    [['#folders',ico('folder'),'Manage folders','Rename, nest, organise locations'],
-     ['#import',ico('csv'),'Import CSV','Bring items in from Excel / Sheets'],
-     ['#trash',ico('trash'),'Trash','Restore deleted items ('+S.trash.length+')']]
-    .concat(MODE==='cloud'&&isAdminU()?[['#users',ico('flows'),'Team members','Approve, revoke, promote accounts']]:[])
+    rows
     .map(x=>'<div class="irow" data-go="'+x[0]+'"><span class="th" style="background:var(--saddle-bg);color:var(--saddle)">'+x[1]+'</span><div class="grow"><div class="nm">'+x[2]+'</div><div class="meta">'+x[3]+'</div></div>'+ico('chev','muted')+'</div>').join('')+'</div>';
   h+='<div class="section-h"><h2>Settings</h2></div><div class="card pad mb">'+
     '<div class="field"><label>Company / shop name</label><input class="in" id="st-co" value="'+esc(S.meta.company)+'" placeholder="Classy Leather Bags" '+(isAdminU()?'':'disabled')+'></div>'+
@@ -1984,7 +2127,7 @@ function vMore(){
         :'<p class="sub" style="margin-bottom:10px">Single-device mode — data lives only in this browser. Connect Firebase to share live stock with your team.</p><button class="btn pri block" id="cl-cfg">'+ico('bolt')+'Set up team sync</button>'))+'</div>';
   h+='<div class="section-h"><h2>Backup</h2></div><div class="card pad mb">'+
     '<p class="sub" style="margin-bottom:10px">Your data lives in this app\u2019s storage. Take a JSON backup before clearing the browser or moving devices, and restore it anywhere.</p>'+
-    '<div class="row" style="gap:9px"><button class="btn grow" id="bk-out">'+ico('down')+'Download backup</button>'+(isAdminU()?'<button class="btn grow" id="bk-in">'+ico('up')+'Restore backup</button>':'')+'</div>'+
+    '<div class="row" style="gap:9px">'+(can('export')?'<button class="btn grow" id="bk-out">'+ico('down')+'Download backup</button>':'')+(isAdminU()?'<button class="btn grow" id="bk-in">'+ico('up')+'Restore backup</button>':'')+'</div>'+
     '<input type="file" id="bk-f" accept=".json,application/json" style="display:none">'+
     '<label class="row mt" style="gap:8px;font-size:13.5px"><input type="checkbox" id="bk-ph" checked> Include photos (bigger file)</label></div>';
   if(!S.items.length&&!S.folders.length)h+='<button class="btn block mb" id="st-sample">Load sample leather-goods data</button>';
@@ -2012,8 +2155,8 @@ function vMore(){
   };
   const cc=$('#cl-cfg');if(cc)cc.onclick=()=>{vSetup()};
   const co=$('#cl-out');if(co)co.onclick=async()=>{const ok=await confirmDlg('Sign out?','You will need the user ID and password to sign back in.','Sign out');if(!ok)return;try{await firebase.auth().signOut()}catch(e){};location.reload()};
-  $('#bk-out').onclick=async()=>{
-    const out={app:'invento',version:1,exportedAt:new Date().toISOString(),meta:S.meta,folders:S.folders,items:S.items,txns:S.txns,lists:S.lists,pos:S.pos,trash:S.trash,photos:{}};
+  if($('#bk-out'))$('#bk-out').onclick=async()=>{
+    const out={app:'invento',version:1,exportedAt:new Date().toISOString(),meta:S.meta,folders:S.folders,items:S.items,txns:S.txns,lists:S.lists,pos:S.pos,trash:S.trash,dispatches:S.dispatches,photos:{}};
     if($('#bk-ph').checked){
       const keys=await store.listPhotoKeys();
       for(const k of keys){const v=await store.get(k);if(v)out.photos[k]=v}
@@ -2031,9 +2174,9 @@ function vMore(){
         if(d.app!=='invento'&&d.app!=='godown')throw new Error('not a godown backup');
         const ok=await confirmDlg('Restore backup?','This replaces everything currently in the app with the backup from '+esc(d.exportedAt?fmtDate(Date.parse(d.exportedAt)):'unknown date')+'.','Replace & restore',true);
         if(!ok)return;
-        S.meta=Object.assign(DEFAULT_META(),d.meta||{});S.folders=d.folders||[];S.items=d.items||[];S.txns=d.txns||[];S.lists=d.lists||[];S.pos=d.pos||[];S.trash=d.trash||[];
+        S.meta=Object.assign(DEFAULT_META(),d.meta||{});S.folders=d.folders||[];S.items=d.items||[];S.txns=d.txns||[];S.lists=d.lists||[];S.pos=d.pos||[];S.trash=d.trash||[];S.dispatches=d.dispatches||[];
         S.txns.forEach(t=>{if(!t.id)t.id=uid('t')});
-        await Promise.all(['meta','folders','items','txns','lists','pos','trash'].map(saveNow));
+        await Promise.all(['meta','folders','items','txns','lists','pos','trash','dispatches'].map(saveNow));
         if(MODE==='cloud'&&S.txns.length){
           for(let i2=0;i2<S.txns.length;i2+=400){const b=db.batch();S.txns.slice(i2,i2+400).forEach(t=>b.set(db.collection('txns').doc(t.id),clean(t)));await b.commit()}
         }
@@ -2064,7 +2207,7 @@ function vMore(){
       const keys=await store.listPhotoKeys();
       for(const k of keys)await store.del(k);
       S.meta=DEFAULT_META();S.folders=[];S.items=[];S.txns=[];S.lists=[];S.pos=[];S.trash=[];
-      await Promise.all(['meta','folders','items','txns','lists','pos','trash'].map(saveNow));
+      await Promise.all(['meta','folders','items','txns','lists','pos','trash','dispatches'].map(saveNow));
     }
     toast('All data erased');paintNav();go('#home');
   };
@@ -2107,6 +2250,30 @@ function vTrash(){
    ============================================================ */
 const ROLE_PILL={mainframe:['Mainframe','info'],admin:['Admin','warn'],user:['User','gray']};
 const STAT_PILL={active:['Active','ok'],pending:['Pending','warn'],revoked:['Revoked','low']};
+function vPerms(){
+  if(MODE!=='cloud'||!isAdminU()){go('#more');return}
+  topTitle('Permissions','#more');
+  const p=Object.assign({},PERM_DEFAULT,(S.meta&&S.meta.perms)||{});
+  let h='<h1 class="page">Permissions</h1>';
+  h+='<div class="sub mb">These switches control what a <b>regular user</b> can do. Admins and the mainframe owner always have full access. Changes apply to everyone instantly.</div>';
+  h+='<div class="card pad mb">';
+  PERM_KEYS.forEach((k,ix)=>{
+    h+='<label class="row" style="gap:12px;align-items:flex-start;padding:11px 0;'+(ix?'border-top:1px solid var(--line)':'')+'">'+
+      '<input type="checkbox" data-pk="'+k+'" '+(p[k]!==false?'checked':'')+' style="width:20px;height:20px;flex:0 0 auto;margin-top:1px">'+
+      '<div class="grow"><div style="font-weight:700;font-size:14.5px">'+esc(PERM_LABELS[k])+'</div><div class="small muted">'+esc(PERM_HINT[k])+'</div></div></label>';
+  });
+  h+='</div>';
+  h+='<div class="hint mb">Tip: keep "Add / remove stock quantity" on for floor staff (that is the daily job), and switch off Delete and Locations so they cannot remove records by mistake.</div>';
+  h+='<button class="btn pri block" id="pm-save">'+ico('check')+'Save permissions</button>';
+  $('#main').innerHTML=h;
+  $('#pm-save').onclick=async()=>{
+    const np={};PERM_KEYS.forEach(k=>{np[k]=$('#main [data-pk="'+k+'"]').checked});
+    S.meta.perms=np;
+    await saveNow('meta');
+    logTx('list',{detail:'Updated user permissions'});
+    toast('Permissions saved','ok');
+  };
+}
 function vUsers(){
   if(MODE!=='cloud'||!isAdminU()){go('#more');return}
   topTitle('Team members','#more');
@@ -2155,28 +2322,282 @@ async function paintUsers(){
 }
 
 /* ============================================================
+   DISPATCH — views
+   ============================================================ */
+let dDraft=null; // {orderId, dest, lines:[{itemId?,name,qty,photo?,thumb?,code?}], ts}
+
+function vDispatch(sub,arg){
+  if(!can('dispatch')){toast('You do not have permission to dispatch','err');go('#home');return}
+  // hub
+  if(!sub){
+    topTitle('Dispatch','#home');
+    const t30=dispatchTotals(30);
+    let h='<h1 class="page">Dispatch</h1>';
+    h+='<div class="bigbtns">'+
+      '<button class="bigbtn" id="d-new">'+ico('send')+'<div>New dispatch</div><div class="sub">Scan or photograph items sent</div></button>'+
+      '<button class="bigbtn" onclick="location.hash=\'#dispatch/sales\'">'+ico('trend')+'<div>Sales & reorder</div><div class="sub">Best-sellers, what to restock</div></button>'+
+      '</div>';
+    h+='<div class="stats mb"><div class="stat"><div class="n num">'+t30.orders+'</div><div class="l">Orders · 30d</div></div><div class="stat"><div class="n num">'+fmtQty(t30.units)+'</div><div class="l">Units out</div></div><div class="stat"><div class="n num">'+fmtQty(t30.dom)+'</div><div class="l">Domestic</div></div><div class="stat"><div class="n num">'+fmtQty(t30.intl)+'</div><div class="l">International</div></div></div>';
+    h+='<div class="section-h"><h2>Recent dispatches</h2></div>';
+    const ds=(S.dispatches||[]).slice().sort((a,b)=>b.ts-a.ts).slice(0,30);
+    if(!ds.length)h+='<div class="empty">'+ico('truck')+'<div class="t">No dispatches yet</div><div class="s">Tap “New dispatch”, enter the order ID, and scan or photograph what you send. Each one is saved so you can repeat it later.</div></div>';
+    else{
+      h+='<div class="ilist">';
+      ds.forEach(d=>{
+        const units=sum(d.lines||[],l=>+l.qty||0);
+        h+='<div class="irow" data-dview="'+d.id+'"><span class="th" style="background:var(--saddle-bg);color:var(--saddle)">'+ico(d.dest==='intl'?'plane':'truck')+'</span>'+
+          '<div class="grow"><div class="nm ellip">'+esc(d.orderId||d.number)+'</div><div class="meta num">'+(d.lines||[]).length+' items · '+fmtQty(units)+' units · '+(d.dest==='intl'?'International':'Domestic')+' · '+ago(d.ts)+'</div></div>'+
+          ico('chev','muted')+'</div>';
+      });
+      h+='</div>';
+    }
+    $('#main').innerHTML=h;
+    $('#d-new').onclick=()=>startDispatch();
+    $$('#main [data-dview]').forEach(r=>r.onclick=()=>go('#dispatch/view/'+r.dataset.dview));
+    return;
+  }
+  if(sub==='sales'){return vDispatchSales();}
+  if(sub==='view'){return vDispatchView(arg);}
+  if(sub==='new'){return vDispatchNew();}
+  go('#dispatch');
+}
+
+function startDispatch(){
+  openModal('<h3>New dispatch</h3>'+
+    '<div class="field"><label>Order ID</label><input class="in" id="d-oid" placeholder="e.g. #1042, ETSY-558, AMZ-9921" autocomplete="off"></div>'+
+    '<label style="font-weight:700;font-size:13px;display:block;margin:4px 0 8px">Destination</label>'+
+    '<div class="destbtns mb"><button class="destbtn" data-dest="dom">'+ico('truck')+'Domestic</button><button class="destbtn" data-dest="intl">'+ico('plane')+'International</button></div>'+
+    '<button class="btn pri block" id="d-start" disabled>'+ico('send')+'Start dispatch</button>');
+  let dest=null;
+  $('#d-oid').focus();
+  const refresh=()=>{$('#d-start').disabled=!($('#d-oid').value.trim()&&dest)};
+  $('#d-oid').oninput=refresh;
+  $$('#modal [data-dest]').forEach(b=>b.onclick=()=>{dest=b.dataset.dest;$$('#modal [data-dest]').forEach(x=>x.classList.toggle('on',x===b));refresh()});
+  $('#d-start').onclick=()=>{
+    dDraft={orderId:$('#d-oid').value.trim(),dest:dest,lines:[],ts:Date.now()};
+    closeModal();go('#dispatch/new');
+  };
+}
+
+function vDispatchNew(){
+  if(!dDraft){go('#dispatch');return}
+  topTitle('Dispatch · '+dDraft.orderId,'#dispatch');
+  let h='<div class="row mb wrap"><h1 class="page" style="margin:0">'+esc(dDraft.orderId)+'</h1><span class="pill '+(dDraft.dest==='intl'?'info':'gray')+'">'+(dDraft.dest==='intl'?'International':'Domestic')+'</span></div>';
+  h+='<div class="dcapture"><button class="dcapbtn scan" id="d-scan">'+ico('scan')+'Scan SKU</button><button class="dcapbtn photo" id="d-photo">'+ico('camera')+'Take photo</button></div>';
+  h+='<input type="file" id="d-file" accept="image/*" capture="environment" style="display:none">';
+  h+='<div class="section-h"><h2>Items in this dispatch</h2><span class="num" style="font-weight:800">'+sum(dDraft.lines,l=>+l.qty||0)+'</span></div>';
+  h+='<div id="d-lines">'+dispatchLinesHTML()+'</div>';
+  h+='<div class="row wrap mt" style="gap:9px"><button class="btn grow" id="d-cancel">Cancel</button><button class="btn pri grow" id="d-save" '+(dDraft.lines.length?'':'disabled')+'>'+ico('check')+'Save dispatch'+(dDraft.lines.length?' ('+dDraft.lines.length+')':'')+'</button></div>';
+  $('#main').innerHTML=h;
+  $('#d-scan').onclick=()=>dispatchScan();
+  $('#d-photo').onclick=()=>$('#d-file').click();
+  $('#d-file').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(f)await dispatchAddPhoto(f);};
+  wireDispatchLineEvents();
+  $('#d-cancel').onclick=async()=>{const ok=await confirmDlg('Discard this dispatch?','Nothing has been saved yet.','Discard',true);if(ok){dDraft=null;go('#dispatch')}};
+  $('#d-save').onclick=()=>saveDispatch();
+}
+
+function dispatchLinesHTML(){
+  if(!dDraft.lines.length)return '<div class="sub mb">Nothing added yet — tap <b>Scan SKU</b> to scan a barcode, or <b>Take photo</b> to snap the item. You can mix both.</div>';
+  let h='';
+  dDraft.lines.forEach((ln,ix)=>{
+    h+='<div class="dline">'+
+      (ln.thumb?'<img src="'+ln.thumb+'" alt="">':'<span class="ph">'+ico(ln.code?'box':'camera')+'</span>')+
+      '<div class="grow"><div class="nm ellip" style="font-weight:700">'+esc(ln.name||(ln.code?ln.code:'Photo item'))+'</div>'+
+      (ln.code?'<div class="meta mono">'+esc(ln.code)+'</div>':'<div class="meta">photo only</div>')+'</div>'+
+      '<div class="stepper" style="max-width:118px"><button data-dm="'+ix+'">−</button><input class="num" data-dq="'+ix+'" inputmode="decimal" value="'+fmtQty(ln.qty)+'"><button data-dp="'+ix+'">+</button></div>'+
+      '<button class="icobtn ghost" data-dx="'+ix+'" aria-label="Remove" style="width:30px;height:30px">'+ico('x')+'</button>'+
+      '</div>';
+  });
+  return h;
+}
+function wireDispatchLineEvents(){
+  const redraw=()=>{$('#d-lines').innerHTML=dispatchLinesHTML();wireDispatchLineEvents();
+    const sv=$('#d-save');if(sv){sv.disabled=!dDraft.lines.length;sv.innerHTML=ico('check')+'Save dispatch'+(dDraft.lines.length?' ('+dDraft.lines.length+')':'')}};
+  $$('#d-lines [data-dm]').forEach(b=>b.onclick=()=>{const x=dDraft.lines[+b.dataset.dm];x.qty=Math.max(1,round4((+x.qty||1)-1));redraw()});
+  $$('#d-lines [data-dp]').forEach(b=>b.onclick=()=>{const x=dDraft.lines[+b.dataset.dp];x.qty=round4((+x.qty||0)+1);redraw()});
+  $$('#d-lines [data-dq]').forEach(inp=>inp.onchange=()=>{const x=dDraft.lines[+inp.dataset.dq];const v=round4(parseFloat(inp.value));x.qty=v>0?v:1;redraw()});
+  $$('#d-lines [data-dx]').forEach(b=>b.onclick=()=>{dDraft.lines.splice(+b.dataset.dx,1);redraw()});
+}
+
+function addDispatchLineByCode(code){
+  const it=findByCode(code);
+  const existing=it?dDraft.lines.find(l=>l.itemId===it.id):dDraft.lines.find(l=>l.code===code&&!l.itemId);
+  if(existing){existing.qty=round4((+existing.qty||0)+1);}
+  else dDraft.lines.push({itemId:it?it.id:null,name:it?it.name:'',code:code,qty:1,thumb:it?it.thumb:''});
+  beep(true);
+}
+async function dispatchAddPhoto(file){
+  try{
+    const [full,thumb]=await compressImage(file);
+    dDraft.lines.push({itemId:null,name:'',code:'',qty:1,photo:full,thumb:thumb});
+    toast('Photo added','ok');
+    if(location.hash.indexOf('#dispatch/new')===0)vDispatchNew();
+  }catch(e){toast('Could not read photo','err')}
+}
+
+function dispatchScan(){
+  // full-screen scanner overlay that keeps adding lines until closed
+  let h='<div class="scanwrap" id="dsw"><div class="scanbox"><div class="laser"></div></div><video id="dsv" playsinline muted></video></div>';
+  h+='<div class="row mt" style="gap:9px"><div class="searchbar grow">'+ico('scan')+'<input id="ds-manual" placeholder="or type a SKU and press Enter" autocomplete="off"></div></div>';
+  h+='<div id="ds-feed" class="sub mt" style="min-height:22px"></div>';
+  h+='<button class="btn pri block mt" id="ds-done">'+ico('check')+'Done scanning</button>';
+  openModal(h,true);
+  const feed=$('#ds-feed');
+  const manual=$('#ds-manual');
+  manual.onkeydown=e=>{if(e.key==='Enter'){const v=manual.value.trim();if(v){addDispatchLineByCode(v);feed.innerHTML='Added <b>'+esc(v)+'</b>';manual.value=''}}};
+  let stop=null,lastCode='',lastTs=0;
+  const teardown=()=>{if(stop){try{stop()}catch(e){}stop=null}};
+  (async()=>{
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){feed.textContent='Camera not available — type the SKU above, or use a USB/Bluetooth scanner.';return}
+    let stream;
+    try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});}
+    catch(e){feed.textContent='Camera blocked. Allow camera access, or type the SKU above.';return}
+    const v=$('#dsv');if(!v){try{stream.getTracks().forEach(t=>t.stop())}catch(e){}return}
+    v.srcObject=stream;await v.play().catch(()=>{});
+    stop=()=>{try{stream.getTracks().forEach(t=>t.stop())}catch(e){}};
+    if(!('BarcodeDetector' in window)){feed.innerHTML='Live scan isn’t supported on this browser — type SKUs above, or use the <b>Take photo</b> option instead.';return}
+    let fmts;try{fmts=await BarcodeDetector.getSupportedFormats()}catch(e){fmts=[]}
+    const det=new BarcodeDetector({formats:fmts.length?fmts:['code_128','ean_13','qr_code','code_39','ean_8','upc_a','upc_e']});
+    const loop=async()=>{
+      if(!stop)return;
+      try{const codes=await det.detect(v);
+        if(codes&&codes.length){const c=codes[0].rawValue;const now=Date.now();
+          if(c&&(c!==lastCode||now-lastTs>2200)){lastCode=c;lastTs=now;addDispatchLineByCode(c);const it=findByCode(c);feed.innerHTML='Added <b>'+esc(it?it.name:c)+'</b>'+(it?'':' <span class="muted">(not in catalog — saved as code)</span>');}
+        }
+      }catch(e){}
+      if(stop)setTimeout(()=>{requestAnimationFrame(loop)},180);
+    };
+    requestAnimationFrame(loop);
+  })();
+  $('#ds-done').onclick=()=>{teardown();closeModal();vDispatchNew();};
+  // ensure camera stops if modal closed another way
+  const ov=$('#ovl');
+  const obs=new MutationObserver(()=>{if(!ov.classList.contains('show')){teardown();obs.disconnect();}});
+  obs.observe(ov,{attributes:true,attributeFilter:['class']});
+}
+
+async function saveDispatch(){
+  if(!dDraft||!dDraft.lines.length)return;
+  if(!can('dispatch')){toast('You do not have permission to dispatch','err');return}
+  const deductable=dDraft.lines.filter(l=>l.itemId);
+  const ok=await confirmDlg('Save dispatch '+esc(dDraft.orderId)+'?',
+    dDraft.lines.length+' item'+(dDraft.lines.length>1?'s':'')+' · '+(dDraft.dest==='intl'?'International':'Domestic')+'.'+
+    (deductable.length?'<br>Stock will be reduced for '+deductable.length+' scanned item'+(deductable.length>1?'s':'')+'.':'<br>No catalog items matched, so nothing is deducted — saved as a record.'),
+    'Save dispatch');
+  if(!ok)return;
+  const sv=$('#d-save');if(sv){sv.disabled=true;sv.textContent='Saving…'}
+  const no=await nextDispatchNo();
+  // deduct stock + log movements
+  for(const ln of dDraft.lines){
+    if(!ln.itemId)continue;
+    const it=iById(ln.itemId);if(!it)continue;
+    const old=+it.qty||0;const q=+ln.qty||0;
+    it.qty=round4(Math.max(0,old-q));it.updatedAt=Date.now();
+    logTx('out',{itemId:it.id,itemName:it.name,fromQ:old,toQ:it.qty,qty:q,reason:'Dispatched · '+dDraft.orderId,detail:'Dispatch '+dDraft.orderId});
+  }
+  // store photos separately (keyed) to keep dispatch doc small
+  const rec={id:uid('d'),number:no,orderId:dDraft.orderId,dest:dDraft.dest,ts:Date.now(),by:userName(),
+    lines:dDraft.lines.map(l=>({itemId:l.itemId||null,name:l.name||'',code:l.code||'',qty:+l.qty||0,thumb:l.thumb||'',hasPhoto:!!l.photo}))};
+  // save full photos under d:<id> (array aligned to lines that hasPhoto)
+  const photos=dDraft.lines.filter(l=>l.photo).map(l=>l.photo);
+  S.dispatches.unshift(rec);
+  await Promise.all([saveNow('items'),saveNow('dispatches')]);
+  if(photos.length){try{await store.set('p:dsp_'+rec.id,photos)}catch(e){}}
+  logTx('dispatch',{detail:dDraft.orderId+' · '+dDraft.lines.length+' items'+(dDraft.dest==='intl'?' · Intl':' · Dom')});
+  dDraft=null;
+  updateBadges();
+  toast('Dispatch saved · stock updated','ok');
+  go('#dispatch');
+}
+
+async function vDispatchView(id){
+  const d=(S.dispatches||[]).find(x=>x.id===id);
+  if(!d){toast('Dispatch not found','err');go('#dispatch');return}
+  topTitle(d.orderId||d.number,'#dispatch');
+  let h='<div class="row mb wrap"><h1 class="page" style="margin:0">'+esc(d.orderId||d.number)+'</h1><span class="pill '+(d.dest==='intl'?'info':'gray')+'">'+(d.dest==='intl'?'International':'Domestic')+'</span></div>';
+  h+='<div class="sub mb">'+esc(d.number)+' · '+fmtDT(d.ts)+(d.by?' · by '+esc(d.by):'')+'</div>';
+  h+='<div class="section-h"><h2>Items sent</h2><span class="num" style="font-weight:800">'+fmtQty(sum(d.lines||[],l=>+l.qty||0))+'</span></div>';
+  h+='<div id="dv-lines"><div class="ilist">';
+  (d.lines||[]).forEach((ln,ix)=>{
+    h+='<div class="dline"><span class="ph" id="dvph-'+ix+'">'+(ln.thumb?'<img src="'+ln.thumb+'" alt="" style="width:46px;height:46px;border-radius:9px;object-fit:cover">':ico(ln.code?'box':'camera'))+'</span>'+
+      '<div class="grow"><div class="nm" style="font-weight:700">'+esc(ln.name||(ln.code||'Photo item'))+'</div>'+(ln.code?'<div class="meta mono">'+esc(ln.code)+'</div>':'<div class="meta">photo</div>')+'</div>'+
+      '<div class="num" style="font-weight:800">'+fmtQty(ln.qty)+'</div></div>';
+  });
+  h+='</div></div>';
+  h+='<div class="row wrap mt" style="gap:9px"><button class="btn pri grow" id="dv-repeat">'+ico('copy')+'Repeat this order</button>';
+  if(isAdminU())h+='<button class="btn danger" id="dv-del">'+ico('trash')+'</button>';
+  h+='</div>';
+  h+='<div class="hint mt">Repeat re-opens this as a new dispatch with the same items — change the order ID and save.</div>';
+  $('#main').innerHTML=h;
+  $('#dv-repeat').onclick=()=>{
+    dDraft={orderId:'',dest:d.dest,lines:(d.lines||[]).map(l=>({itemId:l.itemId,name:l.name,code:l.code,qty:l.qty,thumb:l.thumb})),ts:Date.now()};
+    openModal('<h3>Repeat order</h3><p class="sub mb">Same '+(d.lines||[]).length+' items. Enter the new order ID.</p><div class="field"><input class="in" id="rp-oid" placeholder="New order ID" autocomplete="off"></div><button class="btn pri block" id="rp-go">'+ico('send')+'Start</button>');
+    $('#rp-oid').focus();
+    $('#rp-go').onclick=()=>{const v=$('#rp-oid').value.trim();if(!v){toast('Enter an order ID','err');return}dDraft.orderId=v;closeModal();go('#dispatch/new')};
+  };
+  const del=$('#dv-del');if(del)del.onclick=async()=>{const ok=await confirmDlg('Delete dispatch record?','This removes the record only — it does not add stock back.','Delete',true);if(!ok)return;S.dispatches=S.dispatches.filter(x=>x.id!==d.id);await saveNow('dispatches');try{await store.del('p:dsp_'+d.id)}catch(e){}go('#dispatch')};
+  // lazy-load photos
+  const photoLines=(d.lines||[]).map((l,ix)=>({l,ix})).filter(o=>o.l.hasPhoto&&!o.l.thumb);
+  if(photoLines.length){store.get('p:dsp_'+d.id).then(arr=>{if(!arr)return;let pi=0;(d.lines||[]).forEach((l,ix)=>{if(l.hasPhoto){const el=$('#dvph-'+ix);if(el&&arr[pi])el.innerHTML='<img src="'+arr[pi]+'" alt="" style="width:46px;height:46px;border-radius:9px;object-fit:cover">';pi++}})}).catch(()=>{})}
+}
+
+function vDispatchSales(){
+  topTitle('Sales & reorder','#dispatch');
+  let days=30;
+  const controls='<div class="seg mb" id="ds-seg"><button data-d="7" class="">7d</button><button data-d="30" class="on">30d</button><button data-d="90" class="">90d</button></div>';
+  function body(){
+    const stats=salesStats(days).sort((a,b)=>b.qty-a.qty);
+    if(!stats.length)return '<div class="empty">'+ico('trend')+'<div class="t">No sales data yet</div><div class="s">Once you save dispatches, this ranks your best-sellers and flags what to reorder based on how fast stock is going out.</div></div>';
+    const reorder=stats.filter(s=>s.exists&&isFinite(s.daysLeft)&&s.daysLeft<=14).sort((a,b)=>a.daysLeft-b.daysLeft);
+    let b='';
+    if(reorder.length){
+      b+='<div class="section-h"><h2>Reorder soon</h2></div><div class="ilist mb">';
+      reorder.forEach(s=>{
+        const urg=s.daysLeft<=5;
+        b+='<div class="irow" data-go-item="'+s.itemId+'"><span class="th" style="background:'+(urg?'var(--red-bg)':'var(--amber-bg)')+';color:'+(urg?'var(--red)':'var(--amber)')+'">'+ico('alert')+'</span>'+
+          '<div class="grow"><div class="nm ellip">'+esc(s.name)+'</div><div class="meta num">'+fmtQty(s.stock)+' '+esc(s.unit||'')+' left · selling '+s.perDay.toFixed(s.perDay<1?1:0)+'/day</div></div>'+
+          '<div class="num" style="font-weight:800;color:'+(urg?'var(--red)':'var(--amber)')+'">'+(isFinite(s.daysLeft)?Math.floor(s.daysLeft)+'d':'—')+'</div></div>';
+      });
+      b+='</div>';
+    }
+    b+='<div class="section-h"><h2>Best sellers</h2><span class="small muted">'+days+' days</span></div>';
+    b+='<div class="tablewrap"><table class="t"><thead><tr><th>Item</th><th class="r">Sold</th><th class="r">Dom</th><th class="r">Intl</th><th class="r">In stock</th></tr></thead><tbody>';
+    stats.slice(0,40).forEach(s=>{
+      b+='<tr data-go-item="'+(s.exists?s.itemId:'')+'"'+(s.exists?' style="cursor:pointer"':'')+'><td>'+esc(s.name||'(unknown)')+'</td><td class="r num" style="font-weight:700">'+fmtQty(s.qty)+'</td><td class="r num">'+fmtQty(s.dom)+'</td><td class="r num">'+fmtQty(s.intl)+'</td><td class="r num">'+(s.exists?fmtQty(s.stock):'—')+'</td></tr>';
+    });
+    b+='</tbody></table></div>';
+    return b;
+  }
+  $('#main').innerHTML='<h1 class="page">Sales & reorder</h1>'+controls+'<div id="ds-body">'+body()+'</div>';
+  function wire(){$$('#ds-body [data-go-item]').forEach(r=>{const id=r.dataset.goItem;if(id)r.onclick=()=>go('#item/'+id)})}
+  wire();
+  $$('#ds-seg [data-d]').forEach(btn=>btn.onclick=()=>{days=+btn.dataset.d;$$('#ds-seg [data-d]').forEach(x=>x.classList.toggle('on',x===btn));$('#ds-body').innerHTML=body();wire()});
+}
+
+/* ============================================================
    GLOBAL ACTIONS + INIT
    ============================================================ */
 document.addEventListener('click',e=>{
   const b=e.target.closest('[data-act]');if(!b)return;
   const act=b.dataset.act,id=b.dataset.id;
-  if(act==='newitem')go('#edit/new'+(b.dataset.folder?'/'+b.dataset.folder:''));
-  else if(act==='newfolder')folderDlg(b.dataset.parent||null);
-  else if(act==='edititem')go('#edit/'+id);
+  if(act==='newitem'){if(!can('additem')){toast('You do not have permission to add items','err');return}go('#edit/new'+(b.dataset.folder?'/'+b.dataset.folder:''))}
+  else if(act==='newfolder'){if(!can('editloc')){toast('You do not have permission for locations','err');return}folderDlg(b.dataset.parent||null)}
+  else if(act==='edititem'){if(!can('additem')){toast('You do not have permission to edit items','err');return}go('#edit/'+id)}
   else if(act==='moveitem'){const i=iById(id);if(i)moveDlg([i])}
   else if(act==='cloneitem'){const i=iById(id);if(i)cloneDlg(i)}
   else if(act==='labelone'){sessionStorage.setItem('lblsel',JSON.stringify([id]));go('#labels')}
   else if(act==='addto'){const i=iById(id);if(i)addToDlg(i)}
-  else if(act==='delitem'){if(!isAdminU()){toast('Only admins can delete','err');return}const i=iById(id);if(!i)return;confirmDlg('Move to trash?','\u201C'+esc(i.name)+'\u201D can be restored from Trash later.','Move to trash',true).then(ok=>{if(!ok)return;trashItem(i);logTx('deleted',{itemId:i.id,itemName:i.name});toast('Moved to trash');updateBadges();go('#stock'+(i.folder?'/'+i.folder:''))})}
-  else if(act==='renfolder')folderDlg(null,id);
-  else if(act==='delfolder'){if(!isAdminU()){toast('Only admins can delete','err');return}deleteFolder(id)}
+  else if(act==='delitem'){if(!can('delitem')){toast('You do not have permission to delete','err');return}const i=iById(id);if(!i)return;confirmDlg('Move to trash?','\u201C'+esc(i.name)+'\u201D can be restored from Trash later.','Move to trash',true).then(ok=>{if(!ok)return;trashItem(i);logTx('deleted',{itemId:i.id,itemName:i.name});toast('Moved to trash');updateBadges();go('#stock'+(i.folder?'/'+i.folder:''))})}
+  else if(act==='renfolder'){if(!can('editloc')){toast('You do not have permission for locations','err');return}folderDlg(null,id)}
+  else if(act==='delfolder'){if(!can('editloc')){toast('You do not have permission for locations','err');return}deleteFolder(id)}
   else if(act==='newlist'){b.disabled=true;createList().then(lid=>go('#list/'+lid))}
 });
 
 /* ============================================================
    SETUP / CONNECT SCREENS
    ============================================================ */
-const FB_RULES="rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    function uD() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }\n    function active() { return request.auth != null && uD().status == 'active'; }\n    function admin() { return active() && uD().role in ['admin','mainframe']; }\n    function mainframe() { return active() && uD().role == 'mainframe'; }\n\n    match /users/{uid} {\n      allow read: if request.auth != null && (request.auth.uid == uid || admin());\n      allow create: if request.auth != null && request.auth.uid == uid && (\n        (request.resource.data.role == 'user' && request.resource.data.status == 'pending') ||\n        (request.auth.token.email == 'trishal@invento.app' && request.resource.data.role == 'mainframe')\n      );\n      allow update: if mainframe()\n        || (admin() && resource.data.role == 'user' && request.resource.data.role == 'user')\n        || (request.auth != null && request.auth.uid == uid\n            && request.resource.data.role == resource.data.role\n            && request.resource.data.status == resource.data.status);\n      allow delete: if mainframe();\n    }\n\n    match /txns/{id}    { allow read, create: if active(); allow update: if false; allow delete: if admin(); }\n    match /trash/{id}   { allow read: if active(); allow create, update, delete: if admin(); }\n    match /meta/{doc}   { allow read, write: if active(); }\n    match /items/{id}   { allow read, create, update: if active(); allow delete: if admin(); }\n    match /folders/{id} { allow read, create, update: if active(); allow delete: if admin(); }\n    match /lists/{id}   { allow read, create, update: if active(); allow delete: if admin(); }\n    match /pos/{id}     { allow read, create, update: if active(); allow delete: if admin(); }\n    match /photos/{id}  { allow read, write: if active(); }\n  }\n}";
+const FB_RULES="rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    function uD() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }\n    function active() { return request.auth != null && uD().status == 'active'; }\n    function admin() { return active() && uD().role in ['admin','mainframe']; }\n    function mainframe() { return active() && uD().role == 'mainframe'; }\n    function perms() {\n      return exists(/databases/$(database)/documents/meta/app)\n        ? get(/databases/$(database)/documents/meta/app).data.get('perms', {})\n        : {};\n    }\n    function userCan(key) { return admin() || perms().get(key, true) == true; }\n    function settingsUnchanged() {\n      return request.resource.data.get('perms', {}) == resource.data.get('perms', {})\n        && request.resource.data.get('company', '') == resource.data.get('company', '')\n        && request.resource.data.get('currency', '') == resource.data.get('currency', '')\n        && request.resource.data.get('locTerm', '') == resource.data.get('locTerm', '')\n        && request.resource.data.get('lowDefault', 0) == resource.data.get('lowDefault', 0);\n    }\n\n    match /users/{uid} {\n      allow read: if request.auth != null && (request.auth.uid == uid || admin());\n      allow create: if request.auth != null && request.auth.uid == uid && (\n        (request.resource.data.role == 'user' && request.resource.data.status == 'pending') ||\n        (request.auth.token.email == 'trishal@invento.app' && request.resource.data.role == 'mainframe')\n      );\n      allow update: if mainframe()\n        || (admin() && resource.data.role == 'user' && request.resource.data.role == 'user')\n        || (request.auth != null && request.auth.uid == uid\n            && request.resource.data.role == resource.data.role\n            && request.resource.data.status == resource.data.status);\n      allow delete: if mainframe();\n    }\n\n    match /txns/{id}        { allow read, create: if active(); allow update: if false; allow delete: if admin(); }\n    match /trash/{id}       { allow read: if active(); allow create, update, delete: if (admin() || userCan('trash') || userCan('delitem')); }\n    match /meta/{doc}       { allow read: if active(); allow create: if admin(); allow update: if admin() || (active() && settingsUnchanged()); }\n    match /items/{id}       { allow read: if active(); allow create, update: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')); allow delete: if (admin() || userCan('delitem')); }\n    match /folders/{id}     { allow read: if active(); allow create, update: if userCan('editloc'); allow delete: if (admin() || userCan('editloc')); }\n    match /lists/{id}       { allow read, create, update: if active(); allow delete: if admin(); }\n    match /pos/{id}         { allow read, create, update: if active(); allow delete: if admin(); }\n    match /dispatches/{id}  { allow read: if active(); allow create, update: if (admin() || userCan('dispatch')); allow delete: if admin(); }\n    match /photos/{id}      { allow read: if active(); allow write: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')); }\n  }\n}";
 function authEmail(u){u=String(u||'').trim().toLowerCase();return u.indexOf('@')>0?u:u.replace(/[^a-z0-9._-]/g,'')+'@invento.app'}
 function authErrMsg(e){
   const c=(e&&e.code)||'';
@@ -2281,6 +2702,7 @@ function vCloudError(e){
 }
 
 (async function init(){
+  applyTheme(getTheme());
   window.addEventListener('hashchange',route);
   paintNav();
   $('#main').innerHTML='<div class="empty" style="margin-top:56px">'+ico('bolt')+'<div class="t">Connecting…</div><div class="s">Loading Invento</div></div>';
