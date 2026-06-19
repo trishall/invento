@@ -443,6 +443,8 @@ const IC = {
   scan:'<path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8"/><path d="M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8"/><path d="M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16"/><path d="M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16"/><path d="M4 12h16"/>',
   flows:'<path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><path d="M4 6h.01"/><path d="M4 12h.01"/><path d="M4 18h.01"/><circle cx="4" cy="6" r="1.2"/><circle cx="4" cy="12" r="1.2"/><circle cx="4" cy="18" r="1.2"/>',
 lock:'<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+inbox:'<path d="M3 12h5l2 3h4l2-3h5"/><path d="M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/>',
 sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>',
 moon:'<path d="M20 14.5A8 8 0 1 1 9.5 4a6 6 0 0 0 10.5 10.5z"/>',
 logout:'<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5"/><path d="M5 12h12"/>',
@@ -570,7 +572,7 @@ function can(act){
 const cap1=s=>{s=String(s||'');return s?s.charAt(0).toUpperCase()+s.slice(1):s};
 const shadows={};
 const dirty={};
-const SYNC_COLS=['items','folders','lists','pos','trash','dispatches'];
+const SYNC_COLS=['items','folders','lists','pos','trash','dispatches','approvals'];
 
 function getSavedCfg(){
   if(FB_CONFIG && FB_CONFIG.projectId) return FB_CONFIG;
@@ -634,7 +636,7 @@ const store={
 
 /* ---------- app state ---------- */
 const DEFAULT_META=()=>({company:'',user:'',currency:'$',lowDefault:5,view:'grid',sort:'updated',seq:{pl:0,po:0,ds:0,rt:0},setup:{},market:'dom',locTerm:'Location',locTermPlural:'',perms:{additem:true,delitem:true,adjqty:true,editloc:true,trash:true,export:true,dispatch:true}});
-const S={meta:DEFAULT_META(),folders:[],items:[],txns:[],lists:[],pos:[],trash:[],dispatches:[]};
+const S={meta:DEFAULT_META(),folders:[],items:[],txns:[],lists:[],pos:[],trash:[],dispatches:[],approvals:[]};
 const UNITS=['unit','pcs','pair','set','box','pack','roll','sq.ft','sq.m','m','cm','ft','kg','g','L','ml','dozen'];
 
 function clean(o){const c=JSON.parse(JSON.stringify(o));Object.keys(c).forEach(k=>{if(k[0]==='_')delete c[k]});return c}
@@ -784,6 +786,7 @@ async function initCloud(cfg){
   wireCol('lists',db.collection('lists'),s=>mergeCol('lists',s.docs));
   wireCol('pos',db.collection('pos'),s=>mergeCol('pos',s.docs));
   wireCol('dispatches',db.collection('dispatches').orderBy('ts','desc').limit(800),s=>mergeCol('dispatches',s.docs));
+  wireCol('approvals',db.collection('approvals'),s=>mergeCol('approvals',s.docs));
   wireCol('trash',db.collection('trash').orderBy('deletedAt','desc'),s=>mergeCol('trash',s.docs));
   wireCol('txns',db.collection('txns').where('ts','>=',Date.now()-30*86400000).orderBy('ts','desc').limit(1500),s=>{S.txns=s.docs.map(d=>{const x=d.data();x.id=d.id;return x})});
   wireCol('meta',db.collection('meta').doc('app'),s=>{
@@ -811,9 +814,9 @@ async function purgeOldTxns(){
 }
 async function loadLocal(){
   MODE='local';
-  const [m,f,i,t,l,p,tr,dp]=await Promise.all([store.get('meta'),store.get('folders'),store.get('items'),store.get('txns'),store.get('lists'),store.get('pos'),store.get('trash'),store.get('dispatches')]);
+  const [m,f,i,t,l,p,tr,dp,ap]=await Promise.all([store.get('meta'),store.get('folders'),store.get('items'),store.get('txns'),store.get('lists'),store.get('pos'),store.get('trash'),store.get('dispatches'),store.get('approvals')]);
   S.meta=Object.assign(DEFAULT_META(),m||{});fixCurrency();
-  S.folders=f||[];S.items=i||[];S.txns=t||[];S.lists=l||[];S.pos=p||[];S.trash=tr||[];S.dispatches=dp||[];
+  S.folders=f||[];S.items=i||[];S.txns=t||[];S.lists=l||[];S.pos=p||[];S.trash=tr||[];S.dispatches=dp||[];S.approvals=ap||[];
 }
 async function loadAll(){
   if(!CLOUD_ENABLED){await loadLocal();return 'local'}
@@ -851,6 +854,9 @@ function folderPath(id){const seg=[];let f=fById(id),guard=0;while(f&&guard++<30
 function childFolders(pid){return S.folders.filter(f=>(f.parent||null)===(pid||null)).sort((a,b)=>a.name.localeCompare(b.name))}
 function itemsIn(fid){return S.items.filter(i=>(i.folder||null)===(fid||null))}
 function descFolderIds(fid){const out=[fid];const walk=p=>{childFolders(p).forEach(c=>{out.push(c.id);walk(c.id)})};walk(fid);return out}
+function warehouses(){return S.folders.filter(f=>!f.parent && f.isWarehouse).sort((a,b)=>a.name.localeCompare(b.name))}
+function itemsInTree(fid){if(!fid)return S.items.slice();const ids=descFolderIds(fid);return S.items.filter(i=>ids.includes(i.folder))}
+function whName(id){const f=fById(id);return f?f.name:'All warehouses'}
 function deepStats(fid){const ids=fid?descFolderIds(fid):[null].concat(S.folders.map(f=>f.id));const its=fid?S.items.filter(i=>ids.includes(i.folder)):S.items;return{count:its.length,qty:sum(its,i=>+i.qty||0),value:sum(its,i=>(+i.qty||0)*(+i.price||0))}}
 function flatFolders(){const out=[];const walk=(pid,d)=>{childFolders(pid).forEach(f=>{out.push({id:f.id,name:f.name,depth:d});walk(f.id,d+1)})};walk(null,0);return out}
 function folderSelect(val,allowRoot){let o='';if(allowRoot!==false)o+='<option value=""'+(val?'':' selected')+'>— All stock (no '+locL()+')</option>';flatFolders().forEach(f=>{o+='<option value="'+f.id+'"'+(val===f.id?' selected':'')+'>'+'&nbsp;'.repeat(f.depth*3)+esc(f.name)+'</option>'});return o}
@@ -952,7 +958,7 @@ function topTitle(title,backHash,extra){
 }
 
 let scannerStop=null; // active camera teardown
-const view={sel:new Set(),q:'',tag:'',low:false};
+const view={sel:new Set(),q:'',tag:'',low:false,warehouse:null};
 function go(h){location.hash=h}
 window.addEventListener('hashchange',route);
 
@@ -964,7 +970,7 @@ function route(){
   const h=(location.hash||'#home').slice(1);
   const [p,a,b]=h.split('/');
   const main=$('#main');main.scrollTop=0;window.scrollTo(0,0);
-  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null)};
+  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals};
   setActiveNav(p==='item'||p==='edit'||p==='folders'?'stock':(p==='list'||p==='po'?'flows':(p==='trash'||p==='import'?'more':(p==='return'?'dispatch':p))));
   (map[p]||vHome)();
   updateBadges();
@@ -1009,7 +1015,7 @@ function txHTML(t){
   let d=ACT_LABEL[t.act]||t.act;
   let line=esc(t.itemName||t.detail||'');
   if(t.act==='qty'&&t.fromQ!=null)line+=' <span class="muted num">'+fmtQty(t.fromQ)+' → '+fmtQty(t.toQ)+'</span>';
-  if(t.act==='moved'&&t.to)line+=' <span class="muted">→ '+esc(t.to)+'</span>';
+  if(t.act==='moved'){line=esc(t.itemName||'')+' <span class="muted num">'+(t.qtyMoved!=null?fmtQty(t.qtyMoved)+' pcs · ':'')+esc(t.from||'?')+' → '+esc(t.to||'?')+'</span>';}
   if(t.detail&&t.itemName)line+=' <span class="muted">· '+esc(t.detail)+'</span>';
   return '<div class="h"><span class="dot"></span><div class="grow"><b>'+esc(d)+'</b> · '+line+'<div class="when">'+esc(t.user||'')+' · '+ago(t.ts)+'</div></div></div>';
 }
@@ -1044,7 +1050,77 @@ function cardHTML(i){
     '<div class="ph">'+(i.thumb?'<img src="'+i.thumb+'" alt="" loading="lazy">':ico('photo'))+'</div>'+
     '<div class="bd"><div class="nm">'+esc(i.name)+'</div><div class="qv"><span class="q num">'+fmtQty(i.qty)+' <small>'+esc(i.unit||'')+'</small></span>'+(+i.price?'<span class="pr num">'+fmtMoney(+i.price,0)+'</span>':'')+'</div></div></div>';
 }
-function vStock(fid){
+function vStock(arg){
+  if(!arg){return vStockHome();}
+  if(arg==='prod'){return vProducts();}
+  const fid=(arg==='loc')?null:(fById(arg)?arg:null);
+  return vStockFolders(fid);
+}
+function vStockHome(){
+  topTitle('Stock','#home');
+  let h='';
+  if(can('dispatch'))h+=modeSlider('inv');
+  h+=warehouseBar();
+  // scope stats by selected warehouse
+  const its=view.warehouse?itemsInTree(view.warehouse):S.items;
+  const val=sum(its,i=>(+i.qty||0)*(+i.price||0));
+  h+='<div class="bigbtns" style="margin-top:4px">'+
+    '<button class="bigbtn" id="sh-loc">'+ico('folder')+'<div>'+locTermP()+'</div><div class="sub">Racks & shelves — browse by place</div></button>'+
+    '<button class="bigbtn" id="sh-prod">'+ico('box')+'<div>Items</div><div class="sub">Every product in one list</div></button>'+
+    '</div>';
+  h+='<div class="stats mb"><div class="stat"><div class="n num">'+its.length+'</div><div class="l">Items'+(view.warehouse?' here':'')+'</div></div><div class="stat"><div class="n num">'+fmtMoney(val,0)+'</div><div class="l">Stock value</div></div><div class="stat"><div class="n num">'+its.filter(isLow).length+'</div><div class="l">Low stock</div></div></div>';
+  $('#main').innerHTML=h;
+  if(can('dispatch'))wireModeSlider();
+  wireWarehouseBar(()=>vStockHome());
+  $('#sh-loc').onclick=()=>go(view.warehouse?'#stock/'+view.warehouse:'#stock/loc');
+  $('#sh-prod').onclick=()=>go('#stock/prod');
+}
+function warehouseBar(){
+  const whs=warehouses();
+  let opts='<option value="">All warehouses</option>';
+  whs.forEach(w=>{opts+='<option value="'+w.id+'"'+(view.warehouse===w.id?' selected':'')+'>'+esc(w.name)+'</option>'});
+  return '<div class="marketbar" style="background:var(--card);border:1px solid var(--line)"><span class="mk" style="color:var(--ink)">'+ico('truck')+'<select class="in" id="wh-sel" style="border:none;background:transparent;font-weight:800;padding:4px 2px;max-width:200px">'+opts+'</select></span>'+(can('editloc')?'<button id="wh-new">+ Warehouse</button>':'')+'</div>';
+}
+function wireWarehouseBar(refresh){
+  const sel=$('#wh-sel');if(sel)sel.onchange=()=>{view.warehouse=sel.value||null;refresh()};
+  const nw=$('#wh-new');if(nw)nw.onclick=()=>{
+    openModal('<h3>New warehouse</h3><p class="sub mb">A top-level place that holds racks/shelves (e.g. Main Godown, Export unit).</p><div class="field"><input class="in" id="wh-name" placeholder="Warehouse name" autocomplete="off"></div><button class="btn pri block" id="wh-go">'+ico('check')+'Create</button>');
+    $('#wh-name').focus();
+    $('#wh-go').onclick=async()=>{const nm=$('#wh-name').value.trim();if(!nm){toast('Enter a name','err');return}const ex=S.folders.find(f=>!f.parent&&f.name.toLowerCase()===nm.toLowerCase());if(ex){ex.isWarehouse=true;await saveNow('folders')}else{S.folders.push({id:uid('f'),name:nm,parent:null,isWarehouse:true,createdAt:Date.now()});await saveNow('folders')}closeModal();toast('Warehouse created','ok');view.warehouse=(S.folders.find(f=>!f.parent&&f.name.toLowerCase()===nm.toLowerCase())||{}).id||null;refresh()};
+  };
+}
+function vProducts(){
+  topTitle('Items','#stock');
+  let pool=view.warehouse?itemsInTree(view.warehouse):S.items.slice();
+  const searching=view.q.trim().length>0;
+  if(searching)pool=pool.filter(i=>matches(i,view.q.trim()));
+  if(view.tag)pool=pool.filter(i=>(i.tags||[]).includes(view.tag));
+  if(view.low)pool=pool.filter(isLow);
+  pool=sortItems(pool);
+  let h='';
+  if(can('dispatch'))h+=modeSlider('inv');
+  h+='<div class="crumbs mb"><a href="#stock">Stock</a>'+ico('chev')+'<span>Items'+(view.warehouse?' · '+esc(whName(view.warehouse)):'')+'</span></div>';
+  h+='<div class="row mb"><div class="searchbar grow">'+ico('search')+'<input id="q" type="search" placeholder="Search name, SKU, code, tag…" value="'+esc(view.q)+'" autocomplete="off">'+(view.q?'<button class="icobtn ghost" id="clrq" style="width:30px;height:30px" aria-label="Clear">'+ico('x')+'</button>':'')+'</div><button class="icobtn" id="sortBtn" aria-label="Sort">'+ico('sort')+'</button><button class="icobtn" id="viewBtn" aria-label="Toggle view">'+ico(S.meta.view==='grid'?'listv':'grid')+'</button></div>';
+  const tags=allTags().slice(0,12);
+  h+='<div class="chips mb"><button class="chip'+(view.low?' on':'')+'" id="chipLow">Low stock</button>';
+  tags.forEach(t=>{h+='<button class="chip'+(view.tag===t?' on':'')+'" data-tag="'+esc(t)+'">'+esc(t)+'</button>'});
+  h+='</div>';
+  h+='<div class="row mb small muted"><span class="num">'+pool.length+' product'+(pool.length===1?'':'s')+'</span><button class="btn sm ghost right" id="selToggle">'+(view.selectMode?'Done':'Select')+'</button></div>';
+  if(!pool.length)h+='<div class="empty">'+ico('box')+'<div class="t">'+(searching?'Nothing found':'No products')+'</div><div class="s">'+(searching?'Try a different name, SKU or tag.':'Add an item or import a CSV.')+'</div></div>';
+  else if(S.meta.view==='grid')h+='<div class="igrid">'+pool.map(cardHTML).join('')+'</div>';
+  else h+='<div class="ilist">'+pool.map(i=>rowHTML(i,{selectable:true})).join('')+'</div>';
+  $('#main').innerHTML=h;
+  if(can('dispatch'))wireModeSlider();
+  const q=$('#q');q.oninput=()=>{view.q=q.value;vProducts()};q.onkeydown=e=>{if(e.key==='Enter')q.blur()};
+  if($('#clrq'))$('#clrq').onclick=()=>{view.q='';vProducts()};
+  $('#viewBtn').onclick=()=>{S.meta.view=S.meta.view==='grid'?'list':'grid';save('meta');vProducts()};
+  $('#sortBtn').onclick=()=>sortMenu(()=>vProducts());
+  $('#chipLow').onclick=()=>{view.low=!view.low;vProducts()};
+  $$('.chip[data-tag]').forEach(c=>c.onclick=()=>{view.tag=view.tag===c.dataset.tag?'':c.dataset.tag;vProducts()});
+  $('#selToggle').onclick=()=>{view.selectMode=!view.selectMode;if(!view.selectMode)view.sel.clear();renderBulk();vProducts()};
+  bindStockClicks(null);
+}
+function vStockFolders(fid){
   fid=fid&&fById(fid)?fid:null;
   const f=fById(fid);
   topTitle(f?f.name:'Stock',f?('#stock'+(f.parent?'/'+f.parent:'')):null,
@@ -1061,7 +1137,7 @@ function vStock(fid){
   let h='';
   if(!fid && can('dispatch'))h+=modeSlider('inv');
   // breadcrumbs
-  let crumbs='<a href="#stock">All stock</a>';let cf=f;const segs=[];while(cf){segs.unshift(cf);cf=fById(cf.parent)}
+  let crumbs='<a href="#stock">Stock</a>'+ico('chev')+'<a href="#stock/loc">'+locTermP()+'</a>';let cf=f;const segs=[];while(cf){segs.unshift(cf);cf=fById(cf.parent)}
   segs.forEach(sg=>{crumbs+=ico('chev')+'<a href="#stock/'+sg.id+'">'+esc(sg.name)+'</a>'});
   h+='<div class="crumbs mb">'+crumbs+'</div>';
   h+='<div class="row mb"><div class="searchbar grow">'+ico('search')+'<input id="q" type="search" placeholder="Search name, SKU, code, tag…" value="'+esc(view.q)+'" autocomplete="off">'+(view.q?'<button class="icobtn ghost" id="clrq" style="width:30px;height:30px" aria-label="Clear">'+ico('x')+'</button>':'')+'</div>'+
@@ -1088,23 +1164,33 @@ function vStock(fid){
   } else {
     h+='<div class="ilist">'+pool.map(i=>rowHTML(i,{selectable:true})).join('')+'</div>';
   }
-  if(f&&can('editloc')){h+='<div class="row mt"><button class="btn sm" data-act="renfolder" data-id="'+f.id+'">'+ico('edit')+'Rename '+locL()+'</button>'+(can('editloc')?'<button class="btn sm danger" data-act="delfolder" data-id="'+f.id+'">'+ico('trash')+'Delete '+locL()+'</button>':'')+'</div>'}
+  if(f&&can('editloc')){
+    h+='<div class="row mt" style="flex-wrap:wrap;gap:8px"><button class="btn sm" data-act="renfolder" data-id="'+f.id+'">'+ico('edit')+'Rename '+locL()+'</button><button class="btn sm danger" data-act="delfolder" data-id="'+f.id+'">'+ico('trash')+'Delete '+locL()+'</button></div>';
+    // warehouse assignment (only meaningful for non-warehouse folders)
+    if(!f.isWarehouse){
+      const whs=warehouses().filter(w=>w.id!==f.id);
+      let wopts='<option value="">— No warehouse (top level)</option>';
+      whs.forEach(w=>{wopts+='<option value="'+w.id+'"'+((f.parent||'')===w.id?' selected':'')+'>'+esc(w.name)+'</option>'});
+      h+='<div class="field mt"><label>Warehouse</label><select class="in" id="fld-wh">'+wopts+'</select><div class="hint">Put this '+locL()+' inside a warehouse, or leave at top level.</div></div>';
+    }
+  }
   $('#main').innerHTML=h;
   // wire
   if(!fid)wireModeSlider();
   const q=$('#q');q.oninput=()=>{view.q=q.value;rerenderStockBody(fid)};
   q.onkeydown=e=>{if(e.key==='Enter')q.blur()};
-  if($('#clrq'))$('#clrq').onclick=()=>{view.q='';vStock(fid)};
-  $('#viewBtn').onclick=()=>{S.meta.view=S.meta.view==='grid'?'list':'grid';save('meta');vStock(fid)};
-  $('#sortBtn').onclick=()=>sortMenu(()=>vStock(fid));
-  $('#chipLow').onclick=()=>{view.low=!view.low;vStock(fid)};
-  $$('.chip[data-tag]').forEach(c=>c.onclick=()=>{view.tag=view.tag===c.dataset.tag?'':c.dataset.tag;vStock(fid)});
-  $('#selToggle').onclick=()=>{view.selectMode=!view.selectMode;if(!view.selectMode)view.sel.clear();renderBulk();vStock(fid)};
+  if($('#clrq'))$('#clrq').onclick=()=>{view.q='';vStockFolders(fid)};
+  $('#viewBtn').onclick=()=>{S.meta.view=S.meta.view==='grid'?'list':'grid';save('meta');vStockFolders(fid)};
+  $('#sortBtn').onclick=()=>sortMenu(()=>vStockFolders(fid));
+  $('#chipLow').onclick=()=>{view.low=!view.low;vStockFolders(fid)};
+  $$('.chip[data-tag]').forEach(c=>c.onclick=()=>{view.tag=view.tag===c.dataset.tag?'':c.dataset.tag;vStockFolders(fid)});
+  $('#selToggle').onclick=()=>{view.selectMode=!view.selectMode;if(!view.selectMode)view.sel.clear();renderBulk();vStockFolders(fid)};
+  const fwh=$('#fld-wh');if(fwh)fwh.onchange=async()=>{const f2=fById(fid);if(!f2)return;f2.parent=fwh.value||null;await saveNow('folders');toast(fwh.value?('Moved into '+whName(fwh.value)):'Moved to top level','ok');vStockFolders(fid)};
   bindStockClicks(fid);
 }
 function rerenderStockBody(fid){ // light re-render keeps keyboard focus
   vStockDebounce=vStockDebounce||{};clearTimeout(vStockDebounce.t);
-  vStockDebounce.t=setTimeout(()=>{const q=$('#q');const pos=q?q.selectionStart:0;vStock(fid);const nq=$('#q');if(nq){nq.focus();try{nq.setSelectionRange(pos,pos)}catch(e){}}},220);
+  vStockDebounce.t=setTimeout(()=>{const q=$('#q');const pos=q?q.selectionStart:0;vStockFolders(fid);const nq=$('#q');if(nq){nq.focus();try{nq.setSelectionRange(pos,pos)}catch(e){}}},220);
 }
 let vStockDebounce=null;
 function bindStockClicks(fid){
@@ -1446,12 +1532,16 @@ function folderDlg(parentId,editId){
   };
   inp.onkeydown=e=>{if(e.key==='Enter')$('#fd-go').click()};
 }
-async function deleteFolder(id){
+async function deleteFolder(id,skipApproval){
   const f=fById(id);if(!f)return;
   const kids=childFolders(id).length,its=itemsIn(id).length;
-  if(kids||its){toast('Folder not empty — move or delete its contents first','err');return}
-  const ok=await confirmDlg('Delete “'+esc(f.name)+'”?','The folder will be removed. Items are untouched.','Delete',true);if(!ok)return;
-  S.folders=S.folders.filter(x=>x.id!==id);save('folders');logTx('folder',{detail:'Deleted folder “'+f.name+'”'});toast('Folder deleted');go('#stock'+(f.parent?'/'+f.parent:''));
+  if(kids||its){toast(locTerm()+' not empty — move or delete its contents first','err');return}
+  if(!skipApproval){
+    const res=await requestOrApprove('delLocation',{folderId:id,name:f.name},'Delete '+locL()+' “'+f.name+'”','Deleting a '+locL()+' needs admin approval: “'+esc(f.name)+'”.');
+    if(res!=='approved'){return} // queued or cancelled — do not delete now
+  }
+  S.folders=S.folders.filter(x=>x.id!==id);await saveNow('folders');logTx('folder',{detail:'Deleted '+locL()+' “'+f.name+'”'});toast(locTerm()+' deleted');
+  if(location.hash.indexOf('#stock')===0||location.hash.indexOf('#folders')===0)route();
 }
 function vFolderMgr(){
   topTitle('Folders','#home','<button class="icobtn" data-act="newfolder" aria-label="New folder" style="background:var(--saddle);border-color:var(--saddle);color:#fff">'+ico('plus')+'</button>');
@@ -1470,13 +1560,26 @@ function vScan(mode,arg){
   mode=mode||'find';
   const list=mode==='pick'?S.lists.find(l=>l.id===arg):null;
   topTitle(mode==='tocode'?'Scan a code':(mode==='pick'?'Scan to pick — '+(list?list.name:''):'Scan'),mode==='tocode'?null:(mode==='pick'?'#list/'+arg:'#home'));
-  let h='<div class="scanwrap mb"><video id="cam" playsinline muted autoplay></video><div class="scanbox"><div class="frame"><div class="laser"></div></div></div><div class="scanmsg" id="scanmsg">Point at a barcode or QR code</div></div>';
-  h+='<div class="card pad"><div class="eyebrow" style="margin-bottom:6px">Or enter code manually</div><div class="row"><input class="in mono grow" id="man" placeholder="SKU or barcode value" autocomplete="off"><button class="btn pri" id="mango">Go</button></div><div class="hint" id="camnote"></div></div>';
+  const hw=hwScanner();
+  let h='';
+  if(hw){
+    // Barcode machine ON — no camera, just the always-focused scanner input
+    h+='<div class="card pad mb" style="text-align:center;border:2px solid var(--saddle)"><div style="width:54px;height:54px;border-radius:50%;background:var(--saddle-bg);color:var(--saddle);display:grid;place-items:center;margin:0 auto 10px">'+ico('scan')+'</div><h2 style="margin:0 0 4px">Scan using the barcode scanner</h2><div class="sub">Point the machine and scan — items pop up instantly. No camera needed.</div></div>';
+    h+='<div class="card pad"><div class="row"><input class="in mono grow" id="man" placeholder="Waiting for scan…" autocomplete="off" autocapitalize="off" autocorrect="off"><button class="btn pri" id="mango">Go</button></div><div class="hint">Tip: turn the barcode machine off in the menu to use the phone camera instead.</div></div>';
+  } else {
+    h+='<div class="scanwrap mb"><video id="cam" playsinline muted autoplay></video><div class="scanbox"><div class="frame"><div class="laser"></div></div></div><div class="scanmsg" id="scanmsg">Point at a barcode or QR code</div></div>';
+    h+='<div class="card pad"><div class="eyebrow" style="margin-bottom:6px">Or enter code manually</div><div class="row"><input class="in mono grow" id="man" placeholder="SKU or barcode value" autocomplete="off"><button class="btn pri" id="mango">Go</button></div><div class="hint" id="camnote"></div></div>';
+  }
   $('#main').innerHTML=h;
   const man=$('#man');
   $('#mango').onclick=()=>{const v=man.value.trim();if(v)handleCode(v)};
   man.onkeydown=e=>{if(e.key==='Enter')$('#mango').click()};
-  if(hwScanner()){man.placeholder='Scan with the barcode machine…';setTimeout(()=>{try{man.focus()}catch(e){}},80);const cn=$('#camnote');if(cn)cn.textContent='Barcode machine ON — just scan; it enters here automatically.';}
+  if(hw){
+    setTimeout(()=>{try{man.focus()}catch(e){}},80);
+    // keep focus + auto-submit (scanners that don't send Enter)
+    const fi=setInterval(()=>{if(!document.querySelector('#man')){clearInterval(fi);return}try{if(document.activeElement!==man)man.focus()}catch(e){}},500);
+    let at=null;man.oninput=()=>{clearTimeout(at);at=setTimeout(()=>{if(man.value.trim().length>=3)$('#mango').click()},120)};
+  }
 
   let lastCode='',lastAt=0,closed=false;
   function handleCode(code){
@@ -1496,12 +1599,17 @@ function vScan(mode,arg){
       '<div class="sub mb num">In stock: <b id="qs-cur">'+fmtQty(it.qty)+'</b> '+esc(it.unit||'')+' · '+esc(folderPath(it.folder))+'</div>'+
       '<div class="row mb" style="gap:8px"><div class="stepper" style="max-width:150px;flex:0 0 auto"><button id="qs-m" aria-label="Less">−</button><input id="qs-q" class="num" inputmode="decimal" value="1"><button id="qs-p" aria-label="More">+</button></div>'+
       '<select class="in" id="qs-r" style="flex:1;min-width:110px;padding:9px 10px">'+ADJ_REASONS.map(r=>'<option>'+r+'</option>').join('')+'</select></div>'+
-      '<div class="row mb"><button class="btn grow danger" id="qs-out" style="font-weight:800">− Remove</button><button class="btn pri grow" id="qs-in" style="font-weight:800">+ Add</button></div>'+
+      (can('editloc')?'<button class="btn pri block mb" id="qs-move" style="font-weight:800;background:var(--saddle);border-color:var(--saddle)">'+ico('move')+'Move to another '+locL()+'</button>':'')+
+      '<div class="row mb" style="gap:8px"><button class="btn grow danger" id="qs-out" style="font-weight:800">− Remove</button><button class="btn pri grow" id="qs-in" style="font-weight:800">+ Add</button></div>'+
+      (can('dispatch')?'<div class="row mb" style="gap:8px"><button class="btn grow" id="qs-dispatch">'+ico('send')+'Dispatch</button><button class="btn grow" id="qs-return">'+ico('undo')+'Return</button></div>':'')+
       '<button class="btn block" id="qs-open">Open item</button>');
     const q=$('#qs-q');
     $('#qs-m').onclick=()=>{q.value=fmtQty(Math.max(1,round4((parseFloat(q.value)||1)-1)))};
     $('#qs-p').onclick=()=>{q.value=fmtQty(round4((parseFloat(q.value)||0)+1))};
     $('#qs-open').onclick=()=>{closeModal();go('#item/'+it.id)};
+    const mvb=$('#qs-move');if(mvb)mvb.onclick=()=>{closeModal();moveDlg([it])};
+    const dsb=$('#qs-dispatch');if(dsb)dsb.onclick=()=>{closeModal();ensureMarketThen(()=>startDispatch(it))};
+    const rtb=$('#qs-return');if(rtb)rtb.onclick=()=>{closeModal();ensureMarketThen(()=>startReturn(it))};
     const apply=dir=>{
       let n=round4(parseFloat(q.value));
       if(!(n>0)){toast('Enter how many','err');return}
@@ -1527,11 +1635,11 @@ function vScan(mode,arg){
     $('#scanmsg').textContent='Picked '+fmtQty(line.picked)+' / '+fmtQty(line.need)+' — '+it.name;
   }
 
-  // camera
+  // camera (only when barcode machine is OFF)
   const video=$('#cam');const note=$('#camnote');
   const Detector=window.BarcodeDetector;
-  (async()=>{
-    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){note.textContent='Camera not available here — use manual entry or a USB/Bluetooth scanner (it types into the box above).';return}
+  if(!hw)(async()=>{
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){if(note)note.textContent='Camera not available here — use manual entry or a USB/Bluetooth scanner (it types into the box above).';return}
     try{
       const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
       if(closed){stream.getTracks().forEach(t=>t.stop());return}
@@ -2270,6 +2378,7 @@ function vMore(){
   if(can('export'))rows.push(['#import',ico('csv'),'Import CSV','Bring items in from Excel / Sheets']);
   rows.push(['#trash',ico('trash'),'Trash','Restore deleted items ('+S.trash.length+')']);
   if(isAdminU())rows.push(['#orders',ico('truck'),'Dispatch orders','Review orders, SKUs, photos & data used']);
+  if(isAdminU()){const np=pendingApprovals().length;rows.push(['#approvals',ico('inbox'),'Approvals'+(np?' ('+np+')':''),'Requests needing an admin'+(np?' — '+np+' pending':'')]);}
   if(MODE==='cloud'&&isAdminU())rows.push(['#users',ico('flows'),'Team members','Approve, revoke, promote accounts']);
   if(MODE==='cloud'&&isAdminU())rows.push(['#perms',ico('lock'),'Permissions','Choose what regular users can do']);
   h+='<div class="ilist mb">'+
@@ -2324,7 +2433,7 @@ function vMore(){
   const cc=$('#cl-cfg');if(cc)cc.onclick=()=>{vSetup()};
   const co=$('#cl-out');if(co)co.onclick=async()=>{const ok=await confirmDlg('Sign out?','You will need the user ID and password to sign back in.','Sign out');if(!ok)return;try{await firebase.auth().signOut()}catch(e){};location.reload()};
   if($('#bk-out'))$('#bk-out').onclick=async()=>{
-    const out={app:'invento',version:1,exportedAt:new Date().toISOString(),meta:S.meta,folders:S.folders,items:S.items,txns:S.txns,lists:S.lists,pos:S.pos,trash:S.trash,dispatches:S.dispatches,photos:{}};
+    const out={app:'invento',version:1,exportedAt:new Date().toISOString(),meta:S.meta,folders:S.folders,items:S.items,txns:S.txns,lists:S.lists,pos:S.pos,trash:S.trash,dispatches:S.dispatches,approvals:S.approvals,photos:{}};
     if($('#bk-ph').checked){
       const keys=await store.listPhotoKeys();
       for(const k of keys){const v=await store.get(k);if(v)out.photos[k]=v}
@@ -2342,9 +2451,9 @@ function vMore(){
         if(d.app!=='invento'&&d.app!=='godown')throw new Error('not a godown backup');
         const ok=await confirmDlg('Restore backup?','This replaces everything currently in the app with the backup from '+esc(d.exportedAt?fmtDate(Date.parse(d.exportedAt)):'unknown date')+'.','Replace & restore',true);
         if(!ok)return;
-        S.meta=Object.assign(DEFAULT_META(),d.meta||{});S.folders=d.folders||[];S.items=d.items||[];S.txns=d.txns||[];S.lists=d.lists||[];S.pos=d.pos||[];S.trash=d.trash||[];S.dispatches=d.dispatches||[];
+        S.meta=Object.assign(DEFAULT_META(),d.meta||{});S.folders=d.folders||[];S.items=d.items||[];S.txns=d.txns||[];S.lists=d.lists||[];S.pos=d.pos||[];S.trash=d.trash||[];S.dispatches=d.dispatches||[];S.approvals=d.approvals||[];
         S.txns.forEach(t=>{if(!t.id)t.id=uid('t')});
-        await Promise.all(['meta','folders','items','txns','lists','pos','trash','dispatches'].map(saveNow));
+        await Promise.all(['meta','folders','items','txns','lists','pos','trash','dispatches','approvals'].map(saveNow));
         if(MODE==='cloud'&&S.txns.length){
           for(let i2=0;i2<S.txns.length;i2+=400){const b=db.batch();S.txns.slice(i2,i2+400).forEach(t=>b.set(db.collection('txns').doc(t.id),clean(t)));await b.commit()}
         }
@@ -2375,7 +2484,7 @@ function vMore(){
       const keys=await store.listPhotoKeys();
       for(const k of keys)await store.del(k);
       S.meta=DEFAULT_META();S.folders=[];S.items=[];S.txns=[];S.lists=[];S.pos=[];S.trash=[];
-      await Promise.all(['meta','folders','items','txns','lists','pos','trash','dispatches'].map(saveNow));
+      await Promise.all(['meta','folders','items','txns','lists','pos','trash','dispatches','approvals'].map(saveNow));
     }
     toast('All data erased');paintNav();go('#home');
   };
@@ -2442,6 +2551,47 @@ function vPerms(){
     toast('Permissions saved','ok');
   };
 }
+function vApprovals(){
+  if(MODE==='cloud' && !isAdminU()){toast('Admins only','err');go('#more');return}
+  topTitle('Approvals','#more');
+  const pend=pendingApprovals().slice().sort((a,b)=>b.ts-a.ts);
+  const done=(S.approvals||[]).filter(a=>a.status!=='pending').slice().sort((a,b)=>(b.decidedAt||b.ts)-(a.decidedAt||a.ts)).slice(0,20);
+  let h='<h1 class="page">Approvals</h1>';
+  h+='<div class="sub mb">Requests from team members that need an admin. Approve to run the action, or reject to discard.</div>';
+  if(!pend.length)h+='<div class="empty">'+ico('inbox')+'<div class="t">No pending approvals</div><div class="s">When someone requests something that needs sign-off — like deleting a '+locL()+' — it appears here.</div></div>';
+  else{
+    h+='<div class="ilist mb">';
+    pend.forEach(a=>{
+      h+='<div class="card pad mb" data-apid="'+a.id+'"><div class="row" style="gap:11px;align-items:flex-start"><span class="th" style="background:var(--amber-bg);color:var(--amber);flex:0 0 auto">'+ico('clock')+'</span>'+
+        '<div class="grow"><div style="font-weight:700">'+esc(a.label)+'</div><div class="small muted">Requested by '+esc(a.by||'—')+' · '+ago(a.ts)+'</div></div></div>'+
+        '<div class="row mt" style="gap:9px"><button class="btn danger grow" data-areject="'+a.id+'">'+ico('x')+'Reject</button><button class="btn pri grow" data-aok="'+a.id+'">'+ico('check')+'Approve</button></div></div>';
+    });
+    h+='</div>';
+  }
+  if(done.length){
+    h+='<div class="section-h"><h2>Recent decisions</h2></div><div class="ilist">';
+    done.forEach(a=>{
+      const ok=a.status==='approved';
+      h+='<div class="irow"><span class="th" style="background:'+(ok?'var(--green-bg)':'var(--red-bg)')+';color:'+(ok?'var(--green)':'var(--red)')+'">'+ico(ok?'check':'x')+'</span><div class="grow"><div class="nm ellip">'+esc(a.label)+'</div><div class="meta">'+(ok?'Approved':'Rejected')+(a.decidedBy?' by '+esc(a.decidedBy):'')+' · '+ago(a.decidedAt||a.ts)+'</div></div></div>';
+    });
+    h+='</div>';
+  }
+  $('#main').innerHTML=h;
+  $$('#main [data-aok]').forEach(b=>b.onclick=async()=>{
+    const a=S.approvals.find(x=>x.id===b.dataset.aok);if(!a)return;
+    b.disabled=true;b.textContent='Working…';
+    try{await runApproval(a);}catch(e){toast('Could not run action','err');b.disabled=false;return}
+    a.status='approved';a.decidedBy=userName();a.decidedAt=Date.now();
+    await saveNow('approvals');toast('Approved','ok');vApprovals();
+  });
+  $$('#main [data-areject]').forEach(b=>b.onclick=async()=>{
+    const a=S.approvals.find(x=>x.id===b.dataset.areject);if(!a)return;
+    const ok=await confirmDlg('Reject request?','“'+esc(a.label)+'” will be discarded.','Reject',true);if(!ok)return;
+    a.status='rejected';a.decidedBy=userName();a.decidedAt=Date.now();
+    await saveNow('approvals');toast('Rejected');vApprovals();
+  });
+}
+
 function vUsers(){
   if(MODE!=='cloud'||!isAdminU()){go('#more');return}
   topTitle('Team members','#more');
@@ -2577,6 +2727,39 @@ function adminApprove(reasonHTML){
   });
 }
 
+// Approval requests that queue when no admin is present.
+// type: 'delLocation' etc. payload carries what's needed to execute on approval.
+async function createApprovalRequest(type,payload,label){
+  const req={id:uid('ap'),type:type,payload:payload,label:label,by:userName(),ts:Date.now(),status:'pending'};
+  S.approvals.unshift(req);
+  await saveNow('approvals');
+  logTx('list',{detail:'Approval requested: '+label});
+  return req;
+}
+function pendingApprovals(){return (S.approvals||[]).filter(a=>a.status==='pending')}
+// On-spot if admin present, else queue. Returns 'approved' | 'queued' | 'cancelled'
+function requestOrApprove(type,payload,label,reasonHTML){
+  return new Promise(resolve=>{
+    if(isAdminU()){
+      confirmDlg('Admin override','You are signed in as an admin. '+reasonHTML+' Approve now?','Approve',false).then(ok=>resolve(ok?'approved':'cancelled'));
+      return;
+    }
+    openModal('<h3>Admin approval needed</h3><p class="sub mb">'+reasonHTML+'</p>'+
+      '<button class="btn pri block" id="ra-now">'+ico('lock')+'An admin is here — approve now</button>'+
+      '<button class="btn block mt" id="ra-queue">'+ico('clock')+'Send for approval (admin approves later)</button>'+
+      '<button class="btn block mt" id="ra-cancel">Cancel</button>');
+    $('#ra-now').onclick=()=>{closeModal();adminApprove(reasonHTML).then(ok=>resolve(ok?'approved':'cancelled'))};
+    $('#ra-queue').onclick=async()=>{closeModal();await createApprovalRequest(type,payload,label);toast('Sent for admin approval','ok');resolve('queued')};
+    $('#ra-cancel').onclick=()=>{closeModal();resolve('cancelled')};
+  });
+}
+// Execute an approved request by type
+async function runApproval(req){
+  if(req.type==='delLocation'){
+    await deleteFolder(req.payload.folderId,true); // skip its own approval (already approved)
+  }
+}
+
 function vDispatch(sub,arg){
   if(!can('dispatch')){toast('You do not have permission to dispatch','err');go('#home');return}
   if(sub==='sales'){return vDispatchSales();}
@@ -2592,7 +2775,7 @@ function vDispatch(sub,arg){
   $('#d-go').onclick=()=>ensureMarketThen(()=>startDispatch());
 }
 
-function startDispatch(){
+function startDispatch(seed){
   openModal('<h3>Dispatch · '+marketLabel()+'</h3>'+
     '<div class="field"><label>Order ID</label><input class="in" id="d-oid" placeholder="e.g. #1042, ETSY-558, AMZ-9921" autocomplete="off"></div>'+
     '<button class="btn pri block" id="d-start" disabled>'+ico('send')+'Start dispatch</button>');
@@ -2608,6 +2791,7 @@ function startDispatch(){
       if(!approved){toast('Duplicate order — not dispatched','err');return}
     }
     dDraft={orderId:oid,dest:getMarket(),lines:[],ts:Date.now(),dupApproved:!!dup};
+    if(seed)dDraft.lines.push({itemId:seed.id,name:seed.name,code:seed.sku||'',qty:1,thumb:seed.thumb||''});
     closeModal();go('#dispatch/new');
   };
 }
@@ -2938,7 +3122,7 @@ function orderLedger(orderId,market){
 }
 function lineKey(l){return l.itemId||('code:'+(l.code||l.name||''))}
 
-function startReturn(){
+function startReturn(seed){
   openModal('<h3>Return · '+marketLabel()+'</h3>'+
     '<div class="field"><label>Reference (order ID / RMA — optional)</label><input class="in" id="r-ref" placeholder="e.g. RET-204, #1042" autocomplete="off"></div>'+
     '<button class="btn pri block" id="r-start">'+ico('undo')+'Start return</button>');
@@ -2948,6 +3132,7 @@ function startReturn(){
     const ref=$('#r-ref').value.trim();
     const led=ref?orderLedger(ref,getMarket()):{hasOrder:false};
     rDraft={refId:ref||('Return '+new Date().toLocaleDateString()),dest:getMarket(),lines:[],ts:Date.now(),linkedOrder:(ref&&led.hasOrder)?ref:null};
+    if(seed)rDraft.lines.push({itemId:seed.id,name:seed.name,code:seed.sku||'',qty:1,cond:'good',thumb:seed.thumb||''});
     closeModal();go('#return/new');
   };
 }
@@ -3219,7 +3404,7 @@ document.addEventListener('click',e=>{
 /* ============================================================
    SETUP / CONNECT SCREENS
    ============================================================ */
-const FB_RULES="rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    function uD() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }\n    function active() { return request.auth != null && uD().status == 'active'; }\n    function admin() { return active() && uD().role in ['admin','mainframe']; }\n    function mainframe() { return active() && uD().role == 'mainframe'; }\n    function perms() {\n      return exists(/databases/$(database)/documents/meta/app)\n        ? get(/databases/$(database)/documents/meta/app).data.get('perms', {})\n        : {};\n    }\n    function userCan(key) { return admin() || perms().get(key, true) == true; }\n    function settingsUnchanged() {\n      return request.resource.data.get('perms', {}) == resource.data.get('perms', {})\n        && request.resource.data.get('company', '') == resource.data.get('company', '')\n        && request.resource.data.get('currency', '') == resource.data.get('currency', '')\n        && request.resource.data.get('locTerm', '') == resource.data.get('locTerm', '')\n        && request.resource.data.get('lowDefault', 0) == resource.data.get('lowDefault', 0);\n    }\n\n    match /users/{uid} {\n      allow read: if request.auth != null && (request.auth.uid == uid || admin());\n      allow create: if request.auth != null && request.auth.uid == uid && (\n        (request.resource.data.role == 'user' && request.resource.data.status == 'pending') ||\n        (request.auth.token.email == 'trishal@invento.app' && request.resource.data.role == 'mainframe')\n      );\n      allow update: if mainframe()\n        || (admin() && resource.data.role == 'user' && request.resource.data.role == 'user')\n        || (request.auth != null && request.auth.uid == uid\n            && request.resource.data.role == resource.data.role\n            && request.resource.data.status == resource.data.status);\n      allow delete: if mainframe();\n    }\n\n    match /txns/{id}        { allow read, create: if active(); allow update: if false; allow delete: if admin(); }\n    match /trash/{id}       { allow read: if active(); allow create, update, delete: if (admin() || userCan('trash') || userCan('delitem')); }\n    match /meta/{doc}       { allow read: if active(); allow create: if admin(); allow update: if admin() || (active() && settingsUnchanged()); }\n    match /items/{id}       { allow read: if active(); allow create, update: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')); allow delete: if (admin() || userCan('delitem')); }\n    match /folders/{id}     { allow read: if active(); allow create, update: if (userCan('editloc') || userCan('dispatch')); allow delete: if (admin() || userCan('editloc')); }\n    match /lists/{id}       { allow read, create, update: if active(); allow delete: if admin(); }\n    match /pos/{id}         { allow read, create, update: if active(); allow delete: if admin(); }\n    match /dispatches/{id}  { allow read: if active(); allow create, update: if (admin() || userCan('dispatch')); allow delete: if admin(); }\n    match /photos/{id}      { allow read: if active(); allow write: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')); }\n  }\n}";
+const FB_RULES="rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    function uD() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }\n    function active() { return request.auth != null && uD().status == 'active'; }\n    function admin() { return active() && uD().role in ['admin','mainframe']; }\n    function mainframe() { return active() && uD().role == 'mainframe'; }\n    function perms() {\n      return exists(/databases/$(database)/documents/meta/app)\n        ? get(/databases/$(database)/documents/meta/app).data.get('perms', {})\n        : {};\n    }\n    function userCan(key) { return admin() || perms().get(key, true) == true; }\n    function settingsUnchanged() {\n      return request.resource.data.get('perms', {}) == resource.data.get('perms', {})\n        && request.resource.data.get('company', '') == resource.data.get('company', '')\n        && request.resource.data.get('currency', '') == resource.data.get('currency', '')\n        && request.resource.data.get('locTerm', '') == resource.data.get('locTerm', '')\n        && request.resource.data.get('lowDefault', 0) == resource.data.get('lowDefault', 0);\n    }\n\n    match /users/{uid} {\n      allow read: if request.auth != null && (request.auth.uid == uid || admin());\n      allow create: if request.auth != null && request.auth.uid == uid && (\n        (request.resource.data.role == 'user' && request.resource.data.status == 'pending') ||\n        (request.auth.token.email == 'trishal@invento.app' && request.resource.data.role == 'mainframe')\n      );\n      allow update: if mainframe()\n        || (admin() && resource.data.role == 'user' && request.resource.data.role == 'user')\n        || (request.auth != null && request.auth.uid == uid\n            && request.resource.data.role == resource.data.role\n            && request.resource.data.status == resource.data.status);\n      allow delete: if mainframe();\n    }\n\n    match /txns/{id}        { allow read, create: if active(); allow update: if false; allow delete: if admin(); }\n    match /trash/{id}       { allow read: if active(); allow create, update, delete: if (admin() || userCan('trash') || userCan('delitem')); }\n    match /meta/{doc}       { allow read: if active(); allow create: if admin(); allow update: if admin() || (active() && settingsUnchanged()); }\n    match /items/{id}       { allow read: if active(); allow create, update: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')); allow delete: if (admin() || userCan('delitem')); }\n    match /folders/{id}     { allow read: if active(); allow create, update: if userCan('editloc'); allow delete: if (admin() || userCan('editloc')); }\n    match /lists/{id}       { allow read, create, update: if active(); allow delete: if admin(); }\n    match /pos/{id}         { allow read, create, update: if active(); allow delete: if admin(); }\n    match /dispatches/{id}  { allow read: if active(); allow create, update: if (admin() || userCan('dispatch')); allow delete: if admin(); }\n    match /approvals/{id}   { allow read: if active(); allow create: if active(); allow update, delete: if admin(); }\n    match /photos/{id}      { allow read: if active(); allow write: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')); }\n  }\n}";
 function authEmail(u){u=String(u||'').trim().toLowerCase();return u.indexOf('@')>0?u:u.replace(/[^a-z0-9._-]/g,'')+'@invento.app'}
 function authErrMsg(e){
   const c=(e&&e.code)||'';
