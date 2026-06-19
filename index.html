@@ -726,7 +726,7 @@ function mergeCol(col,docs){
   next.forEach(o=>{sh[o.id]=JSON.stringify(clean(o))});
 }
 let repaintT=null;
-const LIVE_VIEWS={home:1,stock:1,item:1,flows:1,list:1,po:1,reports:1,labels:1,trash:1,more:1,folders:1};
+const LIVE_VIEWS={home:1,stock:1,item:1,flows:1,list:1,po:1,reports:1,trash:1,more:1,folders:1};
 function repaintSoon(){
   clearTimeout(repaintT);
   repaintT=setTimeout(()=>{
@@ -738,7 +738,9 @@ function repaintSoon(){
     const typing=ae&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName);
     const searching=$$('#main input[type=search]').some(i=>i.value);
     const modalOpen=$('#ovl').classList.contains('show');
-    if(typing||searching||modalOpen){repaintSoon();return}
+    // don't wipe an in-progress label sheet / preview the user is looking at
+    const stage=$('#lb-stage');const labelBusy=p==='labels'&&((stage&&stage.children.length>0)||$$('#lb-list .irow.sel').length>0);
+    if(typing||searching||modalOpen||labelBusy){repaintSoon();return}
     route();
   },650);
 }
