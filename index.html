@@ -155,7 +155,24 @@ hr.sep{border:none;border-top:1px solid var(--line);margin:14px 0}
 .modeslider button{flex:1;border:none;background:transparent;padding:11px 8px;border-radius:10px;font-size:14px;font-weight:700;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:background .15s,color .15s}
 .modeslider button svg{width:17px;height:17px}
 .modeslider button.on{background:var(--saddle);color:#fff}
-.modeslider button.on svg{color:#fff}
+\.modeslider button.on svg{color:#fff}
+.modeslider4 button{padding:9px 4px;font-size:12.5px;gap:5px;position:relative}
+.modeslider4 button svg{width:15px;height:15px}
+.navdot{position:absolute;top:2px;right:4px;min-width:15px;height:15px;padding:0 4px;border-radius:8px;background:var(--red);color:#fff;font-size:9px;font-weight:800;display:grid;place-items:center;line-height:1}
+.awbcard{border:1px solid var(--line);border-radius:13px;padding:13px;background:var(--card);margin-bottom:9px}
+.awbcard.over{border-color:var(--red);background:var(--red-bg)}
+.awbcols{display:grid;grid-template-columns:1fr;gap:12px}
+@media(min-width:760px){.awbcols{grid-template-columns:1fr 1fr 1fr}}
+.awbcol{background:color-mix(in srgb,var(--ink) 5%,var(--card));border:1px solid var(--line);border-radius:13px;padding:10px}
+.awbcol-h{font-weight:800;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:7px}
+.awbcol-n{background:var(--ink);color:var(--card);border-radius:8px;min-width:20px;height:18px;padding:0 6px;font-size:11px;display:grid;place-items:center}
+.awbcol-empty{color:var(--faint);text-align:center;padding:14px 0;font-size:13px}
+.awbmini{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--line2);border-radius:10px;padding:9px 11px;margin-bottom:8px}
+.awbmini.fresh{border-left-color:var(--green)}
+.awbmini.aging{border-left-color:var(--amber);background:color-mix(in srgb,var(--amber) 8%,var(--card))}
+.awbmini.over{border-left-color:var(--red);background:var(--red-bg)}
+.awb-no{font-weight:800;font-size:15px;font-family:var(--mono,monospace);letter-spacing:.3px;word-break:break-all}
+.awb-meta{font-size:12px;color:var(--muted);margin-top:2px}
 .marketbar{display:flex;align-items:center;gap:10px;background:var(--saddle-bg);border-radius:12px;padding:11px 14px;margin-bottom:14px}
 .marketbar .mk{font-weight:800;color:var(--saddle-dk);flex:1;display:flex;align-items:center;gap:8px}
 .marketbar .mk svg{width:19px;height:19px;color:var(--saddle)}
@@ -445,6 +462,8 @@ const IC = {
 lock:'<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
 clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
 inbox:'<path d="M3 12h5l2 3h4l2-3h5"/><path d="M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/>',
+ticket:'<path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z"/><path d="M13 6v12" stroke-dasharray="2 2"/>',
+office:'<path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16"/><path d="M15 9h4a1 1 0 0 1 1 1v11"/><path d="M8 8h2M8 12h2M8 16h2"/>',
 sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>',
 moon:'<path d="M20 14.5A8 8 0 1 1 9.5 4a6 6 0 0 0 10.5 10.5z"/>',
 logout:'<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5"/><path d="M5 12h12"/>',
@@ -559,10 +578,10 @@ const MAINFRAME_ID='trishal';
 let myProfile=null;
 const isAdminU=()=>MODE!=='cloud'||(myProfile&&(myProfile.role==='admin'||myProfile.role==='mainframe'));
 const isMF=()=>MODE==='cloud'&&myProfile&&myProfile.role==='mainframe';
-const PERM_KEYS=['additem','delitem','adjqty','editloc','trash','export','dispatch'];
-const PERM_LABELS={additem:'Add & edit items',delitem:'Delete items (to trash)',adjqty:'Add / remove stock quantity',editloc:'Create & edit locations',trash:'Restore & permanently delete',export:'Export / download data',dispatch:'Create dispatches (send orders out)'};
-const PERM_DEFAULT={additem:true,delitem:true,adjqty:true,editloc:true,trash:true,export:true,dispatch:true};
-const PERM_HINT={additem:'Create new items and edit existing ones (name, price, SKU, photo).',delitem:'Send items to Trash. Turn off to prevent accidental removals.',adjqty:'The daily floor job — add received stock, remove sold/damaged with a reason.',editloc:'Create, rename or delete locations.',trash:'Restore items from Trash or delete them permanently.',export:'Download CSV, backups, and use Import.',dispatch:'Open Dispatch, scan/photograph and send orders out (reduces stock).'};
+const PERM_KEYS=['additem','delitem','adjqty','editloc','trash','export','dispatch','awbAccept','awbDispatch','awbReturn','awbDelete'];
+const PERM_LABELS={additem:'Add & edit items',delitem:'Delete items (to trash)',adjqty:'Add / remove stock quantity',editloc:'Create & edit locations',trash:'Restore & permanently delete',export:'Export / download data',dispatch:'Create dispatches (send orders out)',awbAccept:'AWB — accept (scan in) shipping labels',awbDispatch:'AWB — dispatch (send out)',awbReturn:'AWB — return to office',awbDelete:'AWB — delete records'};
+const PERM_DEFAULT={additem:true,delitem:true,adjqty:true,editloc:true,trash:true,export:true,dispatch:true,awbAccept:true,awbDispatch:true,awbReturn:true,awbDelete:false};
+const PERM_HINT={additem:'Create new items and edit existing ones (name, price, SKU, photo).',delitem:'Send items to Trash. Turn off to prevent accidental removals.',adjqty:'The daily floor job — add received stock, remove sold/damaged with a reason.',editloc:'Create, rename or delete locations.',trash:'Restore items from Trash or delete them permanently.',export:'Download CSV, backups, and use Import.',dispatch:'Open Dispatch, scan/photograph and send orders out (reduces stock).',awbAccept:'Scan shipping labels taken from office to accept them.',awbDispatch:'Scan AWBs outward to dispatch them.',awbReturn:'Return AWBs to office (regular users must scan; admins can tap).',awbDelete:'Permanently delete AWB records (off by default).'};
 function can(act){
   if(MODE!=='cloud')return true;            // trial mode = full access
   if(isAdminU())return true;                 // admin & mainframe = always allowed
@@ -572,7 +591,7 @@ function can(act){
 const cap1=s=>{s=String(s||'');return s?s.charAt(0).toUpperCase()+s.slice(1):s};
 const shadows={};
 const dirty={};
-const SYNC_COLS=['items','folders','lists','pos','trash','dispatches','approvals'];
+const SYNC_COLS=['items','folders','lists','pos','trash','dispatches','approvals','awbs'];
 
 function getSavedCfg(){
   if(FB_CONFIG && FB_CONFIG.projectId) return FB_CONFIG;
@@ -635,8 +654,8 @@ const store={
 };
 
 /* ---------- app state ---------- */
-const DEFAULT_META=()=>({company:'',user:'',currency:'$',lowDefault:5,view:'grid',sort:'updated',seq:{pl:0,po:0,ds:0,rt:0},setup:{},market:'dom',locTerm:'Location',locTermPlural:'',perms:{additem:true,delitem:true,adjqty:true,editloc:true,trash:true,export:true,dispatch:true}});
-const S={meta:DEFAULT_META(),folders:[],items:[],txns:[],lists:[],pos:[],trash:[],dispatches:[],approvals:[]};
+const DEFAULT_META=()=>({company:'',user:'',currency:'$',lowDefault:5,view:'grid',sort:'updated',seq:{pl:0,po:0,ds:0,rt:0},setup:{},market:'dom',locTerm:'Location',locTermPlural:'',perms:{additem:true,delitem:true,adjqty:true,editloc:true,trash:true,export:true,dispatch:true,awbAccept:true,awbDispatch:true,awbReturn:true,awbDelete:false}});
+const S={meta:DEFAULT_META(),folders:[],items:[],txns:[],lists:[],pos:[],trash:[],dispatches:[],approvals:[],awbs:[]};
 const UNITS=['unit','pcs','pair','set','box','pack','roll','sq.ft','sq.m','m','cm','ft','kg','g','L','ml','dozen'];
 
 function clean(o){const c=JSON.parse(JSON.stringify(o));Object.keys(c).forEach(k=>{if(k[0]==='_')delete c[k]});return c}
@@ -789,6 +808,7 @@ async function initCloud(cfg){
   wireCol('pos',db.collection('pos'),s=>mergeCol('pos',s.docs));
   wireCol('dispatches',db.collection('dispatches').orderBy('ts','desc').limit(800),s=>mergeCol('dispatches',s.docs));
   wireCol('approvals',db.collection('approvals'),s=>mergeCol('approvals',s.docs));
+  wireCol('awbs',db.collection('awbs').orderBy('acceptedAt','desc').limit(1000),s=>mergeCol('awbs',s.docs));
   wireCol('trash',db.collection('trash').orderBy('deletedAt','desc'),s=>mergeCol('trash',s.docs));
   wireCol('txns',db.collection('txns').where('ts','>=',Date.now()-30*86400000).orderBy('ts','desc').limit(1500),s=>{S.txns=s.docs.map(d=>{const x=d.data();x.id=d.id;return x})});
   wireCol('meta',db.collection('meta').doc('app'),s=>{
@@ -816,9 +836,9 @@ async function purgeOldTxns(){
 }
 async function loadLocal(){
   MODE='local';
-  const [m,f,i,t,l,p,tr,dp,ap]=await Promise.all([store.get('meta'),store.get('folders'),store.get('items'),store.get('txns'),store.get('lists'),store.get('pos'),store.get('trash'),store.get('dispatches'),store.get('approvals')]);
+  const [m,f,i,t,l,p,tr,dp,ap,aw]=await Promise.all([store.get('meta'),store.get('folders'),store.get('items'),store.get('txns'),store.get('lists'),store.get('pos'),store.get('trash'),store.get('dispatches'),store.get('approvals'),store.get('awbs')]);
   S.meta=Object.assign(DEFAULT_META(),m||{});fixCurrency();
-  S.folders=f||[];S.items=i||[];S.txns=t||[];S.lists=l||[];S.pos=p||[];S.trash=tr||[];S.dispatches=dp||[];S.approvals=ap||[];
+  S.folders=f||[];S.items=i||[];S.txns=t||[];S.lists=l||[];S.pos=p||[];S.trash=tr||[];S.dispatches=dp||[];S.approvals=ap||[];S.awbs=aw||[];
 }
 async function loadAll(){
   if(!CLOUD_ENABLED){await loadLocal();return 'local'}
@@ -937,11 +957,13 @@ function refreshAcctMenu(){
   h+='<div class="sep"></div>';
   h+='<button id="acct-scanner">'+ico('scan')+'Barcode machine: <b style="margin-left:4px;color:'+(hwScanner()?'var(--green)':'var(--muted)')+'">'+(hwScanner()?'ON':'OFF')+'</b></button>';
   h+='<button id="acct-settings">'+ico('gear')+'Settings</button>';
+  if(MODE==='cloud')h+='<button id="acct-pw">'+ico('lock')+'Change my password</button>';
   if(MODE==='cloud')h+='<button id="acct-signout">'+ico('logout')+'Sign out</button>';
   m.innerHTML=h;
   $$('#acct-menu [data-th]').forEach(b=>b.onclick=()=>{applyTheme(b.dataset.th);refreshAcctMenu()});
   const sc=$('#acct-scanner');if(sc)sc.onclick=()=>{setHwScanner(!hwScanner());refreshAcctMenu();toast('Barcode machine '+(hwScanner()?'ON — scans add instantly':'OFF — camera scanning'),'ok')};
   const st=$('#acct-settings');if(st)st.onclick=()=>{closeAcct();go('#more')};
+  const pw=$('#acct-pw');if(pw)pw.onclick=()=>{closeAcct();changeMyPassword()};
   const so=$('#acct-signout');if(so)so.onclick=async()=>{closeAcct();const ok=await confirmDlg('Sign out?','You will need your user ID and password to sign back in.','Sign out');if(!ok)return;try{await firebase.auth().signOut()}catch(e){};location.reload()};
 }
 function hwScanner(){try{return localStorage.getItem('invento_hwscan')==='1'}catch(e){return false}}
@@ -972,8 +994,8 @@ function route(){
   const h=(location.hash||'#home').slice(1);
   const [p,a,b]=h.split('/');
   const main=$('#main');main.scrollTop=0;window.scrollTo(0,0);
-  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals};
-  setActiveNav(p==='item'||p==='edit'||p==='folders'?'stock':(p==='list'||p==='po'?'flows':(p==='trash'||p==='import'?'more':(p==='return'?'dispatch':p))));
+  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals,awb:()=>vAwb(a||null,b||null)};
+  setActiveNav(p==='item'||p==='edit'||p==='folders'?'stock':(p==='list'||p==='po'?'flows':(p==='trash'||p==='import'?'more':((p==='return'||p==='awb')?'dispatch':p))));
   (map[p]||vHome)();
   updateBadges();
 }
@@ -994,10 +1016,13 @@ function vHome(){
     '<a href="#folders" class="stat" style="text-decoration:none;color:inherit"><div class="eyebrow">Folders</div><div class="v num">'+S.folders.length+'</div></a>'+
     '<div class="stat"><div class="eyebrow">Stock value</div><div class="v num">'+fmtMoney(st.value,0)+'</div></div>'+
     '<a href="#reports/low" class="stat'+(low.length?' alert':'')+'" style="text-decoration:none;color:inherit"><div class="eyebrow">Low stock</div><div class="v num">'+low.length+'</div></a></div>';
+  // overdue AWB alert
+  if(can('dispatch')){const od=awbOverdue();if(od.length)h+='<a href="#awb" class="splitbox" style="display:block;text-decoration:none;margin-top:12px;background:var(--red-bg);border:1px solid var(--red)"><div class="row" style="gap:8px;align-items:center"><span style="color:var(--red)">'+ico('alert')+'</span><div class="grow"><b style="color:var(--red)">'+od.length+' AWB'+(od.length>1?'s':'')+' overdue (7+ days)</b><div class="small muted">Shipping labels taken from office, not yet dispatched or returned. Tap to review.</div></div>'+ico('chev','muted')+'</div></a>';}
   h+='<div class="section-h"><h2>Quick actions</h2></div><div class="quick">'+
     (can('additem')?'<button data-act="newitem">'+ico('plus')+'Add item</button>':'')+
     (can('editloc')?'<button data-act="newfolder">'+ico('folder')+'Add '+locL()+'</button>':'')+
     '<button onclick="location.hash=\'#scan\'">'+ico('scan')+'Scan</button>'+
+    (can('dispatch')?'<button onclick="location.hash=\'#awb\'">'+ico('ticket')+'AWB</button>':'')+
     (can('export')?'<button onclick="location.hash=\'#import\'">'+ico('up')+'Import</button>':'')+
     '<button data-act="newlist">'+ico('pick')+'Pick list</button>'+
     '<button onclick="location.hash=\'#labels\'">'+ico('label')+'Labels</button></div>';
@@ -2379,6 +2404,7 @@ function vMore(){
   const rows=[['#folders',ico('folder'),'Manage '+locLP(),'Rename, nest, organise '+locLP()]];
   if(can('export'))rows.push(['#import',ico('csv'),'Import CSV','Bring items in from Excel / Sheets']);
   rows.push(['#trash',ico('trash'),'Trash','Restore deleted items ('+S.trash.length+')']);
+  if(can('dispatch')){const od=awbOverdue().length;rows.push(['#awb',ico('ticket'),'AWB / Shipments'+(od?' ('+od+')':''),'Accept, dispatch & track shipping labels'+(od?' — '+od+' overdue':'')]);}
   if(isAdminU())rows.push(['#orders',ico('truck'),'Dispatch orders','Review orders, SKUs, photos & data used']);
   if(isAdminU()){const np=pendingApprovals().length;rows.push(['#approvals',ico('inbox'),'Approvals'+(np?' ('+np+')':''),'Requests needing an admin'+(np?' — '+np+' pending':'')]);}
   if(MODE==='cloud'&&isAdminU())rows.push(['#users',ico('flows'),'Team members','Approve, revoke, promote accounts']);
@@ -2435,7 +2461,7 @@ function vMore(){
   const cc=$('#cl-cfg');if(cc)cc.onclick=()=>{vSetup()};
   const co=$('#cl-out');if(co)co.onclick=async()=>{const ok=await confirmDlg('Sign out?','You will need the user ID and password to sign back in.','Sign out');if(!ok)return;try{await firebase.auth().signOut()}catch(e){};location.reload()};
   if($('#bk-out'))$('#bk-out').onclick=async()=>{
-    const out={app:'invento',version:1,exportedAt:new Date().toISOString(),meta:S.meta,folders:S.folders,items:S.items,txns:S.txns,lists:S.lists,pos:S.pos,trash:S.trash,dispatches:S.dispatches,approvals:S.approvals,photos:{}};
+    const out={app:'invento',version:1,exportedAt:new Date().toISOString(),meta:S.meta,folders:S.folders,items:S.items,txns:S.txns,lists:S.lists,pos:S.pos,trash:S.trash,dispatches:S.dispatches,approvals:S.approvals,awbs:S.awbs,photos:{}};
     if($('#bk-ph').checked){
       const keys=await store.listPhotoKeys();
       for(const k of keys){const v=await store.get(k);if(v)out.photos[k]=v}
@@ -2453,9 +2479,9 @@ function vMore(){
         if(d.app!=='invento'&&d.app!=='godown')throw new Error('not a godown backup');
         const ok=await confirmDlg('Restore backup?','This replaces everything currently in the app with the backup from '+esc(d.exportedAt?fmtDate(Date.parse(d.exportedAt)):'unknown date')+'.','Replace & restore',true);
         if(!ok)return;
-        S.meta=Object.assign(DEFAULT_META(),d.meta||{});S.folders=d.folders||[];S.items=d.items||[];S.txns=d.txns||[];S.lists=d.lists||[];S.pos=d.pos||[];S.trash=d.trash||[];S.dispatches=d.dispatches||[];S.approvals=d.approvals||[];
+        S.meta=Object.assign(DEFAULT_META(),d.meta||{});S.folders=d.folders||[];S.items=d.items||[];S.txns=d.txns||[];S.lists=d.lists||[];S.pos=d.pos||[];S.trash=d.trash||[];S.dispatches=d.dispatches||[];S.approvals=d.approvals||[];S.awbs=d.awbs||[];
         S.txns.forEach(t=>{if(!t.id)t.id=uid('t')});
-        await Promise.all(['meta','folders','items','txns','lists','pos','trash','dispatches','approvals'].map(saveNow));
+        await Promise.all(['meta','folders','items','txns','lists','pos','trash','dispatches','approvals','awbs'].map(saveNow));
         if(MODE==='cloud'&&S.txns.length){
           for(let i2=0;i2<S.txns.length;i2+=400){const b=db.batch();S.txns.slice(i2,i2+400).forEach(t=>b.set(db.collection('txns').doc(t.id),clean(t)));await b.commit()}
         }
@@ -2486,7 +2512,7 @@ function vMore(){
       const keys=await store.listPhotoKeys();
       for(const k of keys)await store.del(k);
       S.meta=DEFAULT_META();S.folders=[];S.items=[];S.txns=[];S.lists=[];S.pos=[];S.trash=[];
-      await Promise.all(['meta','folders','items','txns','lists','pos','trash','dispatches','approvals'].map(saveNow));
+      await Promise.all(['meta','folders','items','txns','lists','pos','trash','dispatches','approvals','awbs'].map(saveNow));
     }
     toast('All data erased');paintNav();go('#home');
   };
@@ -2621,6 +2647,7 @@ async function paintUsers(){
       if(u.status==='revoked')btns+='<button class="btn sm" data-ua="approve" data-id="'+u.id+'">Reactivate</button>';
       if(isMF()&&u.status==='active'&&u.role==='user')btns+='<button class="btn sm" data-ua="promote" data-id="'+u.id+'">Make admin</button>';
       if(isMF()&&u.role==='admin')btns+='<button class="btn sm" data-ua="demote" data-id="'+u.id+'">Make user</button>';
+      if(isMF())btns+='<button class="btn sm danger" data-ua="delete" data-id="'+u.id+'">'+ico('trash')+'Delete</button>';
     }
     h+='<div class="irow" style="cursor:default;flex-wrap:wrap"><span class="th" style="background:var(--saddle-bg);color:var(--saddle);font-weight:800;font-size:15px">'+esc(cap1((u.name||u.userid||'?').charAt(0)))+'</span>'+
       '<div class="grow"><div class="nm">'+esc(u.name||cap1(u.userid))+(me?' <span class="muted" style="font-weight:600">(you)</span>':'')+'</div><div class="meta mono">'+esc(u.userid)+'</div></div>'+
@@ -2632,6 +2659,13 @@ async function paintUsers(){
   wrap.innerHTML=h;
   $$('#us-list [data-ua]').forEach(b=>b.onclick=async()=>{
     const act=b.dataset.ua,id=b.dataset.id;const u=docs.find(x=>x.id===id);if(!u)return;
+    if(act==='delete'){
+      const ok=await confirmDlg('Delete '+esc(u.name||u.userid)+'?','Their account record is removed and they lose all access immediately. To also stop them logging in again, delete their account in Firebase Console → Authentication.','Delete account',true);
+      if(!ok)return;
+      try{await db.collection('users').doc(id).delete();toast('User deleted','ok');logTx('list',{detail:'Deleted user '+(u.name||u.userid)})}
+      catch(e){toast('Not allowed: '+((e&&e.code)||e),'err')}
+      paintUsers();return;
+    }
     const label=act==='approve'?(u.status==='revoked'?'Reactivate':'Approve')+' '+u.name+'?':act==='revoke'?'Revoke '+u.name+'? They will be signed out and lose all access.':act==='promote'?'Make '+u.name+' an admin? Admins can delete items and manage users.':'Make '+u.name+' a regular user?';
     const ok=await confirmDlg('Team member',esc(label),'Confirm',act==='revoke');if(!ok)return;
     const patch=act==='approve'?{status:'active',approvedBy:userName()}:act==='revoke'?{status:'revoked'}:act==='promote'?{role:'admin'}:{role:'user'};
@@ -2647,10 +2681,12 @@ async function paintUsers(){
 let dDraft=null; // {orderId, dest, lines:[{itemId?,name,qty,photo?,thumb?,code?}], ts}
 
 function modeSlider(active){
-  return '<div class="modeslider">'+
+  const od=awbOverdue().length;
+  return '<div class="modeslider modeslider4">'+
     '<button data-mode="inv" class="'+(active==='inv'?'on':'')+'">'+ico('box')+'Inventory</button>'+
     '<button data-mode="dispatch" class="'+(active==='dispatch'?'on':'')+'">'+ico('truck')+'Dispatch</button>'+
     '<button data-mode="return" class="'+(active==='return'?'on':'')+'">'+ico('undo')+'Return</button>'+
+    '<button data-mode="awb" class="'+(active==='awb'?'on':'')+'">'+ico('ticket')+'AWB'+(od?'<span class="navdot">'+od+'</span>':'')+'</button>'+
     '</div>';
 }
 function wireModeSlider(){
@@ -2658,6 +2694,7 @@ function wireModeSlider(){
     const m=b.dataset.mode;
     if(m==='inv')go('#stock');
     else if(m==='dispatch')go('#dispatch');
+    else if(m==='awb')go('#awb');
     else go('#return');
   });
 }
@@ -2687,6 +2724,32 @@ function findDuplicateDispatch(orderId,market){
   return (S.dispatches||[]).find(d=>d.kind!=='return' && String(d.orderId||'').trim().toLowerCase()===oid && (d.dest||'dom')===(market||'dom'))||null;
 }
 // verify an admin/mainframe via a secondary auth instance so the current user stays logged in
+function changeMyPassword(){
+  if(MODE!=='cloud'||!fbUser){toast('Sign-in required','err');return}
+  openModal('<h3>Change my password</h3><p class="sub mb">Update the password for your own account ('+esc((myProfile&&myProfile.userid)||'')+').</p>'+
+    '<div class="field"><label>Current password</label><input class="in" id="pw-old" type="password" autocomplete="current-password"></div>'+
+    '<div class="field"><label>New password (min 6 characters)</label><input class="in" id="pw-new" type="password" autocomplete="new-password"></div>'+
+    '<div class="field"><label>Confirm new password</label><input class="in" id="pw-new2" type="password" autocomplete="new-password"></div>'+
+    '<button class="btn pri block" id="pw-go">'+ico('lock')+'Update password</button>');
+  $('#pw-old').focus();
+  $('#pw-go').onclick=async()=>{
+    const oldp=$('#pw-old').value, np=$('#pw-new').value, np2=$('#pw-new2').value;
+    if(!oldp||!np){toast('Fill all fields','err');return}
+    if(np.length<6){toast('New password must be 6+ characters','err');return}
+    if(np!==np2){toast('New passwords do not match','err');return}
+    $('#pw-go').disabled=true;$('#pw-go').textContent='Updating…';
+    try{
+      const cred=firebase.auth.EmailAuthProvider.credential(fbUser.email,oldp);
+      await fbUser.reauthenticateWithCredential(cred);
+      await fbUser.updatePassword(np);
+      closeModal();toast('Password updated','ok');
+    }catch(e){
+      const msg=(e&&e.code==='auth/wrong-password')?'Current password is wrong':((e&&e.message)||'Could not update');
+      toast(msg,'err');$('#pw-go').disabled=false;$('#pw-go').innerHTML=ico('lock')+'Update password';
+    }
+  };
+}
+
 async function verifyAdmin(userId,password){
   if(MODE!=='cloud')return true;
   let sec;
@@ -3385,6 +3448,197 @@ function vReturnView(id){
 }
 
 /* ============================================================
+   AWB / SHIPMENTS — accountability for shipping labels
+   ============================================================ */
+const AWB_OVERDUE_DAYS=7;
+function awbPending(){return (S.awbs||[]).filter(a=>a.status==='accepted')}
+function awbOverdue(){const cut=Date.now()-AWB_OVERDUE_DAYS*86400000;return awbPending().filter(a=>(a.acceptedAt||0)<cut)}
+// overdue AWBs held specifically by the current user (governs the accept-block)
+function myOverdueAwbs(){const me=userName();return awbOverdue().filter(a=>(a.acceptedBy||'')===me)}
+function awbByNo(no){const k=String(no||'').trim().toLowerCase();return (S.awbs||[]).find(a=>String(a.awb||'').trim().toLowerCase()===k)}
+function awbAgeDays(a){return Math.floor((Date.now()-(a.acceptedAt||Date.now()))/86400000)}
+// colour state by age: 'fresh' | 'aging' (5-6d) | 'over' (7d+)
+function awbAgeClass(a){const d=awbAgeDays(a);if(d>=AWB_OVERDUE_DAYS)return 'over';if(d>=AWB_OVERDUE_DAYS-2)return 'aging';return 'fresh'}
+async function acceptAwb(no){
+  no=String(no||'').trim();
+  if(!no)return {ok:false,msg:'Empty'};
+  const ex=awbByNo(no);
+  if(ex&&ex.status==='accepted')return {ok:false,msg:'Already in list ('+(ex.acceptedBy||'someone')+')'};
+  if(ex&&ex.status==='dispatched')return {ok:false,msg:'Already dispatched'};
+  const rec={id:uid('awb'),awb:no,status:'accepted',acceptedBy:userName(),acceptedAt:Date.now()};
+  S.awbs.unshift(rec);
+  await saveNow('awbs');
+  logTx('list',{detail:'AWB accepted · '+no});
+  return {ok:true,rec};
+}
+async function dispatchAwbByNo(no){
+  no=String(no||'').trim();
+  if(!no)return {ok:false,msg:'Empty'};
+  let a=awbByNo(no);
+  if(a&&a.status==='dispatched')return {ok:false,msg:'Already dispatched'};
+  if(a&&a.status==='returned')return {ok:false,msg:'Was returned to office'};
+  if(!a){ // scanned outward without being accepted first — create then dispatch
+    a={id:uid('awb'),awb:no,status:'accepted',acceptedBy:userName(),acceptedAt:Date.now()};
+    S.awbs.unshift(a);
+  }
+  a.status='dispatched';a.resolvedBy=userName();a.resolvedAt=Date.now();
+  await saveNow('awbs');
+  logTx('dispatch',{detail:'AWB dispatched · '+no});
+  return {ok:true,rec:a};
+}
+async function returnAwbRec(a){
+  if(!a||a.status!=='accepted')return false;
+  a.status='returned';a.resolvedBy=userName();a.resolvedAt=Date.now();
+  await saveNow('awbs');
+  logTx('list',{detail:'AWB returned to office · '+a.awb});
+  return true;
+}
+
+function vAwb(sub,arg){
+  if(!(can('awbAccept')||can('awbDispatch')||can('awbReturn')||can('dispatch'))){toast('You do not have permission for AWBs','err');go('#home');return}
+  if(sub==='in'){return awbScanFlow('in');}
+  if(sub==='out'){return awbScanFlow('out');}
+  if(sub==='return'){return awbReturnScanFlow();}
+  // hub: two big buttons + three columns
+  topTitle('AWB / Shipments','#home');
+  const pend=awbPending().slice().sort((a,b)=>(a.acceptedAt||0)-(b.acceptedAt||0)); // oldest first
+  const disp=(S.awbs||[]).filter(a=>a.status==='dispatched').sort((a,b)=>(b.resolvedAt||0)-(a.resolvedAt||0));
+  const ret=(S.awbs||[]).filter(a=>a.status==='returned').sort((a,b)=>(b.resolvedAt||0)-(a.resolvedAt||0));
+  const myOver=myOverdueAwbs();
+  let h=modeSlider('awb');
+  if(myOver.length)h+='<div class="splitbox mb" style="background:var(--red-bg);border:1px solid var(--red)"><div class="row" style="gap:8px;align-items:center"><span style="color:var(--red)">'+ico('alert')+'</span><div><b style="color:var(--red)">You must return '+myOver.length+' overdue AWB'+(myOver.length>1?'s':'')+'</b><div class="small muted">They are 7+ days old. Return them to office before accepting more.</div></div></div></div>';
+  // two big buttons
+  h+='<div class="bigbtns" style="margin-bottom:14px">'+
+    '<button class="bigbtn" id="aw-in">'+ico('download')+'<div>Inward</div><div class="sub">Scan AWBs taken from office</div></button>'+
+    '<button class="bigbtn" id="aw-out">'+ico('truck')+'<div>Outward</div><div class="sub">Scan AWBs being dispatched</div></button>'+
+    '</div>';
+  // three columns
+  h+='<div class="awbcols">';
+  h+=awbColHTML('Accept',pend,'accept');
+  h+=awbColHTML('Dispatch',disp.slice(0,40),'dispatch');
+  h+=awbColHTML('Return',ret.slice(0,40),'return');
+  h+='</div>';
+  $('#main').innerHTML=h;
+  wireModeSlider();
+  $('#aw-in').onclick=()=>startInward();
+  $('#aw-out').onclick=()=>{ if(!can('awbDispatch')){toast('No permission to dispatch AWBs','err');return} go('#awb/out'); };
+  wireAwbColActions();
+}
+function startInward(){
+  if(!can('awbAccept')){toast('No permission to accept AWBs','err');return}
+  const myOver=myOverdueAwbs();
+  if(myOver.length && !isAdminU()){
+    openModal('<h3 style="color:var(--red)">Return overdue AWBs first</h3><p class="sub mb">You are holding '+myOver.length+' AWB'+(myOver.length>1?'s':'')+' older than '+AWB_OVERDUE_DAYS+' days. Return '+(myOver.length>1?'them':'it')+' to office before accepting any more.</p>'+
+      '<div class="ilist mb">'+myOver.map(a=>'<div class="awbcard over"><div class="awb-no">'+esc(a.awb)+'</div><div class="awb-meta">'+awbAgeDays(a)+' days old</div></div>').join('')+'</div>'+
+      '<button class="btn pri block" id="aw-fix">'+ico('office')+'Return these now</button>');
+    $('#aw-fix').onclick=()=>{closeModal();awbReturnScanFlow();};
+    return;
+  }
+  go('#awb/in');
+}
+
+function awbColHTML(title,list,kind){
+  let h='<div class="awbcol"><div class="awbcol-h">'+esc(title)+' <span class="awbcol-n">'+list.length+'</span></div>';
+  if(!list.length)h+='<div class="awbcol-empty">—</div>';
+  else list.forEach(a=>{
+    const cls=kind==='accept'?awbAgeClass(a):'';
+    const od=cls==='over';
+    h+='<div class="awbmini '+cls+'" data-awid="'+a.id+'">'+
+      '<div class="awb-no">'+esc(a.awb)+'</div>'+
+      '<div class="awb-meta">'+(kind==='accept'?('held by '+esc(a.acceptedBy||'—')+' · '+awbAgeDays(a)+'d'+(od?' · OVERDUE':'')):(kind==='dispatch'?'out · '+ago(a.resolvedAt):'returned · '+ago(a.resolvedAt)))+'</div>'+
+      (kind==='accept'?'<div class="row mt" style="gap:6px"><button class="btn sm pri grow" data-awdisp="'+a.id+'">Dispatch</button><button class="btn sm grow" data-awret="'+a.id+'">Return</button>'+(can('awbDelete')?'<button class="btn sm danger" data-awdel="'+a.id+'" style="flex:0 0 auto;padding:6px 9px">'+ico('trash')+'</button>':'')+'</div>':(can('awbDelete')?'<div class="row mt"><button class="btn sm danger" data-awdel="'+a.id+'">'+ico('trash')+'Delete</button></div>':''))+
+      '</div>';
+  });
+  h+='</div>';
+  return h;
+}
+function wireAwbColActions(){
+  $$('#main [data-awdisp]').forEach(b=>b.onclick=async()=>{
+    if(!can('awbDispatch')){toast('No permission','err');return}
+    const a=(S.awbs||[]).find(x=>x.id===b.dataset.awdisp);if(!a)return;
+    const r=await dispatchAwbByNo(a.awb);if(r.ok){toast('Dispatched','ok');vAwb();}
+  });
+  $$('#main [data-awret]').forEach(b=>b.onclick=()=>awbReturnOne(b.dataset.awret));
+  $$('#main [data-awdel]').forEach(b=>b.onclick=async()=>{
+    if(!can('awbDelete')){toast('No permission to delete AWBs','err');return}
+    const a=(S.awbs||[]).find(x=>x.id===b.dataset.awdel);if(!a)return;
+    const ok=await confirmDlg('Delete AWB?',esc(a.awb)+' will be permanently removed.','Delete',true);if(!ok)return;
+    S.awbs=S.awbs.filter(x=>x.id!==a.id);await saveNow('awbs');toast('Deleted');vAwb();
+  });
+}
+// Admin: tap to return. Regular user: must scan (handled by awbReturnScanFlow).
+async function awbReturnOne(awbId){
+  const a=(S.awbs||[]).find(x=>x.id===awbId);if(!a||a.status!=='accepted')return;
+  if(!can('awbReturn')){toast('No permission to return AWBs','err');return}
+  if(isAdminU()){
+    const ok=await confirmDlg('Return to office?',esc(a.awb)+' will be marked returned.','Mark returned',false);
+    if(!ok)return;
+    await returnAwbRec(a);toast('Returned to office','ok');vAwb();
+  } else {
+    // regular user must scan the AWB to confirm physical return
+    awbReturnScanFlow(a.awb);
+  }
+}
+
+/* scanner flow shared by inward / outward / return */
+function awbScanFlow(mode){
+  // mode: 'in' (accept) | 'out' (dispatch)
+  const accept=mode==='in';
+  if(accept && !can('awbAccept')){toast('No permission','err');go('#awb');return}
+  if(!accept && !can('awbDispatch')){toast('No permission','err');go('#awb');return}
+  awbScanModal(accept?'Inward — accept AWBs':'Outward — dispatch AWBs', accept?'Scan each label taken from office.':'Scan each AWB you are sending out.',
+    async(code)=>accept?acceptAwb(code):dispatchAwbByNo(code), ()=>vAwb());
+}
+function awbReturnScanFlow(prefill){
+  if(!can('awbReturn')){toast('No permission','err');go('#awb');return}
+  awbScanModal('Return AWBs to office','Scan each AWB you are returning to office.',
+    async(code)=>{const a=awbByNo(code);if(!a||a.status!=='accepted')return {ok:false,msg:(a?('status: '+a.status):'not in your list')};const okk=await returnAwbRec(a);return okk?{ok:true}:{ok:false,msg:'Failed'};},
+    ()=>vAwb());
+}
+
+// Generic AWB scan modal: hardware-scanner field OR camera; onCode(code)->{ok,msg}; loops.
+function awbScanModal(title,subtitle,onCode,onDone){
+  const hw=hwScanner();
+  let h='<h3>'+esc(title)+(hw?' <span class="pill ok" style="font-size:10px">Machine</span>':'')+'</h3>';
+  h+='<p class="sub mb">'+esc(subtitle)+'</p>';
+  if(!hw)h+='<div class="scanwrap mb" id="awsw" style="max-height:40dvh"><div class="scanbox"><div class="laser"></div></div><video id="awsv" playsinline muted></video></div>';
+  h+='<div class="searchbar mb" style="border-color:var(--saddle)">'+ico('ticket')+'<input id="aw-in2" placeholder="'+(hw?'Waiting for scan…':'or type the number')+'" autocomplete="off" autocapitalize="characters"></div>';
+  h+='<div id="aw-feed2" class="sub" style="min-height:40px;margin-bottom:8px"></div>';
+  h+='<button class="btn pri block" id="aw-done2">'+ico('check')+'Done</button>';
+  openModal(h);
+  const inp=$('#aw-in2'),feed=$('#aw-feed2');
+  let n=0;
+  const handle=async(code)=>{
+    code=String(code||'').trim();if(!code)return;
+    const r=await onCode(code);
+    if(r&&r.ok){n++;feed.innerHTML='<b style="color:var(--green)">✓ '+esc(code)+'</b><div class="sub">'+n+' done</div>';beep(true);}
+    else{feed.innerHTML='<b style="color:var(--red)">'+esc(code)+' — '+esc((r&&r.msg)||'skipped')+'</b>';beep(false);}
+    inp.value='';
+  };
+  inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();const v=inp.value.trim();if(v)handle(v)}};
+  const refocus=()=>{try{inp.focus()}catch(e){}};refocus();
+  let fi=null,stop=null;
+  if(hw){
+    fi=setInterval(()=>{if(!document.querySelector('#aw-in2')){clearInterval(fi);return}refocus()},450);
+    let at=null;inp.oninput=()=>{clearTimeout(at);at=setTimeout(()=>{if(inp.value.trim().length>=4)handle(inp.value.trim())},150)};
+  } else {
+    (async()=>{
+      if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return;
+      let stream;try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false})}catch(e){return}
+      const v=$('#awsv');if(!v){try{stream.getTracks().forEach(t=>t.stop())}catch(e){}return}
+      v.srcObject=stream;await v.play().catch(()=>{});stop=()=>{try{stream.getTracks().forEach(t=>t.stop())}catch(e){}};
+      if(!('BarcodeDetector' in window))return;let fmts;try{fmts=await BarcodeDetector.getSupportedFormats()}catch(e){fmts=[]}
+      const det=new BarcodeDetector({formats:fmts.length?fmts:['code_128','code_39','qr_code','ean_13']});let last='',lt=0;
+      const loop=async()=>{if(!stop)return;try{const cs=await det.detect(v);if(cs&&cs.length){const c=cs[0].rawValue;const now=Date.now();if(c&&(c!==last||now-lt>2500)){last=c;lt=now;handle(c)}}}catch(e){}if(stop)setTimeout(()=>requestAnimationFrame(loop),200)};
+      requestAnimationFrame(loop);
+    })();
+  }
+  const cleanup=()=>{if(fi)clearInterval(fi);if(stop){try{stop()}catch(e){}stop=null}};
+  $('#aw-done2').onclick=()=>{cleanup();closeModal();if(onDone)onDone();};
+  const ov=$('#ovl');const obs=new MutationObserver(()=>{if(!ov.classList.contains('show')){cleanup();obs.disconnect();}});obs.observe(ov,{attributes:true,attributeFilter:['class']});
+}
+
+/* ============================================================
    GLOBAL ACTIONS + INIT
    ============================================================ */
 document.addEventListener('click',e=>{
@@ -3406,7 +3660,7 @@ document.addEventListener('click',e=>{
 /* ============================================================
    SETUP / CONNECT SCREENS
    ============================================================ */
-const FB_RULES="rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    function uD() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }\n    function active() { return request.auth != null && uD().status == 'active'; }\n    function admin() { return active() && uD().role in ['admin','mainframe']; }\n    function mainframe() { return active() && uD().role == 'mainframe'; }\n    function perms() {\n      return exists(/databases/$(database)/documents/meta/app)\n        ? get(/databases/$(database)/documents/meta/app).data.get('perms', {})\n        : {};\n    }\n    function userCan(key) { return admin() || perms().get(key, true) == true; }\n    function settingsUnchanged() {\n      return request.resource.data.get('perms', {}) == resource.data.get('perms', {})\n        && request.resource.data.get('company', '') == resource.data.get('company', '')\n        && request.resource.data.get('currency', '') == resource.data.get('currency', '')\n        && request.resource.data.get('locTerm', '') == resource.data.get('locTerm', '')\n        && request.resource.data.get('lowDefault', 0) == resource.data.get('lowDefault', 0);\n    }\n\n    match /users/{uid} {\n      allow read: if request.auth != null && (request.auth.uid == uid || admin());\n      allow create: if request.auth != null && request.auth.uid == uid && (\n        (request.resource.data.role == 'user' && request.resource.data.status == 'pending') ||\n        (request.auth.token.email == 'trishal@invento.app' && request.resource.data.role == 'mainframe')\n      );\n      allow update: if mainframe()\n        || (admin() && resource.data.role == 'user' && request.resource.data.role == 'user')\n        || (request.auth != null && request.auth.uid == uid\n            && request.resource.data.role == resource.data.role\n            && request.resource.data.status == resource.data.status);\n      allow delete: if mainframe();\n    }\n\n    match /txns/{id}        { allow read, create: if active(); allow update: if false; allow delete: if admin(); }\n    match /trash/{id}       { allow read: if active(); allow create, update, delete: if (admin() || userCan('trash') || userCan('delitem')); }\n    match /meta/{doc}       { allow read: if active(); allow create: if admin(); allow update: if admin() || (active() && settingsUnchanged()); }\n    match /items/{id}       { allow read: if active(); allow create, update: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')); allow delete: if (admin() || userCan('delitem')); }\n    match /folders/{id}     { allow read: if active(); allow create, update: if userCan('editloc'); allow delete: if (admin() || userCan('editloc')); }\n    match /lists/{id}       { allow read, create, update: if active(); allow delete: if admin(); }\n    match /pos/{id}         { allow read, create, update: if active(); allow delete: if admin(); }\n    match /dispatches/{id}  { allow read: if active(); allow create, update: if (admin() || userCan('dispatch')); allow delete: if admin(); }\n    match /approvals/{id}   { allow read: if active(); allow create: if active(); allow update, delete: if admin(); }\n    match /photos/{id}      { allow read: if active(); allow write: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')); }\n  }\n}";
+const FB_RULES="rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    function uD() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }\n    function active() { return request.auth != null && uD().status == 'active'; }\n    function admin() { return active() && uD().role in ['admin','mainframe']; }\n    function mainframe() { return active() && uD().role == 'mainframe'; }\n    function perms() {\n      return exists(/databases/$(database)/documents/meta/app)\n        ? get(/databases/$(database)/documents/meta/app).data.get('perms', {})\n        : {};\n    }\n    function userCan(key) { return admin() || perms().get(key, true) == true; }\n    function settingsUnchanged() {\n      return request.resource.data.get('perms', {}) == resource.data.get('perms', {})\n        && request.resource.data.get('company', '') == resource.data.get('company', '')\n        && request.resource.data.get('currency', '') == resource.data.get('currency', '')\n        && request.resource.data.get('locTerm', '') == resource.data.get('locTerm', '')\n        && request.resource.data.get('lowDefault', 0) == resource.data.get('lowDefault', 0);\n    }\n\n    match /users/{uid} {\n      allow read: if request.auth != null && (request.auth.uid == uid || admin());\n      allow create: if request.auth != null && request.auth.uid == uid && (\n        (request.resource.data.role == 'user' && request.resource.data.status == 'pending') ||\n        (request.auth.token.email == 'trishal@invento.app' && request.resource.data.role == 'mainframe')\n      );\n      allow update: if mainframe()\n        || (admin() && resource.data.role == 'user' && request.resource.data.role == 'user')\n        || (request.auth != null && request.auth.uid == uid\n            && request.resource.data.role == resource.data.role\n            && request.resource.data.status == resource.data.status);\n      allow delete: if mainframe();\n    }\n\n    match /txns/{id}        { allow read, create: if active(); allow update: if false; allow delete: if admin(); }\n    match /trash/{id}       { allow read: if active(); allow create, update, delete: if (admin() || userCan('trash') || userCan('delitem')); }\n    match /meta/{doc}       { allow read: if active(); allow create: if admin(); allow update: if admin() || (active() && settingsUnchanged()); }\n    match /items/{id}       { allow read: if active(); allow create, update: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')); allow delete: if (admin() || userCan('delitem')); }\n    match /folders/{id}     { allow read: if active(); allow create, update: if userCan('editloc'); allow delete: if (admin() || userCan('editloc')); }\n    match /lists/{id}       { allow read, create, update: if active(); allow delete: if admin(); }\n    match /pos/{id}         { allow read, create, update: if active(); allow delete: if admin(); }\n    match /dispatches/{id}  { allow read: if active(); allow create, update: if (admin() || userCan('dispatch')); allow delete: if admin(); }\n    match /awbs/{id}        { allow read: if active(); allow create, update: if (userCan('awbAccept') || userCan('awbDispatch') || userCan('awbReturn')); allow delete: if (admin() || userCan('awbDelete')); }\n    match /approvals/{id}   { allow read: if active(); allow create: if active(); allow update, delete: if admin(); }\n    match /photos/{id}      { allow read: if active(); allow write: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')); }\n  }\n}";
 function authEmail(u){u=String(u||'').trim().toLowerCase();return u.indexOf('@')>0?u:u.replace(/[^a-z0-9._-]/g,'')+'@invento.app'}
 function authErrMsg(e){
   const c=(e&&e.code)||'';
