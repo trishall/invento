@@ -2451,9 +2451,13 @@ function vImport(){
       return{name:name,qty:qty,folderName:g('folder'),unit:g('unit')||'pcs',price:g('price'),cost:g('cost'),min:g('min'),sku:g('sku'),code:g('code')||g('sku'),alt:g('alt').split(/[;,]/).map(s=>s.trim()).filter(Boolean),tags:g('tags').split(/[;,]/).map(s=>s.trim()).filter(Boolean),notes:g('notes')};
     }).filter(Boolean);
     const dups=parsed.filter(p=>p.sku&&S.items.some(i=>i.sku===p.sku)).length;
+    const nameIndex={};S.items.forEach(i=>{const k=(i.name||'').trim().toLowerCase();if(k&&!(k in nameIndex))nameIndex[k]=i.id;});
+    const skuMatch=p=>p.sku&&S.items.some(i=>skusOf(i).some(s=>String(s).toLowerCase()===String(p.sku).toLowerCase()));
+    const nameDups=parsed.filter(p=>!skuMatch(p)&&nameIndex[(p.name||'').trim().toLowerCase()]!=null).length;
     let h='<div class="card pad mb"><div class="eyebrow" style="margin-bottom:8px">Ready to import</div>'+
       '<div class="kv" style="border:none;padding:0;background:transparent;gap:0 14px"><div><div class="k">Valid rows</div><div class="v num">'+parsed.length+'</div></div><div><div class="k">Skipped rows</div><div class="v num">'+errs.length+'</div></div></div>'+
       (dups?'<div class="field mt"><label>'+dups+' rows match existing SKUs</label><select class="in" id="imp-dup"><option value="update">Update existing items (qty &amp; details)</option><option value="skip">Skip them</option><option value="create">Create as new items anyway</option></select></div>':'')+
+      (nameDups?'<div class="field mt"><label>'+nameDups+' rows match an existing item by <b>name</b> (different SKU)</label><select class="in" id="imp-namedup"><option value="update">Update that item (change its SKU too) — avoids duplicates</option><option value="create">Create as new item</option><option value="skip">Skip them</option></select><div class="hint">Use “Update” when it’s the same product with a corrected SKU. Use “Create new” only if these are genuinely different products that happen to share a name.</div></div>':'')+
       (errs.length?'<details class="mt small muted"><summary>Show skipped rows</summary><div style="margin-top:6px">'+errs.slice(0,30).map(esc).join('<br>')+(errs.length>30?'<br>…':'')+'</div></details>':'')+
       '<button class="btn pri block mt" id="imp-go">'+ico('check')+'Import '+parsed.length+' items</button></div>';
     h+='<div class="tablewrap"><table class="t"><thead><tr><th>Name</th><th>'+locTerm()+'</th><th class="r">Qty</th><th>SKU</th></tr></thead><tbody>'+parsed.slice(0,8).map(p=>'<tr><td>'+esc(p.name)+'</td><td class="small">'+esc(p.folderName||'—')+'</td><td class="r num">'+fmtQty(p.qty)+'</td><td class="small mono">'+esc(p.sku||'')+'</td></tr>').join('')+(parsed.length>8?'<tr><td colspan="4" class="small muted">… and '+(parsed.length-8)+' more</td></tr>':'')+'</tbody></table></div>';
@@ -2461,6 +2465,8 @@ function vImport(){
     $('#imp-go').onclick=async()=>{
       $('#imp-go').disabled=true;
       const dupMode=$('#imp-dup')?$('#imp-dup').value:'update';
+      const nameDupMode=$('#imp-namedup')?$('#imp-namedup').value:'update';
+      const nameIdx={};S.items.forEach(i=>{const k=(i.name||'').trim().toLowerCase();if(k&&!(k in nameIdx))nameIdx[k]=i.id;});
       const fmap={};S.folders.forEach(f=>fmap[folderPath(f.id).toLowerCase()]=f.id);S.folders.forEach(f=>{if(!(f.name.toLowerCase() in fmap))fmap[f.name.toLowerCase()]=f.id});
       function folderFor(nm){
         if(!nm)return null;const key=nm.toLowerCase();
@@ -2476,19 +2482,30 @@ function vImport(){
       }
       let added=0,updated=0,skipped=0;
       parsed.forEach(p=>{
-        const ex=p.sku?S.items.find(i=>i.sku===p.sku):null;
+        // 1) SKU match (any SKU, case-insensitive)
+        let ex=p.sku?S.items.find(i=>skusOf(i).some(s=>String(s).toLowerCase()===String(p.sku).toLowerCase())):null;
+        let viaName=false;
+        // 2) no SKU match → try NAME match
+        if(!ex){
+          const nid=nameIdx[(p.name||'').trim().toLowerCase()];
+          if(nid!=null){ex=iById(nid);viaName=true;}
+        }
         if(ex){
-          if(dupMode==='skip'){skipped++;return}
-          if(dupMode==='update'){
+          const mode=viaName?nameDupMode:dupMode;
+          if(mode==='skip'){skipped++;return}
+          if(mode==='update'){
             Object.assign(ex,{name:p.name,qty:p.qty,unit:p.unit,price:p.price,cost:p.cost,min:p.min,tags:p.tags.length?p.tags:ex.tags,notes:p.notes||ex.notes,updatedAt:Date.now()});
             if(p.sku||p.alt.length)setSkus(ex,[p.sku||p.code||ex.sku].concat(p.alt||[]).filter(Boolean));
             if(p.folderName)ex.folder=folderFor(p.folderName);
             updated++;return;
           }
+          // mode==='create' falls through to create a new item
         }
         const ni=newItem({name:p.name,qty:p.qty,unit:p.unit,price:p.price,cost:p.cost,min:p.min,tags:p.tags,notes:p.notes,folder:folderFor(p.folderName)});
         setSkus(ni,[p.sku||p.code].concat(p.alt||[]).filter(Boolean));
         S.items.push(ni);
+        // keep name index fresh so later rows with same name update this one
+        const nk=(ni.name||'').trim().toLowerCase();if(nk&&!(nk in nameIdx))nameIdx[nk]=ni.id;
         added++;
       });
       logTx('imported',{detail:added+' added, '+updated+' updated'+(skipped?', '+skipped+' skipped':'')+' from CSV'});
