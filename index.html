@@ -994,7 +994,7 @@ function route(){
   const h=(location.hash||'#home').slice(1);
   const [p,a,b]=h.split('/');
   const main=$('#main');main.scrollTop=0;window.scrollTo(0,0);
-  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals,awb:()=>vAwb(a||null,b||null)};
+  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals,awb:()=>vAwb(a||null,b||null),uniexport:()=>{vMore();setTimeout(exportUnicommerce,30)},exportall:()=>{vMore();setTimeout(exportAllItems,30)}};
   setActiveNav(p==='item'||p==='edit'||p==='folders'?'stock':(p==='list'||p==='po'?'flows':(p==='trash'||p==='import'?'more':((p==='return'||p==='awb')?'dispatch':p))));
   (map[p]||vHome)();
   updateBadges();
@@ -2168,6 +2168,111 @@ function exportItemsCSV(its){
   toast('CSV downloaded','ok');
 }
 
+// Full catalog export with a simple scope choice
+function exportAllItems(){
+  if(!can('export')){toast('You do not have permission to export','err');return}
+  openModal('<h3>Export all items</h3>'+
+    '<p class="sub mb">Download your item catalog as a CSV (opens in Excel or Google Sheets).</p>'+
+    '<div class="field"><label>Which items</label><select class="in" id="ei-scope"><option value="__all__">All items ('+S.items.length+')</option>'+warehouses().map(w=>'<option value="'+w.id+'">'+esc(w.name)+' ('+itemsInTree(w.id).length+')</option>').join('')+'</select></div>'+
+    '<div class="field"><label>Include</label><select class="in" id="ei-scope2"><option value="active">Current items only</option><option value="withtrash">Also include Trash</option></select></div>'+
+    '<button class="btn pri block mt" id="ei-go">'+ico('down')+'Download items CSV</button>');
+  $('#ei-go').onclick=()=>{
+    const scope=$('#ei-scope').value;
+    let its=scope==='__all__'?S.items.slice():itemsInTree(scope);
+    if($('#ei-scope2').value==='withtrash')its=its.concat((S.trash||[]).map(t=>t.item||t).filter(Boolean));
+    if(!its.length){toast('No items to export','err');return}
+    closeModal();
+    exportItemsCSV(its);
+  };
+}
+
+/* ============================================================
+   UNICOMMERCE — Inventory Adjustment export sheet
+   Matches Uniware "Inventory Adjustment" import columns:
+   Product Code*, Quantity*, Shelf Code*, Adjustment Type*,
+   Inventory Type, Transfer to Shelf Code, Sla, Source Batch Code,
+   Remarks, Force Allocate.
+   Adjustment Type: ADD | REMOVE | REPLACE | TRANSFER
+   Inventory Type: GOOD_INVENTORY | BAD_INVENTORY | QC_REJECTED | VIRTUAL_INVENTORY
+   ============================================================ */
+// Uniware SKU: 3-45 chars, allowed specials - . _ / ; no spaces
+function uniSkuIssue(sku){
+  sku=String(sku||'').trim();
+  if(!sku)return 'missing SKU';
+  if(sku.length<3)return 'SKU under 3 chars';
+  if(sku.length>45)return 'SKU over 45 chars';
+  if(/\s/.test(sku))return 'SKU has a space';
+  if(/[^A-Za-z0-9._/\-]/.test(sku))return 'SKU has an unsupported symbol';
+  return '';
+}
+// immediate location name for an item = the shelf code Uniware expects (e.g. R5C12)
+function shelfCodeFor(i){const f=fById(i.folder);return f?f.name:'DEFAULT'}
+// qty-affecting activity acts
+const UNI_QTY_ACTS=['created','in','out','adjusted','received','picked','moved','cloned','imported','restored'];
+function exportUnicommerce(){
+  if(!can('export')){toast('You do not have permission to export','err');return}
+  openModal('<h3>Export to Unicommerce</h3>'+
+    '<p class="sub mb">Builds an <b>Inventory Adjustment</b> CSV to upload in Uniware → Tools → Import → Inventory Adjustment.</p>'+
+    '<div class="field"><label>Include changes from</label><select class="in" id="uni-days"><option value="1">Last 1 day</option><option value="2">Last 2 days</option><option value="7" selected>Last 7 days</option><option value="30">Last 30 days</option><option value="0">Everything (all current stock)</option></select></div>'+
+    '<div class="field"><label>How to write the stock</label><select class="in" id="uni-mode"><option value="replace" selected>Set Uniware to current stock (REPLACE) — safe to re-run</option><option value="delta">Only the change (ADD / REMOVE)</option></select></div>'+
+    '<div class="field"><label>Which items</label><select class="in" id="uni-scope"><option value="__all__">All warehouses</option>'+warehouses().map(w=>'<option value="'+w.id+'">'+esc(w.name)+'</option>').join('')+'</select></div>'+
+    '<div class="hint">Only items whose stock changed in the chosen period are included, so the sheet stays small. Shelf Code uses each item\'s location (e.g. R5C12) — those shelves must exist in Uniware. SKUs need 3–45 chars, no spaces.</div>'+
+    '<button class="btn pri block mt" id="uni-go">'+ico('down')+'Build adjustment CSV</button>');
+  $('#uni-go').onclick=()=>{
+    const days=parseInt($('#uni-days').value);
+    const mode=$('#uni-mode').value;
+    const scope=$('#uni-scope').value;
+    const since=days?Date.now()-days*86400000:0;
+    let pool=scope==='__all__'?S.items.slice():itemsInTree(scope);
+    const poolIds=new Set(pool.map(i=>i.id));
+    // which items changed in the window
+    let changedIds;
+    if(!days){changedIds=new Set(pool.map(i=>i.id));} // everything
+    else{
+      changedIds=new Set();
+      (S.txns||[]).forEach(t=>{ if(t.ts>=since && t.itemId && poolIds.has(t.itemId) && UNI_QTY_ACTS.includes(t.act)) changedIds.add(t.itemId); });
+    }
+    // for delta mode, net change per item over window
+    const delta={};
+    if(mode==='delta' && days){
+      (S.txns||[]).forEach(t=>{ if(t.ts>=since && t.itemId && changedIds.has(t.itemId) && t.toQ!=null && t.fromQ!=null){ delta[t.itemId]=(delta[t.itemId]||0)+((+t.toQ||0)-(+t.fromQ||0)); } });
+    }
+    const cols=['Product Code*','Quantity*','Shelf Code*','Adjustment Type*','Inventory Type','Transfer to Shelf Code','Sla','Source Batch Code','Remarks','Force Allocate'];
+    const rows=[cols];
+    const problems=[];
+    let n=0;
+    const stamp=new Date().toISOString().slice(0,10);
+    Array.from(changedIds).forEach(id=>{
+      const i=iById(id);if(!i)return;
+      const sku=(i.sku||i.code||'').trim();
+      const issue=uniSkuIssue(sku);
+      if(issue){problems.push((i.name||'(no name)')+' — '+issue+(sku?' ['+sku+']':''));return}
+      let adjType,qty;
+      if(mode==='delta' && days){
+        const d=delta[id]||0;
+        if(!d)return; // no net change → nothing to write
+        adjType=d>0?'ADD':'REMOVE';
+        qty=Math.abs(round4(d));
+      } else {
+        adjType='REPLACE';
+        qty=round4(+i.qty||0);
+      }
+      rows.push([sku,qty,shelfCodeFor(i),adjType,'GOOD_INVENTORY','','','','Invento sync '+stamp,'']);
+      n++;
+    });
+    if(!n){closeModal();toast('No stock changes in that period','err');if(problems.length)setTimeout(()=>alert('SKU problems:\n'+problems.join('\n')),50);return}
+    download('unicommerce-inventory-'+stamp+'.csv',buildCSV(rows),'text/csv');
+    logTx('export',{detail:n+' items → Unicommerce inventory CSV ('+(days?('last '+days+'d'):'all')+')'});
+    closeModal();
+    if(problems.length){
+      toast(n+' exported · '+problems.length+' skipped','ok');
+      openModal('<h3>'+n+' rows exported</h3><p class="sub mb">'+problems.length+' item'+(problems.length>1?'s were':' was')+' skipped because of SKU issues (Uniware needs 3–45 chars, no spaces, only - . _ / ). Fix and re-export:</p><div class="card" style="padding:8px 12px;max-height:40dvh;overflow:auto"><div class="hist" style="font-size:13px">'+problems.map(p=>'<div style="padding:4px 0;border-bottom:1px solid var(--line2)">'+esc(p)+'</div>').join('')+'</div></div><button class="btn pri block mt" onclick="closeModal()">Got it</button>');
+    } else {
+      toast(n+' items exported','ok');
+    }
+  };
+}
+
 /* ============================================================
    REPORTS
    ============================================================ */
@@ -2403,6 +2508,8 @@ function vMore(){
   let h='<h1 class="page">More</h1>';
   const rows=[['#folders',ico('folder'),'Manage '+locLP(),'Rename, nest, organise '+locLP()]];
   if(can('export'))rows.push(['#import',ico('csv'),'Import CSV','Bring items in from Excel / Sheets']);
+  if(can('export'))rows.push(['#exportall',ico('down'),'Export all items','Download your full catalog as CSV']);
+  if(can('export'))rows.push(['#uniexport',ico('down'),'Export to Unicommerce','Inventory adjustment CSV — sync recent stock changes']);
   rows.push(['#trash',ico('trash'),'Trash','Restore deleted items ('+S.trash.length+')']);
   if(can('dispatch')){const od=awbOverdue().length;rows.push(['#awb',ico('ticket'),'AWB / Shipments'+(od?' ('+od+')':''),'Accept, dispatch & track shipping labels'+(od?' — '+od+' overdue':'')]);}
   if(isAdminU())rows.push(['#orders',ico('truck'),'Dispatch orders','Review orders, SKUs, photos & data used']);
