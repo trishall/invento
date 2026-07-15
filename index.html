@@ -2763,8 +2763,35 @@ function vApprovals(){
 function vUsers(){
   if(MODE!=='cloud'||!isAdminU()){go('#more');return}
   topTitle('Team members','#more');
-  $('#main').innerHTML='<h1 class="page">Team members</h1><div class="sub mb" id="us-note">Loading…</div><div id="us-list"></div>';
-  paintUsers();
+  $('#main').innerHTML='<h1 class="page">Team members</h1><div id="us-resets"></div><div class="sub mb" id="us-note">Loading…</div><div id="us-list"></div>';
+  paintUsers();paintResets();
+}
+const FB_USERS_URL='https://console.firebase.google.com/project/warehount/authentication/users';
+async function paintResets(){
+  const wrap=$('#us-resets');if(!wrap)return;
+  let reqs=[];
+  try{const q=await db.collection('pwresets').get();reqs=q.docs.map(d=>d.data()).filter(Boolean)}
+  catch(e){wrap.innerHTML='';return}
+  if(!reqs.length){wrap.innerHTML='';return}
+  reqs.sort((a,b)=>(b.ts||0)-(a.ts||0));
+  let h='<div class="splitbox mb" style="background:var(--amber-bg);border:1px solid var(--amber)">'+
+    '<div class="row" style="gap:8px;align-items:center;margin-bottom:6px"><span style="color:var(--amber)">'+ico('lock')+'</span><b>'+reqs.length+' password reset request'+(reqs.length>1?'s':'')+'</b></div>'+
+    '<div class="sub" style="margin-bottom:8px">Set a new password in Firebase Console, then tell them and mark it done.</div>';
+  reqs.forEach(r=>{
+    h+='<div class="card pad" style="margin-bottom:8px"><div style="font-weight:800">'+esc(r.userid)+'</div><div class="small muted">asked '+ago(r.ts)+'</div>'+
+      '<ol style="margin:8px 0 0;padding-left:18px;line-height:1.6;font-size:13px">'+
+        '<li>Open <a href="'+FB_USERS_URL+'" target="_blank" rel="noopener" style="color:var(--saddle);font-weight:700">Firebase → Authentication → Users</a></li>'+
+        '<li>Find <b>'+esc(r.userid)+'@invento.app</b> → ⋮ menu → <b>Reset password</b> (or Edit user → set a new one)</li>'+
+        '<li>Send them the new password — they can change it later via their avatar → “Change my password”.</li>'+
+      '</ol>'+
+      '<button class="btn sm block mt" data-pwdone="'+esc(r.userid)+'">'+ico('check')+'Mark done</button></div>';
+  });
+  h+='</div>';
+  wrap.innerHTML=h;
+  $$('#us-resets [data-pwdone]').forEach(b=>b.onclick=async()=>{
+    try{await db.collection('pwresets').doc(b.dataset.pwdone).delete();toast('Marked done','ok');paintResets();}
+    catch(e){toast('Could not clear: '+((e&&e.code)||e),'err')}
+  });
 }
 async function paintUsers(){
   const wrap=$('#us-list');if(!wrap)return;
@@ -3800,7 +3827,7 @@ document.addEventListener('click',e=>{
 /* ============================================================
    SETUP / CONNECT SCREENS
    ============================================================ */
-const FB_RULES="rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    function uD() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }\n    function active() { return request.auth != null && uD().status == 'active'; }\n    function admin() { return active() && uD().role in ['admin','mainframe']; }\n    function mainframe() { return active() && uD().role == 'mainframe'; }\n    function perms() {\n      return exists(/databases/$(database)/documents/meta/app)\n        ? get(/databases/$(database)/documents/meta/app).data.get('perms', {})\n        : {};\n    }\n    function userCan(key) { return admin() || perms().get(key, true) == true; }\n    function settingsUnchanged() {\n      return request.resource.data.get('perms', {}) == resource.data.get('perms', {})\n        && request.resource.data.get('company', '') == resource.data.get('company', '')\n        && request.resource.data.get('currency', '') == resource.data.get('currency', '')\n        && request.resource.data.get('locTerm', '') == resource.data.get('locTerm', '')\n        && request.resource.data.get('lowDefault', 0) == resource.data.get('lowDefault', 0);\n    }\n\n    match /users/{uid} {\n      allow read: if request.auth != null && (request.auth.uid == uid || admin());\n      allow create: if request.auth != null && request.auth.uid == uid && (\n        (request.resource.data.role == 'user' && request.resource.data.status == 'pending') ||\n        (request.auth.token.email == 'trishal@invento.app' && request.resource.data.role == 'mainframe')\n      );\n      allow update: if mainframe()\n        || (admin() && resource.data.role == 'user' && request.resource.data.role == 'user')\n        || (request.auth != null && request.auth.uid == uid\n            && request.resource.data.role == resource.data.role\n            && request.resource.data.status == resource.data.status);\n      allow delete: if mainframe();\n    }\n\n    match /txns/{id}        { allow read, create: if active(); allow update: if false; allow delete: if admin(); }\n    match /trash/{id}       { allow read: if active(); allow create, update, delete: if (admin() || userCan('trash') || userCan('delitem')); }\n    match /meta/{doc}       { allow read: if active(); allow create: if admin(); allow update: if admin() || (active() && settingsUnchanged()); }\n    match /items/{id}       { allow read: if active(); allow create, update: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')); allow delete: if (admin() || userCan('delitem')); }\n    match /folders/{id}     { allow read: if active(); allow create, update: if userCan('editloc'); allow delete: if (admin() || userCan('editloc')); }\n    match /lists/{id}       { allow read, create, update: if active(); allow delete: if admin(); }\n    match /pos/{id}         { allow read, create, update: if active(); allow delete: if admin(); }\n    match /dispatches/{id}  { allow read: if active(); allow create, update: if (admin() || userCan('dispatch')); allow delete: if admin(); }\n    match /awbs/{id}        { allow read: if active(); allow create, update: if (userCan('awbAccept') || userCan('awbDispatch') || userCan('awbReturn')); allow delete: if (admin() || userCan('awbDelete')); }\n    match /approvals/{id}   { allow read: if active(); allow create: if active(); allow update, delete: if admin(); }\n    match /photos/{id}      { allow read: if active(); allow write: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')); }\n  }\n}";
+const FB_RULES="rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n\n    function uD() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }\n    function active() { return request.auth != null && uD().status == 'active'; }\n    function admin() { return active() && uD().role in ['admin','mainframe']; }\n    function mainframe() { return active() && uD().role == 'mainframe'; }\n    function perms() {\n      return exists(/databases/$(database)/documents/meta/app)\n        ? get(/databases/$(database)/documents/meta/app).data.get('perms', {})\n        : {};\n    }\n    function userCan(key) { return admin() || perms().get(key, true) == true; }\n\n    // Non-admins may only change numbering + view preferences in meta.\n    // perms, company, currency, tax settings and any FUTURE field are frozen by default.\n    function metaSafe() {\n      return request.resource.data.diff(resource.data).affectedKeys()\n             .hasOnly(['seq','view','sort','market','usdMig']);\n    }\n    // Defence-in-depth: cap top-level field count. (Firestore already caps each doc at 1MB.)\n    function okDoc() { return request.resource.data.size() <= 60; }\n\n    match /users/{uid} {\n      allow read: if request.auth != null && (request.auth.uid == uid || admin());\n      allow create: if request.auth != null && request.auth.uid == uid && (\n        (request.resource.data.role == 'user' && request.resource.data.status == 'pending') ||\n        (request.auth.token.email == 'trishal@invento.app' && request.resource.data.role == 'mainframe')\n      );\n      allow update: if mainframe()\n        || (admin() && resource.data.role == 'user' && request.resource.data.role == 'user')\n        || (request.auth != null && request.auth.uid == uid\n            && request.resource.data.role == resource.data.role\n            && request.resource.data.status == resource.data.status);\n      allow delete: if mainframe();\n    }\n\n    // \"Forgot password\" requests. The person is signed OUT, so create is public --\n    // but locked down hard: doc id MUST equal the userid (one request per user, no\n    // flooding), exactly two fields, tight types/length. Contains no private data.\n    // Only admins can read or clear them.\n    match /pwresets/{userid} {\n      allow read, update, delete: if admin();\n      allow create: if request.resource.data.keys().hasOnly(['userid','ts'])\n        && request.resource.data.userid is string\n        && request.resource.data.userid == userid\n        && request.resource.data.userid.size() >= 2\n        && request.resource.data.userid.size() <= 40\n        && request.resource.data.userid.matches('^[a-z0-9._-]+$')\n        && request.resource.data.ts is number;\n    }\n\n    match /txns/{id}        { allow read: if active(); allow create: if active() && okDoc(); allow update: if false; allow delete: if admin(); }\n    match /trash/{id}       { allow read: if active(); allow create, update: if (admin() || userCan('trash') || userCan('delitem')) && okDoc(); allow delete: if (admin() || userCan('trash') || userCan('delitem')); }\n    match /meta/{doc}       { allow read: if active(); allow create: if admin(); allow update: if admin() || (active() && metaSafe()); }\n    match /items/{id}       { allow read: if active(); allow create, update: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')) && okDoc(); allow delete: if (admin() || userCan('delitem')); }\n    match /folders/{id}     { allow read: if active(); allow create, update: if userCan('editloc') && okDoc(); allow delete: if (admin() || userCan('editloc')); }\n    match /lists/{id}       { allow read: if active(); allow create, update: if active() && okDoc(); allow delete: if admin(); }\n    match /pos/{id}         { allow read: if active(); allow create, update: if active() && okDoc(); allow delete: if admin(); }\n    match /dispatches/{id}  { allow read: if active(); allow create, update: if (admin() || userCan('dispatch')) && okDoc(); allow delete: if admin(); }\n    match /awbs/{id}        { allow read: if active(); allow create, update: if (userCan('awbAccept') || userCan('awbDispatch') || userCan('awbReturn')) && okDoc(); allow delete: if (admin() || userCan('awbDelete')); }\n    match /approvals/{id}   { allow read: if active(); allow create: if active() && okDoc(); allow update, delete: if admin(); }\n    match /photos/{id}      { allow read: if active(); allow write: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')); }\n\n    // Deny anything not explicitly matched above.\n    match /{document=**} { allow read, write: if false; }\n  }\n}";
 function authEmail(u){u=String(u||'').trim().toLowerCase();return u.indexOf('@')>0?u:u.replace(/[^a-z0-9._-]/g,'')+'@invento.app'}
 function authErrMsg(e){
   const c=(e&&e.code)||'';
@@ -3812,6 +3839,30 @@ function authErrMsg(e){
     :(c==='auth/network-request-failed')?'No internet — check the connection'
     :((e&&e.message)||String(e));
 }
+// A signed-out user asks an admin to reset their password.
+// Doc id = user id, so repeat taps update one request instead of spamming.
+function forgotPasswordDlg(prefill){
+  openModal('<h3>Forgot password</h3>'+
+    '<p class="sub mb">We\'ll tell the admin you need a new password. They will set one and pass it to you.</p>'+
+    '<div class="field"><label>Your user ID</label><input class="in" id="fp-u" autocapitalize="none" spellcheck="false" placeholder="e.g. ramesh" value="'+esc(prefill||'')+'"></div>'+
+    '<button class="btn pri block" id="fp-go">'+ico('check')+'Send request to admin</button>'+
+    '<div class="hint mt">Nothing changes until the admin resets it. If it is urgent, message them directly too.</div>');
+  setTimeout(()=>{try{$('#fp-u').focus()}catch(e){}},40);
+  $('#fp-go').onclick=async()=>{
+    const u=($('#fp-u').value||'').trim().toLowerCase().replace(/[^a-z0-9._-]/g,'');
+    if(u.length<2){toast('Enter your user ID','err');return}
+    const btn=$('#fp-go');btn.disabled=true;btn.textContent='Sending…';
+    try{
+      await db.collection('pwresets').doc(u).set({userid:u,ts:Date.now()});
+      closeModal();
+      toast('Request sent — the admin will set a new password','ok');
+    }catch(e){
+      btn.disabled=false;btn.innerHTML=ico('check')+'Send request to admin';
+      toast('Could not send — tell the admin directly','err');
+    }
+  };
+}
+
 function vLogin(err,tab){
   tab=tab||'in';
   topTitle('Welcome','');
@@ -3823,10 +3874,11 @@ function vLogin(err,tab){
     '<div class="field"><label>User ID</label><input class="in" id="lg-u" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="e.g. ramesh"></div>'+
     '<div class="field"><label>Password</label><input class="in" id="lg-p" type="password" autocomplete="'+(tab==='up'?'new-password':'current-password')+'" placeholder="'+(tab==='up'?'At least 6 characters':'')+'"></div>'+
     '<button class="btn pri block" id="lg-go">'+ico('check')+(tab==='in'?'Sign in':'Create account')+'</button>'+
-    (tab==='in'?'<div class="hint mt">Forgot the password? Ask the admin to reset it (Firebase console → Authentication → Users).</div>':'<div class="hint mt">User IDs are letters/numbers only — staff sign in with just the ID, no email or OTP.</div>')+
+    (tab==='in'?'<button class="btn block mt" id="lg-forgot" style="font-weight:600">'+ico('lock')+'Forgot password?</button>':'<div class="hint mt">User IDs are letters/numbers only — staff sign in with just the ID, no email or OTP.</div>')+
     '</div>';
   $('#tb-in').onclick=()=>vLogin('','in');
   $('#tb-up').onclick=()=>vLogin('','up');
+  const fg=$('#lg-forgot');if(fg)fg.onclick=()=>forgotPasswordDlg(($('#lg-u').value||'').trim());
   const doAuth=async()=>{
     const u=$('#lg-u').value.trim(),p=$('#lg-p').value;
     if(!u||!p){toast('Enter user ID and password','err');return}
