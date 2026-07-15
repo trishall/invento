@@ -2138,7 +2138,12 @@ function vPO(id){
    ============================================================ */
 function buildCSV(rows){
   return rows.map(r=>r.map(c=>{
+    // formula-injection guard: only for values that were strings (never numbers),
+    // so qty/price columns stay clean. Leading = + - @ or tab/CR would execute
+    // as a formula in Excel/Sheets — prefix with ' to force plain text.
+    const wasString=(typeof c==='string');
     c=(c==null)?'':String(c);
+    if(wasString&&/^[=+\-@\t\r]/.test(c))c="'"+c;
     return /[",\n\r]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c;
   }).join(',')).join('\r\n');
 }
