@@ -1869,7 +1869,6 @@ function vFlows(tab){
   $('#sg-pick').onclick=()=>go('#flows/pick');
   $('#sg-po').onclick=()=>go('#flows/po');
   const np=$('#newpo');if(np)np.onclick=async()=>{np.disabled=true;const id=await createPO();go('#po/'+id)};
-  $$('#main [data-open]').forEach(c=>c.onclick=()=>{const h='#'+c.dataset.open;if(location.hash===h)route();else go(h)});
 }
 
 /* ---------- pick lists ---------- */
@@ -3972,6 +3971,8 @@ function awbScanModal(title,subtitle,onCode,onDone){
    GLOBAL ACTIONS + INIT
    ============================================================ */
 document.addEventListener('click',e=>{
+  const op=e.target.closest('[data-open]');
+  if(op&&op.closest('#main')){const h='#'+op.dataset.open;if(location.hash===h)route();else go(h);return}
   const b=e.target.closest('[data-act]');if(!b)return;
   const act=b.dataset.act,id=b.dataset.id;
   if(act==='newitem'){if(!can('additem')){toast('You do not have permission to add items','err');return}go('#edit/new'+(b.dataset.folder?'/'+b.dataset.folder:''))}
