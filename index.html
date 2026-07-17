@@ -696,6 +696,7 @@ async function saveNow(col){
     }catch(e){
       console.error('cloud save',col,e);
       if(e&&e.code==='permission-denied'){toast('Not allowed — admin permission needed','err');resyncCol(col);return false}
+      if(e&&e.code==='resource-exhausted'){toast('Daily free-tier limit reached — changes will sync after Google resets it (~1:30 PM IST). Avoid heavy use till then.','err');setTimeout(()=>saveNow(col),90000);return false}
       toast('Could not sync — retrying','err');save(col);return false}
   }
   const ok=await store.set(col,S[col]);
@@ -786,6 +787,7 @@ async function initCloud(cfg){
   activeCfg=cfg;
   fbApp=firebase.initializeApp(cfg);
   db=firebase.firestore();
+  try{await db.enablePersistence({synchronizeTabs:true})}catch(e){/* multi-tab or unsupported — fine */}
   try{await db.enablePersistence({synchronizeTabs:true})}catch(e){}
   fbUser=await new Promise(res=>{const off=firebase.auth().onAuthStateChanged(u=>{off();res(u)},()=>{off();res(null)})});
   if(!fbUser){MODE='cloud';return 'login'}
@@ -1868,7 +1870,10 @@ function vFlows(tab){
   $('#main').innerHTML=h;
   $('#sg-pick').onclick=()=>go('#flows/pick');
   $('#sg-po').onclick=()=>go('#flows/po');
-  const np=$('#newpo');if(np)np.onclick=async()=>{np.disabled=true;const id=await createPO();go('#po/'+id)};
+  const np=$('#newpo');if(np)np.onclick=async()=>{np.disabled=true;
+    try{const id=await createPO();go('#po/'+id)}
+    catch(e){np.disabled=false;
+      toast((e&&e.code==='resource-exhausted')?'Daily free-tier limit reached — new records will work after Google resets it (~1:30 PM IST)':'Could not create PO: '+((e&&e.code)||e),'err');}};
 }
 
 /* ---------- pick lists ---------- */
