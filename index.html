@@ -171,6 +171,17 @@ hr.sep{border:none;border-top:1px solid var(--line);margin:14px 0}
 .awbmini.fresh{border-left-color:var(--green)}
 .awbmini.aging{border-left-color:var(--amber);background:color-mix(in srgb,var(--amber) 8%,var(--card))}
 .awbmini.over{border-left-color:var(--red);background:var(--red-bg)}
+.pocard{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-left:5px solid var(--line2);border-radius:13px;padding:13px 14px;margin-bottom:10px;cursor:pointer;box-shadow:var(--shadow)}
+.pocard:active{filter:brightness(.97)}
+.pocard.hi{border-left-color:var(--red)}
+.pocard.lo{border-left-color:var(--saddle)}
+.pocard.done{border-left-color:var(--green);opacity:.82}
+.pocard.late{background:var(--red-bg);border-color:var(--red);border-left-color:var(--red)}
+.pocard .po-t{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-weight:800;font-size:15px}
+.pocard .po-m{font-size:12.5px;color:var(--muted);margin-top:3px}
+.pocard .po-due{font-weight:700}
+.pocard .po-due.over{color:var(--red)}
+.pocard .prog{margin-top:9px}
 .awb-no{font-weight:800;font-size:15px;font-family:var(--mono,monospace);letter-spacing:.3px;word-break:break-all}
 .awb-meta{font-size:12px;color:var(--muted);margin-top:2px}
 .marketbar{display:flex;align-items:center;gap:10px;background:var(--saddle-bg);border-radius:12px;padding:11px 14px;margin-bottom:14px}
@@ -879,6 +890,7 @@ function logTx(act,o){
   if(S.txns.length>1500)S.txns.length=1500;
   if(MODE==='cloud'){try{db.collection('txns').doc(t.id).set(clean(t))}catch(e){console.error('txn',e)}}
   else save('txns');
+  if(['out','adjusted','dispatch','import'].indexOf(act)>=0)scheduleAutoPO();
 }
 const ACT_LABEL={created:'Created',edited:'Edited',qty:'Quantity changed','in':'Stock in','out':'Stock out',moved:'Moved',deleted:'Deleted',restored:'Restored',cloned:'Cloned',imported:'Imported',picked:'Picked',received:'Received',adjusted:'Adjusted',folder:'Folder',list:'Pick list',po:'Purchase order',label:'Labels',export:'Exported'};
 
@@ -1059,6 +1071,7 @@ function vHome(){
   if(rec.length){h+='<div class="card pad" style="padding:6px 14px"><div class="hist">'+rec.map(txHTML).join('')+'</div></div>'}
   else h+='<div class="empty">'+ico('report')+'<div class="t">No activity yet</div><div class="s">Changes to items, folders and stock counts will show up here.</div></div>';
   $('#main').innerHTML=h;
+  maybePoOverduePopup();
   const mig=$('#mig-email');if(mig)mig.onclick=()=>attachEmailFlow();
   const ver=$('#ver-email');if(ver)ver.onclick=async()=>{try{await fbUser.sendEmailVerification();toast('Verification email sent — check inbox/spam','ok');ver.disabled=true}catch(e){toast(authErrMsg(e),'err')}};
 
@@ -1374,7 +1387,7 @@ function vEdit(id,folderArg){
   h+='<div class="f2"><div class="field"><label>Price (sell)</label><input class="in num" id="f-price" inputmode="decimal" inputmode="decimal" value="'+esc(i.price)+'" placeholder="0"></div>'+
      '<div class="field"><label>Cost · USD (buy/make)</label><input class="in num" id="f-cost" inputmode="decimal" inputmode="decimal" value="'+esc(i.cost)+'" placeholder="0.00"></div></div>';
   h+='<div class="f2"><div class="field"><label>SKU</label><input class="in mono" id="f-sku" value="'+esc(i.sku)+'" placeholder="CLB-DUF-001"></div>'+
-     '<div class="field"><label>Min qty (low-stock alert)</label><input class="in num" id="f-min" inputmode="decimal" inputmode="decimal" value="'+esc(i.min)+'" placeholder="e.g. '+S.meta.lowDefault+'"></div></div>';
+     '<div class="field"><label>Min qty (low-stock alert)</label><input class="in num" id="f-min" inputmode="decimal" value="'+esc(i.min)+'" placeholder="e.g. '+S.meta.lowDefault+'"><label class="row" style="gap:8px;margin-top:8px;font-weight:600;font-size:13px;cursor:pointer;align-items:flex-start"><input type="checkbox" id="f-autopo" style="width:19px;height:19px;margin-top:1px;accent-color:var(--saddle)" '+(i.autoPO?'checked':'')+'><span>Auto-add to purchase order when stock falls below min</span></label></div></div>';
   h+='<div class="field"><label>Barcode / QR value</label><div class="row"><input class="in mono grow" id="f-code" value="'+esc(i.code)+'" placeholder="Scan or type a code"><button class="btn" id="f-scan" type="button">'+ico('scan')+'</button></div><div class="hint">Used to find this item when scanning, and printed on labels. Defaults to SKU if left blank.</div></div>';
   h+='<div class="field"><label>More SKUs / barcodes (optional)</label><input class="in mono" id="f-alt" value="'+esc((i.alt||[]).join(', '))+'" placeholder="ETSY-WAL-101, VENDOR-77 (comma separated)"><div class="hint">A product can carry several SKUs (different channels/vendors). Scanning any of them finds this item, and you can print a label per SKU.</div></div>';
   h+='<div class="field"><label>Tags</label><input class="in" id="f-tags" value="'+esc((i.tags||[]).join(', '))+'" placeholder="duffle, bestseller (comma separated)"></div>';
@@ -1390,7 +1403,7 @@ function vEdit(id,folderArg){
   function saveDraft(){/* keep typed values when hopping to scanner */
     sessionStorage.setItem('draft',JSON.stringify(readForm()));
   }
-  function readForm(){return{name:$('#f-name').value.trim(),qty:isNew?(parseFloat($('#f-qty').value)||0):(+i.qty||0),unit:$('#f-unit').value,folder:(($('#f-sel')&&['__rc__','__new__'].indexOf($('#f-sel').value)<0)?($('#f-sel').value||null):(i.folder||null)),price:$('#f-price').value.trim(),cost:$('#f-cost').value.trim(),sku:$('#f-sku').value.trim(),min:$('#f-min').value.trim(),code:$('#f-code').value.trim(),alt:$('#f-alt').value.split(',').map(s=>s.trim()).filter(Boolean),tags:$('#f-tags').value.split(',').map(s=>s.trim()).filter(Boolean),notes:$('#f-notes').value.trim()}}
+  function readForm(){return{name:$('#f-name').value.trim(),qty:isNew?(parseFloat($('#f-qty').value)||0):(+i.qty||0),unit:$('#f-unit').value,folder:(($('#f-sel')&&['__rc__','__new__'].indexOf($('#f-sel').value)<0)?($('#f-sel').value||null):(i.folder||null)),price:$('#f-price').value.trim(),cost:$('#f-cost').value.trim(),sku:$('#f-sku').value.trim(),min:$('#f-min').value.trim(),code:$('#f-code').value.trim(),alt:$('#f-alt').value.split(',').map(s=>s.trim()).filter(Boolean),tags:$('#f-tags').value.split(',').map(s=>s.trim()).filter(Boolean),notes:$('#f-notes').value.trim(),autoPO:!!($('#f-autopo')&&$('#f-autopo').checked)}}
   // restore draft after scan hop
   const draft=sessionStorage.getItem('draft');const scanned=sessionStorage.getItem('scannedcode');
   if(draft&&scanned!=null){try{const d=JSON.parse(draft);$('#f-name').value=d.name;$('#f-qty').value=d.qty;$('#f-unit').value=d.unit;if($('#f-sel'))$('#f-sel').value=d.folder||'';$('#f-price').value=d.price;$('#f-cost').value=d.cost;$('#f-sku').value=d.sku;$('#f-min').value=d.min;$('#f-tags').value=d.tags.join(', ');$('#f-notes').value=d.notes;$('#f-code').value=scanned||d.code}catch(e){}sessionStorage.removeItem('draft');sessionStorage.removeItem('scannedcode')}
@@ -1826,10 +1839,24 @@ function vFlows(tab){
     h+='<button class="btn pri block mb" id="newpo">'+ico('plus')+'New purchase order</button>';
     if(!S.pos.length)h+='<div class="empty">'+ico('po')+'<div class="t">No purchase orders yet</div><div class="s">Raise a PO on a vendor, then receive goods against it — received quantities add straight into stock.</div></div>';
     else{
-      const ps=S.pos.slice().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+      const ps=S.pos.slice().sort((a,b)=>{
+        const ao=a.status!=='received',bo=b.status!=='received';
+        if(ao!==bo)return ao?-1:1;
+        const ah=a.priority==='high'?1:0,bh=b.priority==='high'?1:0;
+        if(ah!==bh)return bh-ah;
+        return (b.updatedAt||0)-(a.updatedAt||0);
+      });
       ps.forEach(p=>{
         const total=sum(p.items,x=>(+x.qty||0)*(+x.cost||0));
-        h+='<div class="listcard mb" data-open="po/'+p.id+'"><span class="ic">'+ico('po')+'</span><div class="grow"><div class="t1">'+esc(p.number)+(p.vendor?' · '+esc(p.vendor):'')+'</div><div class="t2 num">'+p.items.length+' lines · '+fmtUSD(total,0)+' · '+ago(p.updatedAt||p.createdAt)+'</div></div>'+poPill(p.status)+'</div>';
+        const recd=sum(p.items,x=>+x.received||0),ordq=sum(p.items,x=>+x.qty||0);
+        const late=poIsOverdue(p);
+        const cls=p.status==='received'?'done':(late?'late':(p.priority==='high'?'hi':'lo'));
+        h+='<button class="pocard '+cls+'" data-open="po/'+p.id+'">'+
+          '<div class="po-t">'+esc(p.number)+(p.priority==='high'?'<span class="pill danger">HIGH</span>':'')+(p.auto?'<span class="pill info">AUTO</span>':'')+poPill(p.status)+'</div>'+
+          '<div class="po-m">'+(p.vendor?esc(p.vendor)+' · ':'')+'<span class="num">'+p.items.length+' lines · '+fmtUSD(total,0)+'</span>'+
+            (p.expected?' · <span class="po-due'+(late?' over':'')+'">'+(late?'was due '+poDaysLate(p)+'d ago':'due '+esc(p.expected))+'</span>':'')+'</div>'+
+          (p.status!=='draft'&&ordq>0?'<div class="prog"><i style="width:'+Math.min(100,Math.round(recd/ordq*100))+'%"></i></div>':'')+
+          '</button>';
       });
     }
   }
@@ -2046,9 +2073,51 @@ function vList(id){
 }
 
 /* ---------- purchase orders ---------- */
+/* -------- Auto purchase orders (min-stock reorder) --------
+   Items ticked "auto-add to PO" that fall to/below their min are
+   collected into one draft PO named by AUTO_PO flag. An item already
+   sitting on ANY not-yet-received PO is not added again. */
+// PO overdue: expected date passed and goods not fully received
+function poIsOverdue(p){if(!p||!p.expected||p.status==='received')return false;const d=new Date(p.expected+'T23:59:59');return Date.now()>d.getTime()}
+function poDaysLate(p){return Math.max(1,Math.floor((Date.now()-new Date(p.expected+'T23:59:59').getTime())/86400000))}
+function overduePOs(){return (S.pos||[]).filter(poIsOverdue)}
+const PO_SNOOZE_KEY='invento_po_snooze',PO_SNOOZE_MS=2*86400000;
+function maybePoOverduePopup(){
+  const od=overduePOs();if(!od.length)return;
+  let last=0;try{last=+localStorage.getItem(PO_SNOOZE_KEY)||0}catch(e){}
+  if(Date.now()-last<PO_SNOOZE_MS)return;
+  try{localStorage.setItem(PO_SNOOZE_KEY,String(Date.now()))}catch(e){}
+  openModal('<h3 style="color:var(--red)">'+ico('alert')+' Purchase order'+(od.length>1?'s':'')+' overdue</h3>'+
+    '<p class="sub mb">'+od.length+' PO'+(od.length>1?'s are':' is')+' past the expected date and not fully received. Chase the vendor or update the date.</p>'+
+    od.map(p=>'<button class="pocard late" data-gopo="'+p.id+'" style="margin-bottom:8px"><div class="po-t">'+esc(p.number)+(p.priority==='high'?'<span class="pill danger">HIGH</span>':'')+'</div><div class="po-m">'+(p.vendor?esc(p.vendor)+' · ':'')+'<span class="po-due over">was due '+poDaysLate(p)+' day'+(poDaysLate(p)>1?'s':'')+' ago</span></div></button>').join('')+
+    '<button class="btn block mt" onclick="closeModal()">'+ico('check')+'Remind me in 2 days</button>');
+  $$('#modal [data-gopo]').forEach(b=>b.onclick=()=>{closeModal();go('#po/'+b.dataset.gopo)});
+}
+let _apoT=null;
+function scheduleAutoPO(){clearTimeout(_apoT);_apoT=setTimeout(()=>{autoPOSweep().catch(()=>{})},900)}
+function itemOnOpenPO(itemId){return S.pos.some(p=>p.status!=='received'&&(p.items||[]).some(x=>x.itemId===itemId))}
+async function autoPOSweep(){
+  if(!can('additem')&&!isAdminU())return; // needs write perms to create POs
+  const due=S.items.filter(i=>i.autoPO&&(+i.min>0)&&((+i.qty||0)<=(+i.min))&&!itemOnOpenPO(i.id));
+  if(!due.length)return;
+  let p=S.pos.find(x=>x.auto&&x.status==='draft');
+  if(!p){
+    const n=await nextSeq('po');
+    p={id:uid('p'),number:'PO-'+String(n).padStart(4,'0'),vendor:'',expected:'',status:'draft',priority:'low',auto:true,items:[],notes:'Auto-created from low stock',createdAt:Date.now(),updatedAt:Date.now()};
+    S.pos.unshift(p);
+  }
+  due.forEach(i=>{
+    const need=Math.max(round4((+i.min)-(+i.qty||0)),1);
+    p.items.push({itemId:i.id,name:i.name,qty:need,cost:+i.cost||0,received:0,auto:true});
+  });
+  p.updatedAt=Date.now();
+  await saveNow('pos');if(MODE!=='cloud')save('meta');
+  logTx('po',{detail:due.length+' low-stock item'+(due.length>1?'s':'')+' auto-added to '+p.number});
+  toast(due.length+' low-stock item'+(due.length>1?'s':'')+' added to '+p.number,'ok');
+}
 async function createPO(){
   const n=await nextSeq('po');
-  const p={id:uid('p'),number:'PO-'+String(n).padStart(4,'0'),vendor:'',expected:'',status:'draft',items:[],notes:'',createdAt:Date.now(),updatedAt:Date.now()};
+  const p={id:uid('p'),number:'PO-'+String(n).padStart(4,'0'),vendor:'',expected:'',status:'draft',priority:'low',items:[],notes:'',createdAt:Date.now(),updatedAt:Date.now()};
   S.pos.unshift(p);await saveNow('pos');if(MODE!=='cloud')save('meta');
   logTx('po',{detail:'Created '+p.number});
   return p.id;
@@ -2069,9 +2138,10 @@ function vPO(id){
   topTitle(p.number,'#flows/po');
   const total=sum(p.items,x=>(+x.qty||0)*(+x.cost||0));
   const recd=sum(p.items,x=>+x.received||0),ordq=sum(p.items,x=>+x.qty||0);
-  let h='<div class="row mb wrap"><h1 class="page" style="margin:0">'+esc(p.number)+'</h1>'+poPill(p.status)+'</div>';
+  let h='<div class="row mb wrap"><h1 class="page" style="margin:0">'+esc(p.number)+'</h1>'+poPill(p.status)+(p.priority==='high'?'<span class="pill danger">HIGH</span>':'')+'</div>';
+  if(!ro)h+='<div class="seg mb" id="po-pri"><button data-pri="low" class="'+(p.priority!=='high'?'on':'')+'">Low priority</button><button data-pri="high" class="'+(p.priority==='high'?'on':'')+'">'+ico('alert')+' High priority</button></div>';
   h+='<div class="card pad mb"><div class="f2"><div class="field" style="margin-bottom:0"><label>Vendor</label><input class="in" id="po-v" list="po-vl" value="'+esc(p.vendor)+'" placeholder="Supplier name" '+(editable?'':'disabled')+'><datalist id="po-vl">'+poVendors().map(v=>'<option value="'+esc(v)+'">').join('')+'</datalist></div>'+
-    '<div class="field" style="margin-bottom:0"><label>Expected by</label><input class="in" id="po-d" type="date" value="'+esc(p.expected||'')+'" '+(ro?'disabled':'')+'></div></div></div>';
+    '<div class="field" style="margin-bottom:0"><label>Expected by</label><input class="in" id="po-d" type="date" value="'+esc(p.expected||'')+'" '+(ro?'disabled':'')+(poIsOverdue(p)?' style="border-color:var(--red);color:var(--red)"':'')+'>'+(poIsOverdue(p)?'<div class="hint" style="color:var(--red);font-weight:700">Overdue — was due '+poDaysLate(p)+' day'+(poDaysLate(p)>1?'s':'')+' ago</div>':'')+'</div></div></div>';
   if(p.status!=='draft')h+='<div class="card pad mb"><div class="row small muted" style="margin-bottom:7px"><span>Received</span><span class="right num">'+fmtQty(recd)+' / '+fmtQty(ordq)+'</span></div><div class="prog"><i style="width:'+(ordq>0?Math.min(100,Math.round(recd/ordq*100)):0)+'%"></i></div></div>';
   if(editable)h+='<div class="card pad mb"><div class="eyebrow" style="margin-bottom:6px">Add item</div><div class="searchbar">'+ico('search')+'<input id="po-q" type="search" placeholder="Search name, SKU or tag…" autocomplete="off"></div><div id="po-res" class="ilist mt" style="display:none;max-height:240px;overflow-y:auto"></div></div>';
   h+='<div class="section-h"><h2>Lines</h2><span class="num" style="font-weight:800">'+fmtUSD(total,0)+'</span></div>';
@@ -2101,6 +2171,7 @@ function vPO(id){
 
   const vIn=$('#po-v');if(vIn&&editable)vIn.onchange=()=>{p.vendor=vIn.value.trim();p.updatedAt=Date.now();save('pos')};
   const dIn=$('#po-d');if(dIn&&!ro)dIn.onchange=()=>{p.expected=dIn.value;p.updatedAt=Date.now();save('pos')};
+  $$('#po-pri [data-pri]').forEach(b=>b.onclick=async()=>{p.priority=b.dataset.pri;p.updatedAt=Date.now();await saveNow('pos');vPO(id)});
   const q=$('#po-q');
   if(q){const res=$('#po-res');
     q.oninput=()=>{const v=q.value.trim().toLowerCase();
@@ -4089,6 +4160,7 @@ function vCloudError(e){
   if(res==='pending'){vPending();return}
   if(res==='revoked'){vRevoked();return}
   bootDone=true;
+  scheduleAutoPO();
   route();
 })();
 </script>
