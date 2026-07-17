@@ -1025,7 +1025,12 @@ function route(){
   const main=$('#main');main.scrollTop=0;window.scrollTo(0,0);
   const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals,awb:()=>vAwb(a||null,b||null),uniexport:()=>{vMore();setTimeout(exportUnicommerce,30)},exportall:()=>{vMore();setTimeout(exportAllItems,30)}};
   setActiveNav(p==='item'||p==='edit'||p==='folders'?'stock':(p==='list'||p==='po'?'flows':(p==='trash'||p==='import'?'more':((p==='return'||p==='awb')?'dispatch':p))));
-  (map[p]||vHome)();
+  try{(map[p]||vHome)();}
+  catch(e){
+    console.error('view error',p,e);
+    toast('Screen error: '+((e&&e.message)||e),'err');
+    try{if(p!=='home')vHome();}catch(_){}
+  }
   updateBadges();
 }
 
@@ -1864,7 +1869,7 @@ function vFlows(tab){
   $('#sg-pick').onclick=()=>go('#flows/pick');
   $('#sg-po').onclick=()=>go('#flows/po');
   const np=$('#newpo');if(np)np.onclick=async()=>{np.disabled=true;const id=await createPO();go('#po/'+id)};
-  $$('#main [data-open]').forEach(c=>c.onclick=()=>go('#'+c.dataset.open));
+  $$('#main [data-open]').forEach(c=>c.onclick=()=>{const h='#'+c.dataset.open;if(location.hash===h)route();else go(h)});
 }
 
 /* ---------- pick lists ---------- */
