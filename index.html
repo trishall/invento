@@ -575,14 +575,7 @@ function confirmDlg(title,body,okLabel,danger){return new Promise(res=>{openModa
    Then everyone you share the file with connects instantly.
    Leave as null to configure via the in-app setup screen.
 ================================================================ */
-const FB_CONFIG = {
-  apiKey: "AIzaSyBrJfFJFf4AduwS4Tj-Ig6KN6bNrDWw-u4",
-  authDomain: "warehount.firebaseapp.com",
-  projectId: "warehount",
-  storageBucket: "warehount.firebasestorage.app",
-  messagingSenderId: "167820400812",
-  appId: "1:167820400812:web:e50a34c3154cd29aae2709"
-};
+const FB_CONFIG = {apiKey: "AIzaSyBrJfFJFf4AduwS4Tj-Ig6KN6bNrDWw-u4",authDomain: "warehount.firebaseapp.com",projectId: "warehount",storageBucket: "warehount.firebasestorage.app",messagingSenderId: "167820400812",appId: "1:167820400812:web:e50a34c3154cd29aae2709"};
 
 /* ===== GO LIVE SWITCH ==========================================
    false = trial mode: runs entirely on this device, no Firebase,
@@ -2571,7 +2564,7 @@ function vImport(){
   dz.ondrop=e=>{e.preventDefault();dz.style.borderColor='';const f=e.dataTransfer.files[0];if(f)readFile(f)};
   fin.onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)readFile(f)};
   $('#imp-tpl').onclick=()=>{
-    const headers=['Name','Quantity','Unit',locTerm(),'Price','Cost (USD)','Min quantity','SKU','Barcode','Other SKUs','Tags','Notes'];
+    const headers=['Name','Quantity','Unit',locTerm(),'Price','Cost (USD)','Min quantity','SKU','Barcode','Other SKUs','Tags','Notes','Image URL'];
     const sample=[
       ['Leather Duffle — Vintage Brown','12','pcs','Workshop','7999','45','3','CLB-DUF-201','CLB-DUF-201','ETSY-DUF-201','duffle; bestseller','Full-grain, 22 inch'],
       ['Bifold Wallet — Black','40','pcs','Shelf A','1299','5','10','CLB-WAL-101','CLB-WAL-101','','wallet','Buffalo leather'],
