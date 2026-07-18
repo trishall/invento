@@ -1041,7 +1041,7 @@ function route(){
   const h=(location.hash||'#home').slice(1);
   const [p,a,b]=h.split('/');
   const main=$('#main');main.scrollTop=0;window.scrollTo(0,0);
-  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals,awb:()=>vAwb(a||null,b||null),uniexport:()=>{vMore();setTimeout(exportUnicommerce,30)},backups:vBackups,dash:()=>vDash(30),exportall:()=>{vMore();setTimeout(exportAllItems,30)}};
+  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals,awb:()=>vAwb(a||null,b||null),uniexport:()=>{vMore();setTimeout(exportUnicommerce,30)},backups:vBackups,dash:()=>vDash(30),help:vHelp,exportall:()=>{vMore();setTimeout(exportAllItems,30)}};
   setActiveNav(p==='item'||p==='edit'||p==='folders'?'stock':(p==='list'||p==='po'?'flows':(p==='trash'||p==='import'?'more':((p==='return'||p==='awb')?'dispatch':p))));
   try{(map[p]||vHome)();}
   catch(e){
@@ -2210,6 +2210,56 @@ async function restoreRecovery(b){
   }catch(e){toast('Restore failed: '+((e&&e.code)||e),'err')}
 }
 /* ---------------- DASHBOARD (on-demand analytics) ---------------- */
+function vHelp(){
+  topTitle('Help','#more');
+  const Q=[['How do I scan an item?','Tap Scan in the bottom bar. With a barcode machine, the field is always ready — just pull the trigger. Otherwise the camera opens; point it at the barcode. The item popup then lets you Add, Remove, Dispatch or Return.'],
+  ['How do I dispatch an order?','Dispatch → enter the Order ID → Start dispatch → scan each piece (or type its SKU) → take the parcel photo → Done. Every piece scanned reduces stock automatically.'],
+  ['How do I return an item?','Dispatch tab → Return → scan the piece or pick it from the order. Mark Good or Damaged. Good returns go back into stock and print a restock label.'],
+  ['How do AWBs work?','AWB tab → Inward to accept a shipment label, Outward when it leaves. Return it when the courier takes it back. Labels older than 7 days block new accepts until returned.'],
+  ['How do I receive a purchase order?','Workflows → Purchase orders → open the PO → Receive. Enter Good and Damaged counts per line, choose Checked & stocked or Stocked (check later). Good pieces enter stock; damaged are recorded but not stocked.'],
+  ['How do I move stock to another rack?','Open the item → Move. Pick the new rack (e.g. R5C12). Moves are tracked in the item history.'],
+  ['How do I print labels?','Labels in the menu → select items → Print. Labels carry the barcode and rack. After a good return, a restock label prints automatically.'],
+  ['I forgot my password','On the sign-in screen tap Forgot password. With an email on your account you get a reset link. Old accounts without email: the request goes to the admin.']];
+  let h='<h1 class="page">Help & FAQ</h1>';
+  h+='<button class="btn pri block mb" id="hp-rep">'+ico('camera')+'Report a problem (attach screenshot)</button>';
+  h+=Q.map((q,i)=>'<details class="card pad" style="margin-bottom:8px"><summary style="font-weight:700;cursor:pointer">'+esc(q[0])+'</summary><div class="sub mt">'+esc(q[1])+'</div></details>').join('');
+  h+='<div id="hp-inbox"></div>';
+  $('#main').innerHTML=h;
+  $('#hp-rep').onclick=reportProblemDlg;
+  if(isAdminU())paintSupportInbox();
+}
+function reportProblemDlg(){
+  openModal('<h3>Report a problem</h3><p class="sub mb">Describe what went wrong. A screenshot helps a lot.</p>'+
+    '<div class="field"><label>What happened?</label><textarea class="in" id="rp-t" rows="4" placeholder="e.g. Dispatch button does nothing on order #1042"></textarea></div>'+
+    '<div class="field"><label>Screenshot (optional)</label><input class="in" id="rp-f" type="file" accept="image/*"></div>'+
+    '<button class="btn pri block" id="rp-go">'+ico('check')+'Send to admin</button>');
+  $('#rp-go').onclick=async()=>{
+    const txt=($('#rp-t').value||'').trim();
+    if(txt.length<5){toast('Describe the problem first','err');return}
+    const b=$('#rp-go');b.disabled=true;b.textContent='Sending…';
+    let img='';
+    const f=$('#rp-f').files[0];
+    if(f){img=await new Promise(res=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');const s=Math.min(1,700/Math.max(im.width,im.height));c.width=im.width*s;c.height=im.height*s;c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',0.65))};im.onerror=()=>res('');im.src=r.result};r.onerror=()=>res('');r.readAsDataURL(f)});}
+    const rec={id:uid('sp'),ts:Date.now(),by:userName(),text:txt.slice(0,2000),img:img,status:'open'};
+    try{
+      if(MODE==='cloud')await db.collection('support').doc(rec.id).set(rec);
+      else{const l=await store.get('support')||[];l.push(rec);await store.set('support',l)}
+      closeModal();toast('Sent — the admin will see it in Help','ok');
+    }catch(e){b.disabled=false;b.innerHTML=ico('check')+'Send to admin';toast('Could not send: '+((e&&e.code)||e),'err')}
+  };
+}
+async function paintSupportInbox(){
+  const w=$('#hp-inbox');if(!w)return;
+  let list=[];
+  try{list=MODE==='cloud'?(await db.collection('support').get()).docs.map(d=>d.data()):(await store.get('support')||[])}catch(e){return}
+  list.sort((a,b)=>b.ts-a.ts);
+  if(!list.length)return;
+  w.innerHTML='<div class="eyebrow mt mb">Support inbox ('+list.length+')</div>'+list.map(r=>'<div class="card pad" style="margin-bottom:8px"><div style="font-weight:700">'+esc(r.by||'')+' · <span class="muted small">'+ago(r.ts)+'</span></div><div class="sub mt">'+esc(r.text)+'</div>'+(r.img?'<img src="'+esc(r.img)+'" style="max-width:100%;border-radius:9px;margin-top:8px">':'')+'<button class="btn sm block mt" data-spx="'+esc(r.id)+'">'+ico('check')+'Resolved — remove</button></div>').join('');
+  $$('#hp-inbox [data-spx]').forEach(b=>b.onclick=async()=>{
+    try{if(MODE==='cloud')await db.collection('support').doc(b.dataset.spx).delete();
+    else{const l=(await store.get('support')||[]).filter(x=>x.id!==b.dataset.spx);await store.set('support',l)}
+    toast('Removed');vHelp()}catch(e){toast('Failed: '+((e&&e.code)||e),'err')}});
+}
 function vDash(days){
   if(!isAdminU()){go('#more');return}
   days=+days||30;const since=Date.now()-days*86400000;
@@ -2820,6 +2870,7 @@ function vMore(){
   rows.push(['#trash',ico('trash'),'Trash','Restore deleted items ('+S.trash.length+')']);
   if(can('dispatch')){const od=awbOverdue().length;rows.push(['#awb',ico('ticket'),'AWB / Shipments'+(od?' ('+od+')':''),'Accept, dispatch & track shipping labels'+(od?' — '+od+' overdue':'')]);}
   if(isAdminU())rows.push(['#orders',ico('truck'),'Dispatch orders','Review orders, SKUs, photos & data used']);
+  rows.push(['#help',ico('inbox'),'Help & FAQ','How-to guides · report a problem']);
   if(isAdminU())rows.push(['#dash',ico('chart'),'Dashboard','Sales, best sellers, reorder & risk analysis']);
   if(isAdminU())rows.push(['#backups',ico('undo'),'Recovery points','Auto snapshot every 15 days · restore anytime']);
   if(isAdminU()){const np=pendingApprovals().length;rows.push(['#approvals',ico('inbox'),'Approvals'+(np?' ('+np+')':''),'Requests needing an admin'+(np?' — '+np+' pending':'')]);}
@@ -3438,6 +3489,7 @@ function hwScanModal(title,onCode,opts){
     h+='<div class="condbtns mb" style="grid-template-columns:1fr 1fr"><button class="condbtn good on" id="hw-good">'+ico('check')+'Good</button><button class="condbtn bad" id="hw-bad">'+ico('x')+'Damaged</button></div><div class="hint" style="margin-top:-4px">New scans use the selected condition.</div>';
   }
   h+='<div id="hw-feed" class="sub" style="min-height:40px;margin:8px 0"></div>';
+  if(opts&&opts.camBtn)h+='<button class="btn block" id="hw-cam" style="margin-bottom:8px">'+ico('camera')+'Use camera instead</button>';
   h+='<button class="btn pri block" id="hw-done">'+ico('check')+'Done</button>';
   openModal(h);
   const inp=$('#hw-in'),feed=$('#hw-feed');
@@ -3463,11 +3515,12 @@ function hwScanModal(title,onCode,opts){
   let t=null;
   inp.oninput=()=>{clearTimeout(t);t=setTimeout(()=>{if(inp.value.trim().length>=3){handle(inp.value)}},120)};
   $('#hw-done').onclick=()=>{clearInterval(fi);closeModal();if(opts.onDone)opts.onDone()};
+  const hc=$('#hw-cam');if(hc)hc.onclick=()=>{clearInterval(fi);closeModal();opts.camBtn()};
   const ov=$('#ovl');const obs=new MutationObserver(()=>{if(!ov.classList.contains('show')){clearInterval(fi);obs.disconnect();if(opts.onDone)opts.onDone()}});obs.observe(ov,{attributes:true,attributeFilter:['class']});
 }
 
-function dispatchScan(){
-  if(hwScanner()){return hwScanModal('Scan to dispatch',(code)=>addDispatchLineByCode(code),{onDone:()=>vDispatchNew()});}
+function dispatchScan(force){
+  if(!force&&hwScanner()){return hwScanModal('Scan to dispatch',(code)=>addDispatchLineByCode(code),{onDone:()=>vDispatchNew(),camBtn:()=>dispatchScan(true)});}
   // full-screen scanner overlay that keeps adding lines until closed
   let h='<div class="scanwrap" id="dsw"><div class="scanbox"><div class="laser"></div></div><video id="dsv" playsinline muted></video></div>';
   h+='<div class="row mt" style="gap:9px"><div class="searchbar grow">'+ico('scan')+'<input id="ds-manual" placeholder="or type a SKU and press Enter" autocomplete="off"></div></div>';
@@ -4171,7 +4224,7 @@ document.addEventListener('click',e=>{
 /* ============================================================
    SETUP / CONNECT SCREENS
    ============================================================ */
-const FB_RULES="rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n\n    function uD() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }\n    function active() { return request.auth != null && uD().status == 'active'; }\n    function admin() { return active() && uD().role in ['admin','mainframe']; }\n    function mainframe() { return active() && uD().role == 'mainframe'; }\n    function perms() {\n      return exists(/databases/$(database)/documents/meta/app)\n        ? get(/databases/$(database)/documents/meta/app).data.get('perms', {})\n        : {};\n    }\n    function userCan(key) { return admin() || perms().get(key, true) == true; }\n\n    // Non-admins may only change numbering + view preferences in meta.\n    // perms, company, currency, tax settings and any FUTURE field are frozen by default.\n    function metaSafe() {\n      return request.resource.data.diff(resource.data).affectedKeys()\n             .hasOnly(['seq','view','sort','market','usdMig']);\n    }\n    // Defence-in-depth: cap top-level field count. (Firestore already caps each doc at 1MB.)\n    function okDoc() { return request.resource.data.size() <= 60; }\n\n    match /users/{uid} {\n      allow read: if request.auth != null && (request.auth.uid == uid || admin());\n      allow create: if request.auth != null && request.auth.uid == uid && (\n        (request.resource.data.role == 'user' && request.resource.data.status == 'pending') ||\n        (request.auth.token.email == 'trishal@invento.app' && request.resource.data.role == 'mainframe')\n      );\n      allow update: if mainframe()\n        || (admin() && resource.data.role == 'user' && request.resource.data.role == 'user')\n        || (request.auth != null && request.auth.uid == uid\n            && request.resource.data.role == resource.data.role\n            && request.resource.data.status == resource.data.status);\n      allow delete: if mainframe() || (request.auth != null && request.auth.uid == uid);\n    }\n\n    // \"Forgot password\" requests. The person is signed OUT, so create is public --\n    // but locked down hard: doc id MUST equal the userid (one request per user, no\n    // flooding), exactly two fields, tight types/length. Contains no private data.\n    // Only admins can read or clear them.\n    match /pwresets/{userid} {\n      allow read, update, delete: if admin();\n      allow create: if request.resource.data.keys().hasOnly(['userid','ts'])\n        && request.resource.data.userid is string\n        && request.resource.data.userid == userid\n        && request.resource.data.userid.size() >= 2\n        && request.resource.data.userid.size() <= 40\n        && request.resource.data.userid.matches('^[a-z0-9._-]+$')\n        && request.resource.data.ts is number;\n    }\n\n    match /txns/{id}        { allow read: if active(); allow create: if active() && okDoc(); allow update: if false; allow delete: if admin(); }\n    match /trash/{id}       { allow read: if active(); allow create, update: if (admin() || userCan('trash') || userCan('delitem')) && okDoc(); allow delete: if (admin() || userCan('trash') || userCan('delitem')); }\n    match /meta/{doc}       { allow read: if active(); allow create: if admin(); allow update: if admin() || (active() && metaSafe()); }\n    match /items/{id}       { allow read: if active(); allow create, update: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')) && okDoc(); allow delete: if (admin() || userCan('delitem')); }\n    match /folders/{id}     { allow read: if active(); allow create, update: if userCan('editloc') && okDoc(); allow delete: if (admin() || userCan('editloc')); }\n    match /lists/{id}       { allow read: if active(); allow create, update: if active() && okDoc(); allow delete: if admin(); }\n    match /pos/{id}         { allow read: if active(); allow create, update: if active() && okDoc(); allow delete: if admin(); }\n    match /dispatches/{id}  { allow read: if active(); allow create, update: if (admin() || userCan('dispatch')) && okDoc(); allow delete: if admin(); }\n    match /awbs/{id}        { allow read: if active(); allow create, update: if (userCan('awbAccept') || userCan('awbDispatch') || userCan('awbReturn')) && okDoc(); allow delete: if (admin() || userCan('awbDelete')); }\n    match /approvals/{id}   { allow read: if active(); allow create: if active() && okDoc(); allow update, delete: if admin(); }\n    match /backups/{id}     { allow read, create, delete: if admin(); allow update: if false; }\n    match /photos/{id}      { allow read: if active(); allow write: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')); }\n\n    // Deny anything not explicitly matched above.\n    match /{document=**} { allow read, write: if false; }\n  }\n}";
+const FB_RULES="rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n\n    function uD() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }\n    function active() { return request.auth != null && uD().status == 'active'; }\n    function admin() { return active() && uD().role in ['admin','mainframe']; }\n    function mainframe() { return active() && uD().role == 'mainframe'; }\n    function perms() {\n      return exists(/databases/$(database)/documents/meta/app)\n        ? get(/databases/$(database)/documents/meta/app).data.get('perms', {})\n        : {};\n    }\n    function userCan(key) { return admin() || perms().get(key, true) == true; }\n\n    // Non-admins may only change numbering + view preferences in meta.\n    // perms, company, currency, tax settings and any FUTURE field are frozen by default.\n    function metaSafe() {\n      return request.resource.data.diff(resource.data).affectedKeys()\n             .hasOnly(['seq','view','sort','market','usdMig']);\n    }\n    // Defence-in-depth: cap top-level field count. (Firestore already caps each doc at 1MB.)\n    function okDoc() { return request.resource.data.size() <= 60; }\n\n    match /users/{uid} {\n      allow read: if request.auth != null && (request.auth.uid == uid || admin());\n      allow create: if request.auth != null && request.auth.uid == uid && (\n        (request.resource.data.role == 'user' && request.resource.data.status == 'pending') ||\n        (request.auth.token.email == 'trishal@invento.app' && request.resource.data.role == 'mainframe')\n      );\n      allow update: if mainframe()\n        || (admin() && resource.data.role == 'user' && request.resource.data.role == 'user')\n        || (request.auth != null && request.auth.uid == uid\n            && request.resource.data.role == resource.data.role\n            && request.resource.data.status == resource.data.status);\n      allow delete: if mainframe() || (request.auth != null && request.auth.uid == uid);\n    }\n\n    // \"Forgot password\" requests. The person is signed OUT, so create is public --\n    // but locked down hard: doc id MUST equal the userid (one request per user, no\n    // flooding), exactly two fields, tight types/length. Contains no private data.\n    // Only admins can read or clear them.\n    match /pwresets/{userid} {\n      allow read, update, delete: if admin();\n      allow create: if request.resource.data.keys().hasOnly(['userid','ts'])\n        && request.resource.data.userid is string\n        && request.resource.data.userid == userid\n        && request.resource.data.userid.size() >= 2\n        && request.resource.data.userid.size() <= 40\n        && request.resource.data.userid.matches('^[a-z0-9._-]+$')\n        && request.resource.data.ts is number;\n    }\n\n    match /support/{id}     { allow read, update, delete: if admin(); allow create: if active() && request.resource.data.keys().hasOnly(['id','ts','by','text','img','status']) && request.resource.data.text is string && request.resource.data.text.size() <= 2000; }\n    match /txns/{id}        { allow read: if active(); allow create: if active() && okDoc(); allow update: if false; allow delete: if admin(); }\n    match /trash/{id}       { allow read: if active(); allow create, update: if (admin() || userCan('trash') || userCan('delitem')) && okDoc(); allow delete: if (admin() || userCan('trash') || userCan('delitem')); }\n    match /meta/{doc}       { allow read: if active(); allow create: if admin(); allow update: if admin() || (active() && metaSafe()); }\n    match /items/{id}       { allow read: if active(); allow create, update: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')) && okDoc(); allow delete: if (admin() || userCan('delitem')); }\n    match /folders/{id}     { allow read: if active(); allow create, update: if userCan('editloc') && okDoc(); allow delete: if (admin() || userCan('editloc')); }\n    match /lists/{id}       { allow read: if active(); allow create, update: if active() && okDoc(); allow delete: if admin(); }\n    match /pos/{id}         { allow read: if active(); allow create, update: if active() && okDoc(); allow delete: if admin(); }\n    match /dispatches/{id}  { allow read: if active(); allow create, update: if (admin() || userCan('dispatch')) && okDoc(); allow delete: if admin(); }\n    match /awbs/{id}        { allow read: if active(); allow create, update: if (userCan('awbAccept') || userCan('awbDispatch') || userCan('awbReturn')) && okDoc(); allow delete: if (admin() || userCan('awbDelete')); }\n    match /approvals/{id}   { allow read: if active(); allow create: if active() && okDoc(); allow update, delete: if admin(); }\n    match /backups/{id}     { allow read, create, delete: if admin(); allow update: if false; }\n    match /photos/{id}      { allow read: if active(); allow write: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')); }\n\n    // Deny anything not explicitly matched above.\n    match /{document=**} { allow read, write: if false; }\n  }\n}";
 function authEmail(u){u=String(u||'').trim().toLowerCase();return u.indexOf('@')>0?u:u.replace(/[^a-z0-9._-]/g,'')+'@invento.app'}
 function authErrMsg(e){
   const c=(e&&e.code)||'';
