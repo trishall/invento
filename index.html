@@ -1114,7 +1114,7 @@ function rowHTML(i,opt){
   const selected=view.sel.has(i.id);
   return '<div class="irow'+(selected?' sel':'')+'" data-item="'+i.id+'">'+
     (selectable?'<span class="selbox">'+ico('check')+'</span>':'')+
-    '<span class="th">'+(i.thumb?'<img src="'+i.thumb+'" alt="">':ico('box'))+'</span>'+
+    '<span class="th">'+((i.img||i.thumb)?'<img src="'+esc(i.img||i.thumb)+'" alt="" loading="lazy" referrerpolicy="no-referrer">':ico('box'))+'</span>'+
     '<div class="grow"><div class="nm ellip">'+esc(i.name)+'</div><div class="meta">'+
       (i.sku?'<span class="skutag">'+esc(i.sku)+'</span>':'')+
       '<span class="ellip">'+esc(folderPath(i.folder))+'</span>'+
@@ -1126,7 +1126,7 @@ function cardHTML(i){
   return '<div class="icard'+(selected?' sel':'')+'" data-item="'+i.id+'">'+
     '<span class="selbox">'+ico('check')+'</span>'+
     (isLow(i)?'<span class="pill low lowdot">Low</span>':'')+
-    '<div class="ph">'+(i.thumb?'<img src="'+i.thumb+'" alt="" loading="lazy">':ico('photo'))+'</div>'+
+    '<div class="ph">'+((i.img||i.thumb)?'<img src="'+esc(i.img||i.thumb)+'" alt="" loading="lazy" referrerpolicy="no-referrer">':ico('photo'))+'</div>'+
     '<div class="bd"><div class="nm">'+esc(i.name)+'</div><div class="qv"><span class="q num">'+fmtQty(i.qty)+' <small>'+esc(i.unit||'')+'</small></span>'+(+i.price?'<span class="pr num">'+fmtMoney(+i.price,0)+'</span>':'')+'</div></div></div>';
 }
 function vStock(arg){
@@ -1404,6 +1404,7 @@ function vEdit(id,folderArg){
   h+='<div class="field"><label>Barcode / QR value</label><div class="row"><input class="in mono grow" id="f-code" value="'+esc(i.code)+'" placeholder="Scan or type a code"><button class="btn" id="f-scan" type="button">'+ico('scan')+'</button></div><div class="hint">Used to find this item when scanning, and printed on labels. Defaults to SKU if left blank.</div></div>';
   h+='<div class="field"><label>More SKUs / barcodes (optional)</label><input class="in mono" id="f-alt" value="'+esc((i.alt||[]).join(', '))+'" placeholder="ETSY-WAL-101, VENDOR-77 (comma separated)"><div class="hint">A product can carry several SKUs (different channels/vendors). Scanning any of them finds this item, and you can print a label per SKU.</div></div>';
   h+='<div class="field"><label>Tags</label><input class="in" id="f-tags" value="'+esc((i.tags||[]).join(', '))+'" placeholder="duffle, bestseller (comma separated)"></div>';
+  h+='<div class="field"><label>Image link <span class="muted">(Shopify image URL — no storage used)</span></label><input class="in" id="f-img" type="url" inputmode="url" autocapitalize="none" spellcheck="false" placeholder="https://cdn.shopify.com/…/bag.jpg" value="'+esc(i.img||'')+'"></div>';
   h+='<div class="field"><label>Notes</label><textarea class="in" id="f-notes" placeholder="Supplier, dimensions, leather type…">'+esc(i.notes)+'</textarea></div>';
   h+='<div class="field"><label>Photos (up to 3)</label><div class="row wrap" id="photorow"></div><input type="file" id="f-photo" accept="image/*" capture="environment" style="display:none"></div>';
   h+='</div><div class="row mt"><a class="btn grow" href="#'+(isNew?('stock'+(i.folder?'/'+i.folder:'')):('item/'+i.id))+'">Cancel</a><button class="btn pri grow" id="f-save">'+ico('check')+(isNew?'Add item':'Save changes')+'</button></div>';
@@ -1416,7 +1417,7 @@ function vEdit(id,folderArg){
   function saveDraft(){/* keep typed values when hopping to scanner */
     sessionStorage.setItem('draft',JSON.stringify(readForm()));
   }
-  function readForm(){return{name:$('#f-name').value.trim(),qty:isNew?(parseFloat($('#f-qty').value)||0):(+i.qty||0),unit:$('#f-unit').value,folder:(($('#f-sel')&&['__rc__','__new__'].indexOf($('#f-sel').value)<0)?($('#f-sel').value||null):(i.folder||null)),price:$('#f-price').value.trim(),cost:$('#f-cost').value.trim(),sku:$('#f-sku').value.trim(),min:$('#f-min').value.trim(),code:$('#f-code').value.trim(),alt:$('#f-alt').value.split(',').map(s=>s.trim()).filter(Boolean),tags:$('#f-tags').value.split(',').map(s=>s.trim()).filter(Boolean),notes:$('#f-notes').value.trim(),autoPO:!!($('#f-autopo')&&$('#f-autopo').checked)}}
+  function readForm(){return{name:$('#f-name').value.trim(),qty:isNew?(parseFloat($('#f-qty').value)||0):(+i.qty||0),unit:$('#f-unit').value,folder:(($('#f-sel')&&['__rc__','__new__'].indexOf($('#f-sel').value)<0)?($('#f-sel').value||null):(i.folder||null)),price:$('#f-price').value.trim(),cost:$('#f-cost').value.trim(),sku:$('#f-sku').value.trim(),min:$('#f-min').value.trim(),code:$('#f-code').value.trim(),alt:$('#f-alt').value.split(',').map(s=>s.trim()).filter(Boolean),tags:$('#f-tags').value.split(',').map(s=>s.trim()).filter(Boolean),notes:$('#f-notes').value.trim(),img:($('#f-img')?$('#f-img').value.trim():''),autoPO:!!($('#f-autopo')&&$('#f-autopo').checked)}}
   // restore draft after scan hop
   const draft=sessionStorage.getItem('draft');const scanned=sessionStorage.getItem('scannedcode');
   if(draft&&scanned!=null){try{const d=JSON.parse(draft);$('#f-name').value=d.name;$('#f-qty').value=d.qty;$('#f-unit').value=d.unit;if($('#f-sel'))$('#f-sel').value=d.folder||'';$('#f-price').value=d.price;$('#f-cost').value=d.cost;$('#f-sku').value=d.sku;$('#f-min').value=d.min;$('#f-tags').value=d.tags.join(', ');$('#f-notes').value=d.notes;$('#f-code').value=scanned||d.code}catch(e){}sessionStorage.removeItem('draft');sessionStorage.removeItem('scannedcode')}
@@ -1674,7 +1675,7 @@ function vScan(mode,arg){
       $('#ns-x').onclick=closeModal;}
   }
   function quickScanModal(it){
-    openModal('<div class="mhead"><span class="th" style="width:46px;height:46px;border-radius:9px;overflow:hidden;display:grid;place-items:center;background:var(--saddle-bg)">'+(it.thumb?'<img src="'+it.thumb+'" style="width:100%;height:100%;object-fit:cover">':ico('box'))+'</span><h3 class="ellip">'+esc(it.name)+'</h3></div>'+
+    openModal('<div class="mhead"><span class="th" style="width:46px;height:46px;border-radius:9px;overflow:hidden;display:grid;place-items:center;background:var(--saddle-bg)">'+((it.img||it.thumb)?'<img src="'+esc(it.img||it.thumb)+'" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover">':ico('box'))+'</span><h3 class="ellip">'+esc(it.name)+'</h3></div>'+
       '<div class="sub mb num">In stock: <b id="qs-cur">'+fmtQty(it.qty)+'</b> '+esc(it.unit||'')+' · '+esc(folderPath(it.folder))+'</div>'+
       '<div class="row mb" style="gap:8px"><div class="stepper" style="max-width:150px;flex:0 0 auto"><button id="qs-m" aria-label="Less">−</button><input id="qs-q" class="num" inputmode="decimal" value="1"><button id="qs-p" aria-label="More">+</button></div>'+
       '<select class="in" id="qs-r" style="flex:1;min-width:110px;padding:9px 10px">'+ADJ_REASONS.map(r=>'<option>'+r+'</option>').join('')+'</select></div>'+
@@ -2015,7 +2016,7 @@ function vList(id){
       const it=iById(x.itemId);
       const nm=it?it.name:'(deleted item)',stock=it?(+it.qty||0):0;
       const short=!ro&&it&&x.need>stock;
-      h+='<div class="irow" style="cursor:default"><span class="th">'+(it&&it.thumb?'<img src="'+it.thumb+'" alt="">':ico('box'))+'</span>'+
+      h+='<div class="irow" style="cursor:default"><span class="th">'+((it&&(it.img||it.thumb))?'<img src="'+esc(it.img||it.thumb)+'" alt="" loading="lazy" referrerpolicy="no-referrer">':ico('box'))+'</span>'+
         '<div class="grow"><div class="nm ellip">'+esc(nm)+'</div><div class="meta num">'+(it?'have '+fmtQty(stock)+' '+esc(it.unit||''):'')+(short?' · <span style="color:var(--red);font-weight:700">short '+fmtQty(round4(x.need-stock))+'</span>':'')+'</div>'+
         (l.status==='progress'&&it?'<div class="row mt" style="gap:8px"><div class="stepper" style="max-width:170px"><button data-pm="'+ix+'" aria-label="Less">−</button><input class="num" data-pq="'+ix+'" inputmode="decimal" value="'+fmtQty(x.picked)+'"><button data-pp="'+ix+'" aria-label="More">+</button></div><span class="small muted num">of '+fmtQty(x.need)+'</span></div>':'')+
         '</div>'+
@@ -2165,7 +2166,7 @@ function vPO(id){
     h+='<div class="ilist mb">';
     p.items.forEach((x,ix)=>{
       const it=iById(x.itemId);const nm=it?it.name:'(deleted item)';
-      h+='<div class="irow" style="cursor:default"><span class="th">'+(it&&it.thumb?'<img src="'+it.thumb+'" alt="">':ico('box'))+'</span>'+
+      h+='<div class="irow" style="cursor:default"><span class="th">'+((it&&(it.img||it.thumb))?'<img src="'+esc(it.img||it.thumb)+'" alt="" loading="lazy" referrerpolicy="no-referrer">':ico('box'))+'</span>'+
         '<div class="grow"><div class="nm ellip">'+esc(nm)+'</div><div class="meta num">'+
           (editable
             ?'<span class="row" style="gap:7px;margin-top:5px">Qty <input class="in num" data-poq="'+ix+'" inputmode="decimal" value="'+fmtQty(x.qty)+'" style="width:70px;padding:7px 8px;text-align:right"> @ <input class="in num" data-poc="'+ix+'" inputmode="decimal" value="'+esc(x.cost)+'" style="width:84px;padding:7px 8px;text-align:right"></span>'
@@ -2298,8 +2299,8 @@ function parseCSV(text){
   return rows;
 }
 function exportItemsCSV(its){
-  const rows=[['Name','Location','Quantity','Unit','Price','Cost','Min quantity','SKU','Barcode','Other SKUs','Tags','Notes','Value','Updated']];
-  its.forEach(i=>rows.push([i.name,folderPath(i.folder),i.qty,i.unit,i.price,i.cost,i.min,i.sku,i.code,(i.alt||[]).join('; '),(i.tags||[]).join('; '),i.notes,itemValue(i),new Date(i.updatedAt).toISOString()]));
+  const rows=[['Name','Location','Quantity','Unit','Price','Cost','Min quantity','SKU','Barcode','Other SKUs','Tags','Notes','Image URL','Value','Updated']];
+  its.forEach(i=>rows.push([i.name,folderPath(i.folder),i.qty,i.unit,i.price,i.cost,i.min,i.sku,i.code,(i.alt||[]).join('; '),(i.tags||[]).join('; '),i.notes,i.img||'',itemValue(i),new Date(i.updatedAt).toISOString()]));
   download('invento-items-'+new Date().toISOString().slice(0,10)+'.csv',buildCSV(rows),'text/csv');
   logTx('export',{detail:its.length+' items to CSV'});
   toast('CSV downloaded','ok');
@@ -2586,7 +2587,7 @@ function vImport(){
     r.onerror=()=>toast('Could not read file','err');
     r.readAsText(f);
   }
-  const ALIAS={name:['name','item','itemname','item name','product','title','product name'],qty:['quantity','qty','stock','units','onhand','on hand','count'],folder:['folder','location','godown','warehouse','shelf','place'],unit:['unit','uom'],price:['price','sell','sale price','selling price','mrp','rate'],cost:['cost','cost (usd)','cost usd','buy','purchase','purchase price','cost price'],min:['min','minimum','min qty','min quantity','minimum quantity','reorder','reorder level','low stock'],sku:['sku','item code','code no','article'],code:['barcode','qr','code','barcode value','ean','upc'],alt:['other skus','alt skus','alt','more skus','barcodes'],tags:['tags','tag','labels','category','categories'],notes:['notes','note','description','remarks','desc']};
+  const ALIAS={name:['name','item','itemname','item name','product','title','product name'],qty:['quantity','qty','stock','units','onhand','on hand','count'],folder:['folder','location','godown','warehouse','shelf','place'],unit:['unit','uom'],price:['price','sell','sale price','selling price','mrp','rate'],cost:['cost','cost (usd)','cost usd','buy','purchase','purchase price','cost price'],min:['min','minimum','min qty','min quantity','minimum quantity','reorder','reorder level','low stock'],sku:['sku','item code','code no','article'],code:['barcode','qr','code','barcode value','ean','upc'],alt:['other skus','alt skus','alt','more skus','barcodes'],tags:['tags','tag','labels','category','categories'],notes:['notes','note','description','remarks','desc'],img:['image url','image','img','image link','photo url','picture']};
   function prep(text){
     const rows=parseCSV(text);
     if(rows.length<2){toast('File needs a header row and at least one data row','err');return}
@@ -2647,14 +2648,14 @@ function vImport(){
           const mode=viaName?nameDupMode:dupMode;
           if(mode==='skip'){skipped++;return}
           if(mode==='update'){
-            Object.assign(ex,{name:p.name,qty:p.qty,unit:p.unit,price:p.price,cost:p.cost,min:p.min,tags:p.tags.length?p.tags:ex.tags,notes:p.notes||ex.notes,updatedAt:Date.now()});
+            Object.assign(ex,{name:p.name,qty:p.qty,unit:p.unit,price:p.price,cost:p.cost,min:p.min,tags:p.tags.length?p.tags:ex.tags,notes:p.notes||ex.notes,img:p.img||ex.img,updatedAt:Date.now()});
             if(p.sku||p.alt.length)setSkus(ex,[p.sku||p.code||ex.sku].concat(p.alt||[]).filter(Boolean));
             if(p.folderName)ex.folder=folderFor(p.folderName);
             updated++;return;
           }
           // mode==='create' falls through to create a new item
         }
-        const ni=newItem({name:p.name,qty:p.qty,unit:p.unit,price:p.price,cost:p.cost,min:p.min,tags:p.tags,notes:p.notes,folder:folderFor(p.folderName)});
+        const ni=newItem({name:p.name,qty:p.qty,unit:p.unit,price:p.price,cost:p.cost,min:p.min,tags:p.tags,notes:p.notes,img:p.img||'',folder:folderFor(p.folderName)});
         setSkus(ni,[p.sku||p.code].concat(p.alt||[]).filter(Boolean));
         S.items.push(ni);
         // keep name index fresh so later rows with same name update this one
