@@ -678,9 +678,26 @@ function save(col){
   clearTimeout(saveTimers[col]);
   saveTimers[col]=setTimeout(()=>{saveNow(col)},250);
 }
+/* Safety limiter: per-device rolling write budget. Generous for real work
+   (900 writes/hour ≈ far beyond a busy shift) but stops runaway loops,
+   hijacked devices, or app-level abuse from burning the database. */
+const WLIM_MAX=3000,WLIM_WIN=3600000;
+function writeOK(n){
+  n=n||1;
+  try{
+    let a=JSON.parse(localStorage.getItem('invento_wl')||'[]');
+    const now=Date.now();a=a.filter(t=>now-t<WLIM_WIN);
+    if(a.length+n>WLIM_MAX){localStorage.setItem('invento_wl',JSON.stringify(a));return false}
+    for(let i=0;i<n;i++)a.push(now);
+    localStorage.setItem('invento_wl',JSON.stringify(a));return true;
+  }catch(e){return true}
+}
+let _wlToastTs=0;
+function wlBlocked(){const now=Date.now();if(now-_wlToastTs>30000){_wlToastTs=now;toast('Safety limit reached — too many changes this hour from this device. Paused briefly.','err')}}
 async function saveNow(col){
   clearTimeout(saveTimers[col]);dirty[col]=false;
   if(MODE==='cloud'){
+    if(!writeOK(4)){wlBlocked();save(col);return false}
     try{
       if(col==='meta')await pushMeta();
       else if(col==='txns'){/* txns are written per-entry in logTx */}
@@ -885,7 +902,7 @@ function logTx(act,o){
   const t=Object.assign({id:uid('t'),ts:Date.now(),user:userName(),act:act},o||{});
   S.txns.unshift(t);
   if(S.txns.length>1500)S.txns.length=1500;
-  if(MODE==='cloud'){try{db.collection('txns').doc(t.id).set(clean(t))}catch(e){console.error('txn',e)}}
+  if(MODE==='cloud'){if(writeOK(1)){try{db.collection('txns').doc(t.id).set(clean(t))}catch(e){console.error('txn',e)}}else wlBlocked();}
   else save('txns');
   if(['out','adjusted','dispatch','import'].indexOf(act)>=0)scheduleAutoPO();
 }
