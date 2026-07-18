@@ -957,6 +957,33 @@ function syncPilesToQty(i){
 }
 /* select of an item's piles */
 function pileSelect(i,id){return '<select class="in" id="'+id+'" style="flex:1;min-width:120px;padding:9px 10px">'+pilesOf(i).map((p,ix)=>'<option value="'+ix+'">'+esc(shelfName(p.f))+' — '+fmtQty(p.q)+' here</option>').join('')+'</select>'}
+/* Ask which rack for an Add / Remove.
+   Remove + single rack  → no question (resolves the primary rack instantly).
+   Remove + multi rack   → "Where are we removing from?" — one button per rack.
+   Add (always)          → "Same location" button(s) + "A different rack…" (R/C picker).
+   Resolves {f:folderId} or null if the person closes the box. */
+function askRack(i,dir,n){
+  return new Promise(res=>{
+    const ps=pilesOf(i);
+    if(dir<0&&ps.length<=1){res({f:ps[0]?ps[0].f:null});return}
+    let done=false;const finish=v=>{if(done)return;done=true;closeModal();res(v)};
+    let mh='<h3>'+(dir<0?'Remove from which rack?':'Add to which rack?')+'</h3>'+
+      '<p class="sub mb num">'+esc(i.name)+' · '+(dir<0?'removing':'adding')+' <b>'+fmtQty(n)+'</b> '+esc(i.unit||'')+'</p>';
+    ps.forEach((p,ix)=>{const dis=dir<0&&p.q<=1e-9;
+      mh+='<button class="btn block mb" data-rk="'+ix+'" '+(dis?'disabled style="opacity:.45"':'')+' style="justify-content:space-between"><span>'+ico('folder')+esc(shelfName(p.f))+(dir>0&&ix===0&&ps.length===1?' <span class="muted" style="font-weight:600">(same location)</span>':'')+'</span><span class="num muted">'+fmtQty(p.q)+' here</span></button>';});
+    if(dir>0){
+      mh+='<button class="btn block mb" id="rk-other" style="justify-content:flex-start">'+ico('plus')+'A different rack…</button>'+
+          '<div id="rk-otherwrap" style="display:none">'+locPickerHTML('rk')+'<button class="btn pri block" id="rk-otherok">'+ico('check')+'Add here</button></div>';
+    }
+    openModal(mh);
+    $$('#modal [data-rk]').forEach(b=>b.onclick=()=>finish({f:ps[+b.dataset.rk].f}));
+    const oth=$('#rk-other');
+    if(oth)oth.onclick=()=>{oth.style.display='none';$('#rk-otherwrap').style.display='';wireLocPicker('rk')};
+    const ook=$('#rk-otherok');
+    if(ook)ook.onclick=async()=>{const r=await resolveLocPicker('rk');if(!r)return;finish({f:r.folderId})};
+    const ovv=$('#ovl');const obs=new MutationObserver(()=>{if(!ovv.classList.contains('show')){obs.disconnect();finish(null)}});obs.observe(ovv,{attributes:true,attributeFilter:['class']});
+  });
+}
 function descFolderIds(fid){const out=[fid];const walk=p=>{childFolders(p).forEach(c=>{out.push(c.id);walk(c.id)})};walk(fid);return out}
 function warehouses(){return S.folders.filter(f=>!f.parent && f.isWarehouse).sort((a,b)=>a.name.localeCompare(b.name))}
 function itemsInTree(fid){if(!fid)return S.items.slice();const ids=descFolderIds(fid);return S.items.filter(i=>pilesOf(i).some(p=>ids.includes(p.f)))}
@@ -1389,8 +1416,7 @@ function vItem(id){
     '<div class="row" style="justify-content:space-between;align-items:baseline"><div class="num" id="qbig" style="font-size:34px;font-weight:800;letter-spacing:-.01em">'+fmtQty(i.qty)+'<span class="muted" style="font-size:15px;font-weight:600"> '+esc(i.unit||'')+'</span></div><span class="num muted" id="qval" style="font-size:13px">Value '+fmtMoney(itemValue(i))+'</span></div>'+
     (i.min!==''&&i.min!=null?'<div class="small muted" style="margin-top:2px">Low-stock alert at '+fmtQty(i.min)+'</div>':'')+
     (can('adjqty')?'<div class="row mt" style="gap:8px;flex-wrap:wrap"><div class="stepper" style="max-width:150px;flex:0 0 auto"><button id="adj-m" aria-label="Less">−</button><input id="adj-n" class="num" inputmode="decimal" value="1"><button id="adj-p" aria-label="More">+</button></div>'+
-    '<select class="in" id="adj-r" style="flex:1;min-width:120px;padding:9px 10px">'+ADJ_REASONS.map(r=>'<option>'+r+'</option>').join('')+'</select></div>'+
-    (isMultiRack(i)?'<div class="row mt" style="gap:8px"><div class="eyebrow" style="align-self:center;flex:0 0 auto">Rack</div>'+pileSelect(i,'adj-f')+'</div>':''):'')+
+    '<select class="in" id="adj-r" style="flex:1;min-width:120px;padding:9px 10px">'+ADJ_REASONS.map(r=>'<option>'+r+'</option>').join('')+'</select></div>':'')+
     (can('adjqty')?'<div class="row mt" style="gap:8px"><button class="btn grow danger" id="adj-out" style="font-weight:800">− Remove</button><button class="btn grow pri" id="adj-in" style="font-weight:800">+ Add</button></div>'+
     '<div class="hint" style="margin-top:7px">Stock only moves by adding or removing — every change lands in the movement history with its reason.</div>':'<div class="hint" style="margin-top:7px">You do not have permission to change stock quantity.</div>')+'</div>';
   h+='<div class="actgrid mb">'+
@@ -1426,22 +1452,24 @@ function vItem(id){
   const an=$('#adj-n');
   if($('#adj-m'))$('#adj-m').onclick=()=>{an.value=fmtQty(Math.max(1,round4((parseFloat(an.value)||1)-1)))};
   if($('#adj-p'))$('#adj-p').onclick=()=>{an.value=fmtQty(round4((parseFloat(an.value)||0)+1))};
-  const adj=dir=>{
+  const adj=async dir=>{
     let n=round4(parseFloat(an.value));
     if(!(n>0)){toast('Enter how many to '+(dir>0?'add':'remove'),'err');return}
     const old=+i.qty||0;
     if(dir<0&&n>old){toast('Only '+fmtQty(old)+' in stock','err');return}
     const reason=$('#adj-r').value;
-    const pf=$('#adj-f')?pilesOf(i)[+$('#adj-f').value].f:(i.folder||null);
-    if(dir<0){const cap=$('#adj-f')?pilesOf(i)[+$('#adj-f').value].q:old;if(n>cap+1e-9){toast('Only '+fmtQty(cap)+' in '+shelfName(pf),'err');return}}
+    const pick=await askRack(i,dir,n);          // single-rack remove resolves instantly; everything else asks
+    if(!pick)return;                            // person closed the box — nothing changes
+    const pf=pick.f;
+    if(dir<0){const pp=pilesOf(i).find(p=>String(p.f||'')===String(pf||''));const cap=pp?pp.q:0;if(n>cap+1e-9){toast('Only '+fmtQty(cap)+' in '+shelfName(pf),'err');return}}
+    const wasMulti=isMultiRack(i);
     if(dir>0)pileAdd(i,pf,n);else pileDrain(i,n,pf);
     const nv=+i.qty||0;save('items');
-    logTx(dir>0?'in':'out',{itemId:i.id,itemName:i.name,fromQ:old,toQ:nv,qty:n,reason:reason,detail:reason+($('#adj-f')?' · '+shelfName(pf):'')});
-    $('#qbig').innerHTML=fmtQty(nv)+'<span class="muted" style="font-size:15px;font-weight:600"> '+esc(i.unit||'')+'</span>';
-    $('#qval').textContent='Value '+fmtMoney(itemValue(i));
-    an.value='1';updateBadges();beep(true);
-    toast((dir>0?'Added ':'Removed ')+fmtQty(n)+' — now '+fmtQty(nv),'ok');
-    if(isMultiRack(i)||$('#adj-f'))route();
+    logTx(dir>0?'in':'out',{itemId:i.id,itemName:i.name,fromQ:old,toQ:nv,qty:n,reason:reason,detail:reason+' · '+shelfName(pf)});
+    updateBadges();beep(true);
+    toast((dir>0?'Added ':'Removed ')+fmtQty(n)+' in '+shelfName(pf)+' — now '+fmtQty(nv),'ok');
+    if(wasMulti||isMultiRack(i))route();
+    else{const qb=$('#qbig');if(qb)qb.innerHTML=fmtQty(nv)+'<span class="muted" style="font-size:15px;font-weight:600"> '+esc(i.unit||'')+'</span>';const qv=$('#qval');if(qv)qv.textContent='Value '+fmtMoney(itemValue(i));const an2=$('#adj-n');if(an2)an2.value='1'}
   };
   if($('#adj-out'))$('#adj-out').onclick=()=>adj(-1);
   if($('#adj-in'))$('#adj-in').onclick=()=>adj(1);
@@ -1758,7 +1786,7 @@ function vScan(mode,arg){
   function quickScanModal(it){
     openModal('<div class="mhead"><span class="th" style="width:46px;height:46px;border-radius:9px;overflow:hidden;display:grid;place-items:center;background:var(--saddle-bg)">'+((it.img||it.thumb)?'<img src="'+esc(it.img||it.thumb)+'" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover">':ico('box'))+'</span><h3 class="ellip">'+esc(it.name)+'</h3></div>'+
       '<div class="sub mb num">In stock: <b id="qs-cur">'+fmtQty(it.qty)+'</b> '+esc(it.unit||'')+' · '+esc(pileSummary(it))+'</div>'+
-      (isMultiRack(it)?'<div class="row mb" style="gap:8px"><div class="eyebrow" style="align-self:center;flex:0 0 auto">Rack</div>'+pileSelect(it,'qs-f')+'</div>':'')+
+
       '<div class="row mb" style="gap:8px"><div class="stepper" style="max-width:150px;flex:0 0 auto"><button id="qs-m" aria-label="Less">−</button><input id="qs-q" class="num" inputmode="decimal" value="1"><button id="qs-p" aria-label="More">+</button></div>'+
       '<select class="in" id="qs-r" style="flex:1;min-width:110px;padding:9px 10px">'+ADJ_REASONS.map(r=>'<option>'+r+'</option>').join('')+'</select></div>'+
 
@@ -1771,18 +1799,21 @@ function vScan(mode,arg){
     $('#qs-open').onclick=()=>{closeModal();go('#item/'+it.id)};
     const dsb=$('#qs-dispatch');if(dsb)dsb.onclick=()=>{closeModal();ensureMarketThen(()=>startDispatch(it))};
     const rtb=$('#qs-return');if(rtb)rtb.onclick=()=>{closeModal();ensureMarketThen(()=>startReturn(it))};
-    const apply=dir=>{
+    const apply=async dir=>{
       let n=round4(parseFloat(q.value));
       if(!(n>0)){toast('Enter how many','err');return}
       const old=+it.qty||0;
       if(dir<0&&n>old){beep(false);toast('Only '+fmtQty(old)+' in stock','err');return}
-      const pf=$('#qs-f')?pilesOf(it)[+$('#qs-f').value].f:(it.folder||null);
-      if(dir<0&&$('#qs-f')){const cap=pilesOf(it)[+$('#qs-f').value].q;if(n>cap+1e-9){beep(false);toast('Only '+fmtQty(cap)+' in '+shelfName(pf),'err');return}}
+      const reason=$('#qs-r').value;
+      const pick=await askRack(it,dir,n);       // replaces the scan popup, asks the rack question
+      if(!pick)return;                          // closed — nothing changes, back to scanning
+      const pf=pick.f;
+      if(dir<0){const pp=pilesOf(it).find(p=>String(p.f||'')===String(pf||''));const cap=pp?pp.q:0;if(n>cap+1e-9){beep(false);toast('Only '+fmtQty(cap)+' in '+shelfName(pf),'err');return}}
       if(dir>0)pileAdd(it,pf,n);else pileDrain(it,n,pf);
       const nv=+it.qty||0;save('items');
-      logTx(dir>0?'in':'out',{itemId:it.id,itemName:it.name,fromQ:old,toQ:nv,qty:n,reason:$('#qs-r').value,detail:'Scan · '+$('#qs-r').value+($('#qs-f')?' · '+shelfName(pf):'')});
+      logTx(dir>0?'in':'out',{itemId:it.id,itemName:it.name,fromQ:old,toQ:nv,qty:n,reason:reason,detail:'Scan · '+reason+' · '+shelfName(pf)});
       updateBadges();beep(true);closeModal();
-      toast((dir>0?'Added ':'Removed ')+fmtQty(n)+' — '+it.name+' now '+fmtQty(nv),'ok');
+      toast((dir>0?'Added ':'Removed ')+fmtQty(n)+' in '+shelfName(pf)+' — '+it.name+' now '+fmtQty(nv),'ok');
     };
     $('#qs-out').onclick=()=>apply(-1);
     $('#qs-in').onclick=()=>apply(1);
