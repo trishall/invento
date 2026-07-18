@@ -1200,7 +1200,9 @@ function vProducts(){
   else h+='<div class="ilist">'+pool.map(i=>rowHTML(i,{selectable:true})).join('')+'</div>';
   $('#main').innerHTML=h;
   if(can('dispatch'))wireModeSlider();
-  const q=$('#q');q.oninput=()=>{view.q=q.value;vProducts()};q.onkeydown=e=>{if(e.key==='Enter')q.blur()};
+  const q=$('#q');let qt=null;
+  q.oninput=()=>{view.q=q.value;clearTimeout(qt);qt=setTimeout(()=>{const pos=q.selectionStart;vProducts();const nq=$('#q');if(nq){nq.focus();try{nq.setSelectionRange(pos,pos)}catch(e){}}},220)};
+  q.onkeydown=e=>{if(e.key==='Enter')q.blur()};
   if($('#clrq'))$('#clrq').onclick=()=>{view.q='';vProducts()};
   $('#viewBtn').onclick=()=>{S.meta.view=S.meta.view==='grid'?'list':'grid';save('meta');vProducts()};
   $('#sortBtn').onclick=()=>sortMenu(()=>vProducts());
@@ -1689,7 +1691,7 @@ function vScan(mode,arg){
       '<div class="sub mb num">In stock: <b id="qs-cur">'+fmtQty(it.qty)+'</b> '+esc(it.unit||'')+' · '+esc(folderPath(it.folder))+'</div>'+
       '<div class="row mb" style="gap:8px"><div class="stepper" style="max-width:150px;flex:0 0 auto"><button id="qs-m" aria-label="Less">−</button><input id="qs-q" class="num" inputmode="decimal" value="1"><button id="qs-p" aria-label="More">+</button></div>'+
       '<select class="in" id="qs-r" style="flex:1;min-width:110px;padding:9px 10px">'+ADJ_REASONS.map(r=>'<option>'+r+'</option>').join('')+'</select></div>'+
-      (can('editloc')?'<button class="btn pri block mb" id="qs-move" style="font-weight:800;background:var(--saddle);border-color:var(--saddle)">'+ico('move')+'Move to another '+locL()+'</button>':'')+
+
       '<div class="row mb" style="gap:8px"><button class="btn grow danger" id="qs-out" style="font-weight:800">− Remove</button><button class="btn pri grow" id="qs-in" style="font-weight:800">+ Add</button></div>'+
       (can('dispatch')?'<div class="row mb" style="gap:8px"><button class="btn grow" id="qs-dispatch">'+ico('send')+'Dispatch</button><button class="btn grow" id="qs-return">'+ico('undo')+'Return</button></div>':'')+
       '<button class="btn block" id="qs-open">Open item</button>');
@@ -1697,7 +1699,6 @@ function vScan(mode,arg){
     $('#qs-m').onclick=()=>{q.value=fmtQty(Math.max(1,round4((parseFloat(q.value)||1)-1)))};
     $('#qs-p').onclick=()=>{q.value=fmtQty(round4((parseFloat(q.value)||0)+1))};
     $('#qs-open').onclick=()=>{closeModal();go('#item/'+it.id)};
-    const mvb=$('#qs-move');if(mvb)mvb.onclick=()=>{closeModal();moveDlg([it])};
     const dsb=$('#qs-dispatch');if(dsb)dsb.onclick=()=>{closeModal();ensureMarketThen(()=>startDispatch(it))};
     const rtb=$('#qs-return');if(rtb)rtb.onclick=()=>{closeModal();ensureMarketThen(()=>startReturn(it))};
     const apply=dir=>{
