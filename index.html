@@ -1166,7 +1166,7 @@ function vHome(){
   $('#main').innerHTML=h;
   maybePoOverduePopup();
   const mig=$('#mig-email');if(mig)mig.onclick=()=>attachEmailFlow();
-  const ver=$('#ver-email');if(ver)ver.onclick=async()=>{try{await fbUser.sendEmailVerification();toast('Verification email sent — check inbox/spam','ok');ver.disabled=true}catch(e){toast(authErrMsg(e),'err')}};
+  const ver=$('#ver-email');if(ver)ver.onclick=async()=>{const g=emailCool('ver');if(g){toast(g,'err');return}try{await fbUser.sendEmailVerification();toast('Verification email sent — check inbox/spam','ok');ver.disabled=true}catch(e){toast(authErrMsg(e),'err')}};
 
   const ls=$('#loadSample');if(ls)ls.onclick=async()=>{ls.disabled=true;await loadSample();toast('Sample data loaded','ok');route()};
 }
@@ -4384,6 +4384,7 @@ function forgotPasswordDlg(prefill){
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){toast('Enter a valid email','err');return}
     const btn=$('#fp-go');btn.disabled=true;btn.textContent='Sending…';
     try{
+      const _g=emailCool('reset');if(_g){toast(_g,'err');return}
       await firebase.auth().sendPasswordResetEmail(em);
       closeModal();
       openModal('<h3>Check your inbox '+ico('check')+'</h3><p class="sub mb">If <b>'+esc(em)+'</b> has an Invento account, a reset link is on its way (check spam too). Open it, set a new password, then sign in here.</p><button class="btn pri block" onclick="closeModal()">Done</button>');
@@ -4405,6 +4406,24 @@ function normPhone(v){
   if(v.length===12&&v.startsWith('91'))return '+'+v;
   return v?'+'+v:'';
 }
+/* ============================================================
+   OTP / EMAIL SEND RATE-GUARD (per device)
+   SMS: min 60s between sends, max 4 sends per rolling hour.
+   Emails (reset/verification): min 60s between sends.
+   Note: Firebase also throttles server-side per number/IP —
+   this layer mainly stops accidental re-taps burning SMS money.
+   ============================================================ */
+function smsGuard(){
+  try{
+    const now=Date.now();
+    let a=JSON.parse(localStorage.getItem('invento_sms')||'[]').filter(t=>now-t<3600000);
+    if(a.length&&now-a[a.length-1]<60000)return 'Please wait '+Math.ceil((60000-(now-a[a.length-1]))/1000)+'s before requesting another code';
+    if(a.length>=4){const wait=Math.ceil((3600000-(now-a[0]))/60000);return 'Too many codes requested from this device — try again in ~'+wait+' min'}
+    return '';
+  }catch(e){return ''}
+}
+function smsGuardStamp(){try{const now=Date.now();let a=JSON.parse(localStorage.getItem('invento_sms')||'[]').filter(t=>now-t<3600000);a.push(now);localStorage.setItem('invento_sms',JSON.stringify(a))}catch(e){}}
+function emailCool(key){try{const k='invento_ec_'+key;const last=+localStorage.getItem(k)||0;const now=Date.now();if(now-last<60000)return 'Please wait '+Math.ceil((60000-(now-last))/1000)+'s before sending again';localStorage.setItem(k,String(now));return ''}catch(e){return ''}}
 let _rcv=null;
 function newCaptcha(){
   try{if(_rcv){_rcv.clear();}}catch(e){}
@@ -4421,11 +4440,13 @@ function otpModal(phone,sendFn,onCred,backTo){
       '<p class="sub mb">We sent a 6-digit code by SMS to <b>'+esc(phone)+'</b>.'+(msg?' <span style="color:var(--red);font-weight:700">'+esc(msg)+'</span>':'')+'</p>'+
       '<div class="field"><label>SMS code</label><input class="in num" id="ot-c" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" style="letter-spacing:6px;font-size:20px;text-align:center"></div>'+
       '<button class="btn pri block" id="ot-go">'+ico('check')+'Verify</button>'+
-      '<button class="btn block mt" id="ot-re" disabled>Resend code (30)</button>');
+      '<button class="btn block mt" id="ot-re" disabled>Resend code (60)</button>');
     const c=$('#ot-c');setTimeout(()=>{try{c.focus()}catch(e){}},60);
     c.onkeydown=e=>{if(e.key==='Enter')$('#ot-go').click()};
-    let left=30;const tm=setInterval(()=>{left--;const b=$('#ot-re');if(!b){clearInterval(tm);return}if(left<=0){clearInterval(tm);b.disabled=false;b.textContent='Resend code'}else b.textContent='Resend code ('+left+')'},1000);
-    $('#ot-re').onclick=async()=>{try{$('#ot-re').disabled=true;conf=await sendFn(newCaptcha());toast('Code sent again','ok');paint('')}catch(e){toast(authErrMsg(e),'err');$('#ot-re').disabled=false}};
+    let left=60;const tm=setInterval(()=>{left--;const b=$('#ot-re');if(!b){clearInterval(tm);return}if(left<=0){clearInterval(tm);b.disabled=false;b.textContent='Resend code'}else b.textContent='Resend code ('+left+')'},1000);
+    $('#ot-re').onclick=async()=>{
+      const g=smsGuard();if(g){toast(g,'err');return}
+      try{$('#ot-re').disabled=true;conf=await sendFn(newCaptcha());smsGuardStamp();toast('Code sent again','ok');paint('')}catch(e){toast(authErrMsg(e),'err');$('#ot-re').disabled=false}};
     $('#ot-go').onclick=async()=>{
       if(busy)return;const code=(c.value||'').trim();
       if(code.length<6){toast('Enter the 6-digit code','err');return}
@@ -4435,7 +4456,9 @@ function otpModal(phone,sendFn,onCred,backTo){
     };
   };
   (async()=>{
-    try{conf=await sendFn(newCaptcha());paint('');}
+    const g=smsGuard();
+    if(g){closeModal();if(backTo)backTo(g);else toast(g,'err');return}
+    try{conf=await sendFn(newCaptcha());smsGuardStamp();paint('');}
     catch(e){closeModal();if(backTo)backTo(authErrMsg(e));else toast(authErrMsg(e),'err');}
   })();
 }
