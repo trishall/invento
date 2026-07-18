@@ -2595,7 +2595,7 @@ function vImport(){
       if(!name){errs.push('Row '+(ix+2)+': missing name');return null}
       if(isNaN(qty)){errs.push('Row '+(ix+2)+': quantity is not a number');return null}
       const g=k=>(col[k]!=null?String(rw[col[k]]||'').trim():'');
-      return{name:name,qty:qty,folderName:g('folder'),unit:g('unit')||'pcs',price:g('price'),cost:g('cost'),min:g('min'),sku:g('sku'),code:g('code')||g('sku'),alt:g('alt').split(/[;,]/).map(s=>s.trim()).filter(Boolean),tags:g('tags').split(/[;,]/).map(s=>s.trim()).filter(Boolean),notes:g('notes')};
+      return{name:name,qty:qty,folderName:g('folder'),unit:g('unit')||'pcs',price:g('price'),cost:g('cost'),min:g('min'),sku:g('sku'),code:g('code')||g('sku'),img:g('img'),alt:g('alt').split(/[;,]/).map(s=>s.trim()).filter(Boolean),tags:g('tags').split(/[;,]/).map(s=>s.trim()).filter(Boolean),notes:g('notes')};
     }).filter(Boolean);
     const dups=parsed.filter(p=>p.sku&&S.items.some(i=>i.sku===p.sku)).length;
     const nameIndex={};S.items.forEach(i=>{const k=(i.name||'').trim().toLowerCase();if(k&&!(k in nameIndex))nameIndex[k]=i.id;});
