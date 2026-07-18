@@ -1024,7 +1024,7 @@ function route(){
   const h=(location.hash||'#home').slice(1);
   const [p,a,b]=h.split('/');
   const main=$('#main');main.scrollTop=0;window.scrollTo(0,0);
-  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals,awb:()=>vAwb(a||null,b||null),uniexport:()=>{vMore();setTimeout(exportUnicommerce,30)},exportall:()=>{vMore();setTimeout(exportAllItems,30)}};
+  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals,awb:()=>vAwb(a||null,b||null),uniexport:()=>{vMore();setTimeout(exportUnicommerce,30)},backups:vBackups,exportall:()=>{vMore();setTimeout(exportAllItems,30)}};
   setActiveNav(p==='item'||p==='edit'||p==='folders'?'stock':(p==='list'||p==='po'?'flows':(p==='trash'||p==='import'?'more':((p==='return'||p==='awb')?'dispatch':p))));
   try{(map[p]||vHome)();}
   catch(e){
@@ -2124,6 +2124,92 @@ async function autoPOSweep(){
   logTx('po',{detail:due.length+' low-stock item'+(due.length>1?'s':'')+' auto-added to '+p.number});
   toast(due.length+' low-stock item'+(due.length>1?'s':'')+' added to '+p.number,'ok');
 }
+/* ---------------- RECOVERY POINTS (15-day snapshots) ---------------- */
+const BK_DAYS=15,BK_KEEP=6,BK_CHUNK=700000;
+function bkSummary(sinceTs){
+  const t=(S.txns||[]).filter(x=>x.ts>sinceTs);
+  const c=a=>t.filter(x=>x.act===a).length;
+  const parts=[];
+  const add=c('created'),del=c('deleted')+c('trashed');
+  if(add)parts.push(add+' items added');if(del)parts.push(del+' deleted');
+  const inn=c('in')+c('received'),out=c('out');
+  if(inn)parts.push(inn+' stock-in');if(out)parts.push(out+' stock-out');
+  const dp=c('dispatch');if(dp)parts.push(dp+' dispatches');
+  const mv=c('moved');if(mv)parts.push(mv+' moves');
+  return parts.length?parts.join(' · '):'No recorded changes';
+}
+function bkPayload(){return JSON.stringify({v:1,ts:Date.now(),meta:S.meta,items:S.items,folders:S.folders,lists:S.lists,pos:S.pos,dispatches:S.dispatches,awbs:S.awbs,approvals:S.approvals})}
+async function bkList(){
+  if(MODE==='cloud'){const q=await db.collection('backups').where('part','==',0).get();return q.docs.map(d=>d.data()).sort((a,b)=>b.ts-a.ts)}
+  const ix=await store.get('bkindex')||[];return ix.sort((a,b)=>b.ts-a.ts);
+}
+async function createRecoveryPoint(auto){
+  const list=await bkList();
+  const last=list[0]?list[0].ts:0;
+  const sum=bkSummary(last);
+  const id='bk'+Date.now();
+  const data=bkPayload();
+  const parts=[];for(let i=0;i<data.length;i+=BK_CHUNK)parts.push(data.slice(i,i+BK_CHUNK));
+  if(MODE==='cloud'){
+    for(let i=0;i<parts.length;i++)
+      await db.collection('backups').doc(id+'_'+i).set({id:id,part:i,of:parts.length,ts:Date.now(),by:userName(),summary:i===0?sum:'',size:data.length,data:parts[i]});
+    // retention
+    const all=await bkList();
+    for(const b of all.slice(BK_KEEP)){for(let i=0;i<(b.of||1);i++){try{await db.collection('backups').doc(b.id+'_'+i).delete()}catch(e){}}}
+  } else {
+    await store.set('bk:'+id,data);
+    const ix=(await store.get('bkindex')||[]);ix.push({id:id,part:0,of:1,ts:Date.now(),by:userName(),summary:sum,size:data.length});
+    while(ix.length>BK_KEEP){const o=ix.sort((a,b)=>a.ts-b.ts).shift();try{await store.set('bk:'+o.id,null)}catch(e){}}
+    await store.set('bkindex',ix);
+  }
+  logTx('list',{detail:'Recovery point created'+(auto?' (auto)':'')});
+  if(!auto)toast('Recovery point saved','ok');else toast('15-day recovery point saved automatically','ok');
+}
+async function bkFetch(b){
+  if(MODE!=='cloud')return await store.get('bk:'+b.id);
+  let s='';
+  for(let i=0;i<(b.of||1);i++){const d=await db.collection('backups').doc(b.id+'_'+i).get();s+=(d.exists?(d.data().data||''):'')}
+  return s;
+}
+async function restoreRecovery(b){
+  const ok=await confirmDlg('Restore this point?','Data goes back to '+fmtDT(b.ts)+'. Current data is saved as a new recovery point first, so nothing is lost.','Restore',true);
+  if(!ok)return;
+  try{
+    await createRecoveryPoint(false); // safety net of "now"
+    const raw=await bkFetch(b);if(!raw){toast('Could not read that recovery point','err');return}
+    const d=JSON.parse(raw);
+    S.meta=Object.assign(DEFAULT_META(),d.meta||{});S.items=d.items||[];S.folders=d.folders||[];S.lists=d.lists||[];S.pos=d.pos||[];S.dispatches=d.dispatches||[];S.awbs=d.awbs||[];S.approvals=d.approvals||[];
+    await Promise.all(['meta','items','folders','lists','pos','dispatches','awbs','approvals'].map(saveNow));
+    logTx('list',{detail:'Restored recovery point of '+fmtDT(b.ts)});
+    toast('Restored','ok');go('#home');
+  }catch(e){toast('Restore failed: '+((e&&e.code)||e),'err')}
+}
+function vBackups(){
+  if(!isAdminU()){go('#more');return}
+  topTitle('Recovery points','#more');
+  $('#main').innerHTML='<h1 class="page">Recovery points</h1><p class="sub mb">A snapshot is taken automatically every '+BK_DAYS+' days (keeps last '+BK_KEEP+'). Restore rolls data back; the current state is snapshotted first so nothing is lost. Photos are not included.</p>'+
+    '<button class="btn pri block mb" id="bk-now">'+ico('check')+'Create recovery point now</button><div id="bk-list"><div class="skel" style="height:64px"></div></div>';
+  $('#bk-now').onclick=async()=>{$('#bk-now').disabled=true;try{await createRecoveryPoint(false)}catch(e){toast('Failed: '+((e&&e.code)||e),'err')}vBackups()};
+  (async()=>{
+    let list=[];try{list=await bkList()}catch(e){}
+    const w=$('#bk-list');if(!w)return;
+    if(!list.length){w.innerHTML='<div class="empty">'+ico('inbox')+'<div class="t">No recovery points yet</div><div class="s">Tap the button above to create the first one.</div></div>';return}
+    w.innerHTML=list.map(b=>'<div class="card pad" style="margin-bottom:9px"><div style="font-weight:800">'+fmtDT(b.ts)+'</div><div class="small muted">'+esc(b.summary||'')+' · '+fmtBytes(b.size||0)+' · by '+esc(b.by||'')+'</div><div class="row mt" style="gap:8px"><button class="btn sm pri grow" data-bkr="'+esc(b.id)+'">Restore</button><button class="btn sm grow" data-bkd="'+esc(b.id)+'">Download</button>'+(isMF()?'<button class="btn sm danger" data-bkx="'+esc(b.id)+'" style="flex:0 0 auto">'+ico('trash')+'</button>':'')+'</div></div>').join('');
+    $$('#bk-list [data-bkr]').forEach(x=>x.onclick=()=>{const b=list.find(y=>y.id===x.dataset.bkr);if(b)restoreRecovery(b)});
+    $$('#bk-list [data-bkd]').forEach(x=>x.onclick=async()=>{const b=list.find(y=>y.id===x.dataset.bkd);const raw=await bkFetch(b);download('invento-recovery-'+new Date(b.ts).toISOString().slice(0,10)+'.json',raw,'application/json')});
+    $$('#bk-list [data-bkx]').forEach(x=>x.onclick=async()=>{const b=list.find(y=>y.id===x.dataset.bkx);const ok=await confirmDlg('Delete this recovery point?',fmtDT(b.ts),'Delete',true);if(!ok)return;
+      if(MODE==='cloud'){for(let i=0;i<(b.of||1);i++){try{await db.collection('backups').doc(b.id+'_'+i).delete()}catch(e){}}}
+      else{const ix=(await store.get('bkindex')||[]).filter(y=>y.id!==b.id);await store.set('bkindex',ix);await store.set('bk:'+b.id,null)}
+      toast('Deleted');vBackups()});
+  })();
+}
+async function autoRecoveryCheck(){
+  try{
+    if(!isAdminU())return;
+    const list=await bkList();
+    if(!list.length||Date.now()-list[0].ts>BK_DAYS*86400000)await createRecoveryPoint(true);
+  }catch(e){}
+}
 async function createPO(){
   const n=await nextSeq('po');
   const p={id:uid('p'),number:'PO-'+String(n).padStart(4,'0'),vendor:'',expected:'',status:'draft',priority:'low',items:[],notes:'',createdAt:Date.now(),updatedAt:Date.now()};
@@ -2677,6 +2763,7 @@ function vMore(){
   rows.push(['#trash',ico('trash'),'Trash','Restore deleted items ('+S.trash.length+')']);
   if(can('dispatch')){const od=awbOverdue().length;rows.push(['#awb',ico('ticket'),'AWB / Shipments'+(od?' ('+od+')':''),'Accept, dispatch & track shipping labels'+(od?' — '+od+' overdue':'')]);}
   if(isAdminU())rows.push(['#orders',ico('truck'),'Dispatch orders','Review orders, SKUs, photos & data used']);
+  if(isAdminU())rows.push(['#backups',ico('undo'),'Recovery points','Auto snapshot every 15 days · restore anytime']);
   if(isAdminU()){const np=pendingApprovals().length;rows.push(['#approvals',ico('inbox'),'Approvals'+(np?' ('+np+')':''),'Requests needing an admin'+(np?' — '+np+' pending':'')]);}
   if(MODE==='cloud'&&isAdminU())rows.push(['#users',ico('flows'),'Team members','Approve, revoke, promote accounts']);
   if(MODE==='cloud'&&isAdminU())rows.push(['#perms',ico('lock'),'Permissions','Choose what regular users can do']);
@@ -4026,7 +4113,7 @@ document.addEventListener('click',e=>{
 /* ============================================================
    SETUP / CONNECT SCREENS
    ============================================================ */
-const FB_RULES="rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n\n    function uD() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }\n    function active() { return request.auth != null && uD().status == 'active'; }\n    function admin() { return active() && uD().role in ['admin','mainframe']; }\n    function mainframe() { return active() && uD().role == 'mainframe'; }\n    function perms() {\n      return exists(/databases/$(database)/documents/meta/app)\n        ? get(/databases/$(database)/documents/meta/app).data.get('perms', {})\n        : {};\n    }\n    function userCan(key) { return admin() || perms().get(key, true) == true; }\n\n    // Non-admins may only change numbering + view preferences in meta.\n    // perms, company, currency, tax settings and any FUTURE field are frozen by default.\n    function metaSafe() {\n      return request.resource.data.diff(resource.data).affectedKeys()\n             .hasOnly(['seq','view','sort','market','usdMig']);\n    }\n    // Defence-in-depth: cap top-level field count. (Firestore already caps each doc at 1MB.)\n    function okDoc() { return request.resource.data.size() <= 60; }\n\n    match /users/{uid} {\n      allow read: if request.auth != null && (request.auth.uid == uid || admin());\n      allow create: if request.auth != null && request.auth.uid == uid && (\n        (request.resource.data.role == 'user' && request.resource.data.status == 'pending') ||\n        (request.auth.token.email == 'trishal@invento.app' && request.resource.data.role == 'mainframe')\n      );\n      allow update: if mainframe()\n        || (admin() && resource.data.role == 'user' && request.resource.data.role == 'user')\n        || (request.auth != null && request.auth.uid == uid\n            && request.resource.data.role == resource.data.role\n            && request.resource.data.status == resource.data.status);\n      allow delete: if mainframe() || (request.auth != null && request.auth.uid == uid);\n    }\n\n    // \"Forgot password\" requests. The person is signed OUT, so create is public --\n    // but locked down hard: doc id MUST equal the userid (one request per user, no\n    // flooding), exactly two fields, tight types/length. Contains no private data.\n    // Only admins can read or clear them.\n    match /pwresets/{userid} {\n      allow read, update, delete: if admin();\n      allow create: if request.resource.data.keys().hasOnly(['userid','ts'])\n        && request.resource.data.userid is string\n        && request.resource.data.userid == userid\n        && request.resource.data.userid.size() >= 2\n        && request.resource.data.userid.size() <= 40\n        && request.resource.data.userid.matches('^[a-z0-9._-]+$')\n        && request.resource.data.ts is number;\n    }\n\n    match /txns/{id}        { allow read: if active(); allow create: if active() && okDoc(); allow update: if false; allow delete: if admin(); }\n    match /trash/{id}       { allow read: if active(); allow create, update: if (admin() || userCan('trash') || userCan('delitem')) && okDoc(); allow delete: if (admin() || userCan('trash') || userCan('delitem')); }\n    match /meta/{doc}       { allow read: if active(); allow create: if admin(); allow update: if admin() || (active() && metaSafe()); }\n    match /items/{id}       { allow read: if active(); allow create, update: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')) && okDoc(); allow delete: if (admin() || userCan('delitem')); }\n    match /folders/{id}     { allow read: if active(); allow create, update: if userCan('editloc') && okDoc(); allow delete: if (admin() || userCan('editloc')); }\n    match /lists/{id}       { allow read: if active(); allow create, update: if active() && okDoc(); allow delete: if admin(); }\n    match /pos/{id}         { allow read: if active(); allow create, update: if active() && okDoc(); allow delete: if admin(); }\n    match /dispatches/{id}  { allow read: if active(); allow create, update: if (admin() || userCan('dispatch')) && okDoc(); allow delete: if admin(); }\n    match /awbs/{id}        { allow read: if active(); allow create, update: if (userCan('awbAccept') || userCan('awbDispatch') || userCan('awbReturn')) && okDoc(); allow delete: if (admin() || userCan('awbDelete')); }\n    match /approvals/{id}   { allow read: if active(); allow create: if active() && okDoc(); allow update, delete: if admin(); }\n    match /photos/{id}      { allow read: if active(); allow write: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')); }\n\n    // Deny anything not explicitly matched above.\n    match /{document=**} { allow read, write: if false; }\n  }\n}";
+const FB_RULES="rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n\n    function uD() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }\n    function active() { return request.auth != null && uD().status == 'active'; }\n    function admin() { return active() && uD().role in ['admin','mainframe']; }\n    function mainframe() { return active() && uD().role == 'mainframe'; }\n    function perms() {\n      return exists(/databases/$(database)/documents/meta/app)\n        ? get(/databases/$(database)/documents/meta/app).data.get('perms', {})\n        : {};\n    }\n    function userCan(key) { return admin() || perms().get(key, true) == true; }\n\n    // Non-admins may only change numbering + view preferences in meta.\n    // perms, company, currency, tax settings and any FUTURE field are frozen by default.\n    function metaSafe() {\n      return request.resource.data.diff(resource.data).affectedKeys()\n             .hasOnly(['seq','view','sort','market','usdMig']);\n    }\n    // Defence-in-depth: cap top-level field count. (Firestore already caps each doc at 1MB.)\n    function okDoc() { return request.resource.data.size() <= 60; }\n\n    match /users/{uid} {\n      allow read: if request.auth != null && (request.auth.uid == uid || admin());\n      allow create: if request.auth != null && request.auth.uid == uid && (\n        (request.resource.data.role == 'user' && request.resource.data.status == 'pending') ||\n        (request.auth.token.email == 'trishal@invento.app' && request.resource.data.role == 'mainframe')\n      );\n      allow update: if mainframe()\n        || (admin() && resource.data.role == 'user' && request.resource.data.role == 'user')\n        || (request.auth != null && request.auth.uid == uid\n            && request.resource.data.role == resource.data.role\n            && request.resource.data.status == resource.data.status);\n      allow delete: if mainframe() || (request.auth != null && request.auth.uid == uid);\n    }\n\n    // \"Forgot password\" requests. The person is signed OUT, so create is public --\n    // but locked down hard: doc id MUST equal the userid (one request per user, no\n    // flooding), exactly two fields, tight types/length. Contains no private data.\n    // Only admins can read or clear them.\n    match /pwresets/{userid} {\n      allow read, update, delete: if admin();\n      allow create: if request.resource.data.keys().hasOnly(['userid','ts'])\n        && request.resource.data.userid is string\n        && request.resource.data.userid == userid\n        && request.resource.data.userid.size() >= 2\n        && request.resource.data.userid.size() <= 40\n        && request.resource.data.userid.matches('^[a-z0-9._-]+$')\n        && request.resource.data.ts is number;\n    }\n\n    match /txns/{id}        { allow read: if active(); allow create: if active() && okDoc(); allow update: if false; allow delete: if admin(); }\n    match /trash/{id}       { allow read: if active(); allow create, update: if (admin() || userCan('trash') || userCan('delitem')) && okDoc(); allow delete: if (admin() || userCan('trash') || userCan('delitem')); }\n    match /meta/{doc}       { allow read: if active(); allow create: if admin(); allow update: if admin() || (active() && metaSafe()); }\n    match /items/{id}       { allow read: if active(); allow create, update: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')) && okDoc(); allow delete: if (admin() || userCan('delitem')); }\n    match /folders/{id}     { allow read: if active(); allow create, update: if userCan('editloc') && okDoc(); allow delete: if (admin() || userCan('editloc')); }\n    match /lists/{id}       { allow read: if active(); allow create, update: if active() && okDoc(); allow delete: if admin(); }\n    match /pos/{id}         { allow read: if active(); allow create, update: if active() && okDoc(); allow delete: if admin(); }\n    match /dispatches/{id}  { allow read: if active(); allow create, update: if (admin() || userCan('dispatch')) && okDoc(); allow delete: if admin(); }\n    match /awbs/{id}        { allow read: if active(); allow create, update: if (userCan('awbAccept') || userCan('awbDispatch') || userCan('awbReturn')) && okDoc(); allow delete: if (admin() || userCan('awbDelete')); }\n    match /approvals/{id}   { allow read: if active(); allow create: if active() && okDoc(); allow update, delete: if admin(); }\n    match /backups/{id}     { allow read, create, delete: if admin(); allow update: if false; }\n    match /photos/{id}      { allow read: if active(); allow write: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')); }\n\n    // Deny anything not explicitly matched above.\n    match /{document=**} { allow read, write: if false; }\n  }\n}";
 function authEmail(u){u=String(u||'').trim().toLowerCase();return u.indexOf('@')>0?u:u.replace(/[^a-z0-9._-]/g,'')+'@invento.app'}
 function authErrMsg(e){
   const c=(e&&e.code)||'';
@@ -4332,6 +4419,7 @@ function vCloudError(e){
   if(res==='revoked'){vRevoked();return}
   bootDone=true;
   scheduleAutoPO();
+  setTimeout(()=>{autoRecoveryCheck()},4000);
   route();
 })();
 </script>
