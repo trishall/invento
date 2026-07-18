@@ -1024,7 +1024,7 @@ function route(){
   const h=(location.hash||'#home').slice(1);
   const [p,a,b]=h.split('/');
   const main=$('#main');main.scrollTop=0;window.scrollTo(0,0);
-  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals,awb:()=>vAwb(a||null,b||null),uniexport:()=>{vMore();setTimeout(exportUnicommerce,30)},backups:vBackups,exportall:()=>{vMore();setTimeout(exportAllItems,30)}};
+  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals,awb:()=>vAwb(a||null,b||null),uniexport:()=>{vMore();setTimeout(exportUnicommerce,30)},backups:vBackups,dash:()=>vDash(30),exportall:()=>{vMore();setTimeout(exportAllItems,30)}};
   setActiveNav(p==='item'||p==='edit'||p==='folders'?'stock':(p==='list'||p==='po'?'flows':(p==='trash'||p==='import'?'more':((p==='return'||p==='awb')?'dispatch':p))));
   try{(map[p]||vHome)();}
   catch(e){
@@ -2184,6 +2184,38 @@ async function restoreRecovery(b){
     toast('Restored','ok');go('#home');
   }catch(e){toast('Restore failed: '+((e&&e.code)||e),'err')}
 }
+/* ---------------- DASHBOARD (on-demand analytics) ---------------- */
+function vDash(days){
+  if(!isAdminU()){go('#more');return}
+  days=+days||30;const since=Date.now()-days*86400000;
+  topTitle('Dashboard','#more');
+  const OUT=['out','dispatch'];
+  const t=(S.txns||[]).filter(x=>x.ts>=since);
+  const disp=t.filter(x=>x.act==='dispatch');
+  const outUnits=t.filter(x=>OUT.indexOf(x.act)>=0).reduce((a,x)=>a+(+x.qty||0),0);
+  const totUnits=S.items.reduce((a,i)=>a+(+i.qty||0),0);
+  const totVal=S.items.reduce((a,i)=>a+itemValue(i),0);
+  // best sellers
+  const per={};t.forEach(x=>{if(OUT.indexOf(x.act)>=0&&x.itemId)per[x.itemId]=(per[x.itemId]||0)+(+x.qty||0)});
+  const best=Object.entries(per).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([id,q])=>({i:iById(id),q})).filter(x=>x.i);
+  // reorder list
+  const reord=S.items.filter(i=>(+i.min>0)&&(+i.qty||0)<=(+i.min)).map(i=>({i,short:Math.max(1,round4((+i.min)-(+i.qty||0))),onPO:itemOnOpenPO(i.id)})).sort((a,b)=>b.short-a.short);
+  // fast movers running out
+  const risk=Object.entries(per).map(([id,q])=>{const i=iById(id);if(!i)return null;const v=q/days;const cov=v>0?(+i.qty||0)/v:1e9;return {i,cov,v}}).filter(x=>x&&x.cov<=10&&x.v>0).sort((a,b)=>a.cov-b.cov).slice(0,8);
+  // team
+  const who={};t.forEach(x=>{if(x.act==='dispatch')who[x.user]=(who[x.user]||0)+1});
+  const team=Object.entries(who).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const kpi=(l,v,s)=>'<div class="card pad" style="flex:1 1 45%"><div class="eyebrow">'+l+'</div><div style="font-weight:800;font-size:21px" class="num">'+v+'</div>'+(s?'<div class="small muted">'+s+'</div>':'')+'</div>';
+  let h='<h1 class="page">Dashboard</h1>';
+  h+='<div class="seg mb" id="dh-p">'+[7,30,90].map(d=>'<button data-d="'+d+'" class="'+(d===days?'on':'')+'">'+d+' days</button>').join('')+'</div>';
+  h+='<div class="row wrap mb" style="gap:9px">'+kpi('Dispatches',disp.length,'last '+days+'d')+kpi('Units out',fmtQty(outUnits),'last '+days+'d')+kpi('Items',S.items.length,fmtQty(totUnits)+' units in stock')+kpi('Stock value',fmtMoney(totVal,0),'')+'</div>';
+  h+='<div class="card pad mb"><div class="eyebrow mb">Best selling · '+days+'d</div>'+(best.length?best.map((x,n)=>'<div class="row" style="padding:5px 0;border-bottom:1px solid var(--line2)"><span class="muted small" style="width:20px">'+(n+1)+'</span><span class="grow ellip" style="font-weight:600">'+esc(x.i.name)+'</span><b class="num">'+fmtQty(x.q)+'</b></div>').join(''):'<div class="sub">No sales recorded in this period.</div>')+'</div>';
+  h+='<div class="card pad mb" style="border-left:4px solid var(--red)"><div class="eyebrow mb" style="color:var(--red)">Running out fast</div>'+(risk.length?risk.map(x=>'<div class="row" style="padding:5px 0;border-bottom:1px solid var(--line2)"><span class="grow ellip" style="font-weight:600">'+esc(x.i.name)+'</span><span class="small" style="color:var(--red);font-weight:700">≈'+(x.cov<1?'<1':Math.round(x.cov))+' days left</span></div>').join('')+'<div class="hint mt">Based on this period\'s selling speed vs current stock.</div>':'<div class="sub">Nothing at risk at current speed.</div>')+'</div>';
+  h+='<div class="card pad mb" style="border-left:4px solid var(--amber)"><div class="eyebrow mb" style="color:var(--amber)">Should be ordered (below min)</div>'+(reord.length?reord.slice(0,10).map(x=>'<div class="row" style="padding:5px 0;border-bottom:1px solid var(--line2)"><span class="grow ellip" style="font-weight:600">'+esc(x.i.name)+'</span><span class="small num">'+fmtQty(x.i.qty)+'/'+fmtQty(x.i.min)+(x.onPO?' · <span style="color:var(--green)">on PO</span>':' · need '+fmtQty(x.short))+'</span></div>').join('')+(reord.length>10?'<div class="small muted mt">+'+(reord.length-10)+' more in Low stock</div>':''):'<div class="sub">Nothing below minimum. </div>')+'</div>';
+  h+='<div class="card pad mb"><div class="eyebrow mb">Dispatches by person · '+days+'d</div>'+(team.length?team.map(x=>'<div class="row" style="padding:4px 0"><span class="grow">'+esc(x[0])+'</span><b class="num">'+x[1]+'</b></div>').join(''):'<div class="sub">No dispatches in this period.</div>')+'</div>';
+  $('#main').innerHTML=h;
+  $$('#dh-p button').forEach(b=>b.onclick=()=>vDash(+b.dataset.d));
+}
 function vBackups(){
   if(!isAdminU()){go('#more');return}
   topTitle('Recovery points','#more');
@@ -2763,6 +2795,7 @@ function vMore(){
   rows.push(['#trash',ico('trash'),'Trash','Restore deleted items ('+S.trash.length+')']);
   if(can('dispatch')){const od=awbOverdue().length;rows.push(['#awb',ico('ticket'),'AWB / Shipments'+(od?' ('+od+')':''),'Accept, dispatch & track shipping labels'+(od?' — '+od+' overdue':'')]);}
   if(isAdminU())rows.push(['#orders',ico('truck'),'Dispatch orders','Review orders, SKUs, photos & data used']);
+  if(isAdminU())rows.push(['#dash',ico('chart'),'Dashboard','Sales, best sellers, reorder & risk analysis']);
   if(isAdminU())rows.push(['#backups',ico('undo'),'Recovery points','Auto snapshot every 15 days · restore anytime']);
   if(isAdminU()){const np=pendingApprovals().length;rows.push(['#approvals',ico('inbox'),'Approvals'+(np?' ('+np+')':''),'Requests needing an admin'+(np?' — '+np+' pending':'')]);}
   if(MODE==='cloud'&&isAdminU())rows.push(['#users',ico('flows'),'Team members','Approve, revoke, promote accounts']);
