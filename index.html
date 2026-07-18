@@ -788,7 +788,6 @@ async function initCloud(cfg){
   fbApp=firebase.initializeApp(cfg);
   db=firebase.firestore();
   try{await db.enablePersistence({synchronizeTabs:true})}catch(e){/* multi-tab or unsupported — fine */}
-  try{await db.enablePersistence({synchronizeTabs:true})}catch(e){}
   fbUser=await new Promise(res=>{const off=firebase.auth().onAuthStateChanged(u=>{off();res(u)},()=>{off();res(null)})});
   if(!fbUser){MODE='cloud';return 'login'}
   firebase.auth().onAuthStateChanged(u=>{if(!u)location.reload()});
@@ -797,10 +796,13 @@ async function initCloud(cfg){
   const uref=db.collection('users').doc(fbUser.uid);
   let us;try{us=await uref.get()}catch(e){throw new Error('Could not read your user profile — check the security rules were published. ('+(e.message||e)+')')}
   if(!us.exists){
-    const uidName=String(fbUser.email||'').split('@')[0].toLowerCase();
+    const em=String(fbUser.email||'');
+    const uidName=em?em.split('@')[0].toLowerCase():('ph'+String(fbUser.phoneNumber||'').replace(/\D/g,'').slice(-4));
+    const isMF0=em===(MAINFRAME_ID+'@invento.app');
     const prof={id:fbUser.uid,userid:uidName,name:fbUser.displayName||cap1(uidName),
-      role:uidName===MAINFRAME_ID?'mainframe':'user',
-      status:uidName===MAINFRAME_ID?'active':'pending',createdAt:Date.now()};
+      role:isMF0?'mainframe':'user',
+      status:isMF0?'active':'pending',createdAt:Date.now()};
+    if(fbUser.phoneNumber)prof.phone=fbUser.phoneNumber;
     await uref.set(prof);
     myProfile=prof;
   } else {myProfile=us.data();
@@ -985,7 +987,9 @@ function refreshAcctMenu(){
   h+='<button id="acct-scanner">'+ico('scan')+'Barcode machine: <b style="margin-left:4px;color:'+(hwScanner()?'var(--green)':'var(--muted)')+'">'+(hwScanner()?'ON':'OFF')+'</b></button>';
   h+='<button id="acct-settings">'+ico('gear')+'Settings</button>';
   if(MODE==='cloud'&&fbUser&&(fbUser.email||'').indexOf('@invento.app')>=0)h+='<button id="acct-mig">'+ico('lock')+'Add recovery email</button>';
-  if(MODE==='cloud')h+='<button id="acct-pw">'+ico('lock')+'Change my password</button>';
+  if(MODE==='cloud'&&fbUser&&fbUser.email)h+='<button id="acct-pw">'+ico('lock')+'Change my password</button>';
+  if(MODE==='cloud'&&fbUser&&!fbUser.phoneNumber)h+='<button id="acct-lp">'+ico('scan')+'Link phone number</button>';
+  if(MODE==='cloud'&&fbUser&&!fbUser.email)h+='<button id="acct-ae">'+ico('lock')+'Add email & password</button>';
   if(MODE==='cloud')h+='<button id="acct-del" style="color:var(--red)">'+ico('trash')+'Delete my account</button>';
   if(MODE==='cloud')h+='<button id="acct-signout">'+ico('logout')+'Sign out</button>';
   m.innerHTML=h;
@@ -995,6 +999,8 @@ function refreshAcctMenu(){
   const pw=$('#acct-pw');if(pw)pw.onclick=()=>{closeAcct();changeMyPassword()};
   const mg=$('#acct-mig');if(mg)mg.onclick=()=>{closeAcct();attachEmailFlow()};
   const de=$('#acct-del');if(de)de.onclick=()=>{closeAcct();deleteMyAccount()};
+  const lp=$('#acct-lp');if(lp)lp.onclick=()=>{closeAcct();linkPhoneFlow()};
+  const ae2=$('#acct-ae');if(ae2)ae2.onclick=()=>{closeAcct();addEmailPasswordFlow()};
   const so=$('#acct-signout');if(so)so.onclick=async()=>{closeAcct();const ok=await confirmDlg('Sign out?','You will need your user ID and password to sign back in.','Sign out');if(!ok)return;try{await firebase.auth().signOut()}catch(e){};location.reload()};
 }
 function hwScanner(){try{return localStorage.getItem('invento_hwscan')==='1'}catch(e){return false}}
@@ -1056,7 +1062,7 @@ function vHome(){
   if(MODE==='cloud'&&fbUser){
     const legacy=(fbUser.email||'').indexOf('@invento.app')>=0;
     if(legacy)h+='<button class="splitbox" id="mig-email" style="display:block;width:100%;text-align:left;margin-top:12px;background:var(--amber-bg);border:1px solid var(--amber);cursor:pointer"><div class="row" style="gap:8px;align-items:center"><span style="color:var(--amber)">'+ico('lock')+'</span><div class="grow"><b>Add a recovery email</b><div class="small muted">So you can reset your own password if you forget it. Takes a minute.</div></div>'+ico('chev','muted')+'</div></button>';
-    else if(fbUser.emailVerified===false)h+='<button class="splitbox" id="ver-email" style="display:block;width:100%;text-align:left;margin-top:12px;background:var(--amber-bg);border:1px solid var(--amber);cursor:pointer"><div class="row" style="gap:8px;align-items:center"><span style="color:var(--amber)">'+ico('lock')+'</span><div class="grow"><b>Verify your email</b><div class="small muted">Check the inbox of '+esc(fbUser.email||'')+' — tap here to resend the link.</div></div></div></button>';
+    else if(fbUser.email&&fbUser.emailVerified===false)h+='<button class="splitbox" id="ver-email" style="display:block;width:100%;text-align:left;margin-top:12px;background:var(--amber-bg);border:1px solid var(--amber);cursor:pointer"><div class="row" style="gap:8px;align-items:center"><span style="color:var(--amber)">'+ico('lock')+'</span><div class="grow"><b>Verify your email</b><div class="small muted">Check the inbox of '+esc(fbUser.email||'')+' — tap here to resend the link.</div></div></div></button>';
   }
   // overdue AWB alert
   if(can('dispatch')){const od=awbOverdue();if(od.length)h+='<a href="#awb" class="splitbox" style="display:block;text-decoration:none;margin-top:12px;background:var(--red-bg);border:1px solid var(--red)"><div class="row" style="gap:8px;align-items:center"><span style="color:var(--red)">'+ico('alert')+'</span><div class="grow"><b style="color:var(--red)">'+od.length+' AWB'+(od.length>1?'s':'')+' overdue (7+ days)</b><div class="small muted">Shipping labels taken from office, not yet dispatched or returned. Tap to review.</div></div>'+ico('chev','muted')+'</div></a>';}
@@ -2163,7 +2169,7 @@ function vPO(id){
         '<div class="grow"><div class="nm ellip">'+esc(nm)+'</div><div class="meta num">'+
           (editable
             ?'<span class="row" style="gap:7px;margin-top:5px">Qty <input class="in num" data-poq="'+ix+'" inputmode="decimal" value="'+fmtQty(x.qty)+'" style="width:70px;padding:7px 8px;text-align:right"> @ <input class="in num" data-poc="'+ix+'" inputmode="decimal" value="'+esc(x.cost)+'" style="width:84px;padding:7px 8px;text-align:right"></span>'
-            :fmtQty(x.qty)+' @ '+fmtUSD(+x.cost||0)+(p.status!=='draft'?' · received '+fmtQty(x.received):''))+
+            :fmtQty(x.qty)+' @ '+fmtUSD(+x.cost||0)+(p.status!=='draft'?' · received '+fmtQty(x.received)+((+x.damaged||0)?' · <span style=\"color:var(--red);font-weight:700\">'+fmtQty(x.damaged)+' dmg</span>':'')+((+x.received||0)>0?(x.checked?' · <span style=\"color:var(--green);font-weight:700\">✓ checked</span>':' · <span style=\"color:var(--amber);font-weight:700\">check pending</span>'):''):''))+
         '</div></div>'+
         '<div style="text-align:right;flex:0 0 auto"><div class="num" style="font-weight:800">'+fmtUSD((+x.qty||0)*(+x.cost||0),0)+'</div>'+
         (editable?'<button class="icobtn ghost" data-porm="'+ix+'" aria-label="Remove" style="margin-top:5px;width:30px;height:30px">'+ico('x')+'</button>':'')+
@@ -2199,20 +2205,40 @@ function vPO(id){
   const rc=$('#po-recv');if(rc)rc.onclick=()=>{
     let mh='<h3>Receive against '+esc(p.number)+'</h3><p class="sub mb">Enter what arrived. Stock updates immediately.</p>';
     p.items.forEach((x,ix)=>{const it=iById(x.itemId);const rem=round4(Math.max(0,(+x.qty||0)-(+x.received||0)));
-      mh+='<div class="row mb" style="gap:10px"><div class="grow"><div style="font-weight:700;font-size:13.5px" class="ellip">'+esc(it?it.name:'(deleted item)')+'</div><div class="small muted num">remaining '+fmtQty(rem)+'</div></div><input class="in num" data-rcv="'+ix+'" inputmode="decimal" value="'+fmtQty(rem)+'" style="width:86px;text-align:right" '+(rem<=0?'disabled':'')+'></div>';
+      mh+='<div class="mb" style="border:1px solid var(--line);border-radius:11px;padding:9px 11px"><div style="font-weight:700;font-size:13.5px" class="ellip">'+esc(it?it.name:'(deleted item)')+'</div><div class="small muted num" style="margin-bottom:6px">ordered '+fmtQty(x.qty)+' · remaining '+fmtQty(rem)+((+x.damaged||0)?' · '+fmtQty(x.damaged)+' damaged so far':'')+'</div>'+
+        '<div class="row" style="gap:8px"><div class="grow"><div class="eyebrow">Good — into stock</div><input class="in num" data-rcv="'+ix+'" inputmode="decimal" value="'+fmtQty(rem)+'" style="text-align:right"></div>'+
+        '<div class="grow"><div class="eyebrow" style="color:var(--red)">Damaged</div><input class="in num" data-dmg="'+ix+'" inputmode="decimal" value="0" style="text-align:right;border-color:var(--red-bg)"></div></div></div>';
     });
-    mh+='<button class="btn pri block" id="rc-go">'+ico('check')+'Receive into stock</button>';
+    mh+='<div class="eyebrow" style="margin:2px 0 6px">How were the good pieces handled?</div>'+
+        '<div class="seg mb" id="rc-chk"><button data-ck="1" class="on">'+ico('check')+' Checked & stocked</button><button data-ck="0">Stocked (check later)</button></div>'+
+        '<div class="hint" style="margin:-4px 0 10px">Good pieces are added to stock. Damaged pieces are recorded on the PO but NOT added to sellable stock.</div>';
+    mh+='<button class="btn pri block" id="rc-go">'+ico('check')+'Receive</button>';
+    if(p.status==='partial'||p.items.some(x=>(+x.received||0)<(+x.qty||0)))mh+='<button class="btn block mt" id="rc-close" style="font-weight:600">Nothing more coming — close this PO</button>';
     openModal(mh);
+    $$('#rc-chk button').forEach(b=>b.onclick=()=>{$$('#rc-chk button').forEach(x=>x.classList.remove('on'));b.classList.add('on')});
+    const rcClose=$('#rc-close');if(rcClose)rcClose.onclick=async()=>{
+      const ok=await confirmDlg('Close '+esc(p.number)+' short?','Remaining pieces will not be expected any more. Received stock stays as is.','Close PO',false);
+      if(!ok)return;
+      p.status='received';p.closedShort=true;p.updatedAt=Date.now();
+      await saveNow('pos');logTx('po',{detail:p.number+' closed short'});
+      closeModal();toast('PO closed','ok');route();
+    };
     $('#rc-go').onclick=async()=>{
+      const checked=(($('#rc-chk .on')||{}).dataset||{}).ck==='1';
       let any=false;
       $$('#modal [data-rcv]').forEach(inp=>{
         const x=p.items[+inp.dataset.rcv];if(!x)return;
-        const rem=round4(Math.max(0,(+x.qty||0)-(+x.received||0)));
-        let v=round4(parseFloat(inp.value)||0);v=clamp(v,0,rem);
-        if(v<=0)return;
-        x.received=round4((+x.received||0)+v);
+        const good=Math.max(0,round4(parseFloat(inp.value)||0));
+        const dEl=document.querySelector('#modal [data-dmg="'+inp.dataset.rcv+'"]');
+        const dmg=Math.max(0,round4(parseFloat(dEl&&dEl.value)||0));
+        if(good<=0&&dmg<=0)return;
+        x.received=round4((+x.received||0)+good+dmg);
+        if(dmg>0)x.damaged=round4((+x.damaged||0)+dmg);
+        if(good>0)x.checked=checked;
         const it=iById(x.itemId);
-        if(it){const old=+it.qty||0;it.qty=round4(old+v);it.updatedAt=Date.now();logTx('received',{itemId:it.id,itemName:it.name,fromQ:old,toQ:it.qty,detail:p.number+(p.vendor?' · '+p.vendor:'')})}
+        if(it&&good>0){const old=+it.qty||0;it.qty=round4(old+good);it.updatedAt=Date.now();
+          logTx('received',{itemId:it.id,itemName:it.name,fromQ:old,toQ:it.qty,qty:good,detail:p.number+(p.vendor?' · '+p.vendor:'')+(dmg>0?' · '+fmtQty(dmg)+' damaged (not stocked)':'')+(checked?' · checked':' · not checked yet')});}
+        else if(dmg>0){logTx('po',{itemId:x.itemId,itemName:(it?it.name:x.name),detail:p.number+' — '+fmtQty(dmg)+' received damaged (not stocked)'});}
         any=true;
       });
       if(!any){toast('Nothing to receive','err');return}
@@ -3039,15 +3065,25 @@ function deleteMyAccount(){
   if(isMF()){toast('The owner account can\'t self-delete — transfer ownership first','err');return}
   openModal('<h3 style="color:var(--red)">Delete my account</h3>'+
     '<p class="sub mb">This permanently removes your login and profile. Team records you created (dispatches, activity) stay for the business. This cannot be undone.</p>'+
-    '<div class="field"><label>Your password</label><input class="in" id="da-p" type="password" autocomplete="current-password"></div>'+
+    (fbUser.email?'<div class="field"><label>Your password</label><input class="in" id="da-p" type="password" autocomplete="current-password"></div>':'<p class="sub mb">We\'ll text a code to '+esc(fbUser.phoneNumber||'')+' to confirm.</p>')+
     '<button class="btn danger block" id="da-go">'+ico('trash')+'Delete my account forever</button>'+
     '<button class="btn block mt" onclick="closeModal()">Cancel</button>');
   $('#da-go').onclick=async()=>{
-    const pw=$('#da-p').value;if(!pw){toast('Enter your password','err');return}
-    const btn=$('#da-go');btn.disabled=true;btn.textContent='Deleting…';
+    const btn=$('#da-go');
     try{
-      const cred=firebase.auth.EmailAuthProvider.credential(fbUser.email,pw);
-      await fbUser.reauthenticateWithCredential(cred);
+      if(fbUser.email){
+        const pw=$('#da-p').value;if(!pw){toast('Enter your password','err');return}
+        btn.disabled=true;btn.textContent='Deleting…';
+        const cred=firebase.auth.EmailAuthProvider.credential(fbUser.email,pw);
+        await fbUser.reauthenticateWithCredential(cred);
+      } else {
+        btn.disabled=true;btn.textContent='Sending code…';
+        const conf=await fbUser.reauthenticateWithPhoneNumber(fbUser.phoneNumber,newCaptcha());
+        const code=prompt('Enter the 6-digit code sent to '+fbUser.phoneNumber);
+        if(!code){btn.disabled=false;btn.innerHTML=ico('trash')+'Delete my account forever';return}
+        btn.textContent='Deleting…';
+        await conf.confirm(code.trim());
+      }
       try{await db.collection('users').doc(fbUser.uid).delete()}catch(e){}
       try{Object.keys(localStorage).forEach(k=>{if(k.indexOf('gdwn:')===0||k.indexOf('invento_')===0)localStorage.removeItem(k)})}catch(e){}
       await fbUser.delete();
@@ -4003,12 +4039,19 @@ function authErrMsg(e){
   return (c==='auth/invalid-credential'||c==='auth/wrong-password'||c==='auth/user-not-found'||c==='auth/invalid-email')?'Wrong user ID or password'
     :(c==='auth/email-already-in-use')?'That user ID is already taken — try signing in'
     :(c==='auth/weak-password')?'Password must be at least 6 characters'
-    :(c==='auth/operation-not-allowed')?'Email/Password sign-in is not enabled in the Firebase console (Authentication → Sign-in method)'
+    :(c==='auth/operation-not-allowed')?'This sign-in method is not enabled in Firebase Console'
     :(c==='auth/too-many-requests')?'Too many attempts — wait a minute and try again'
     :(c==='auth/network-request-failed')?'No internet — check the connection'
     :(c==='auth/requires-recent-login')?'For security, sign in again first, then retry'
     :(c==='auth/invalid-login-credentials')?'Wrong email/ID or password'
     :(c==='auth/missing-password')?'Enter your password'
+    :(c==='auth/invalid-phone-number')?'That phone number looks wrong — use 10 digits'
+    :(c==='auth/invalid-verification-code')?'Wrong code — check the SMS and try again'
+    :(c==='auth/code-expired')?'Code expired — tap Resend'
+    :(c==='auth/captcha-check-failed')?'Verification failed — try again'
+    :(c==='auth/credential-already-in-use'||c==='auth/account-exists-with-different-credential')?'That is already linked to another account'
+    :(c==='auth/provider-already-linked')?'Already linked to this account'
+    :(c==='auth/quota-exceeded')?'SMS limit reached for now — try later'
     :'Something went wrong — try again'+(c?' ('+c.replace('auth/','')+')':'');
 }
 // A signed-out user asks an admin to reset their password.
@@ -4038,6 +4081,108 @@ function forgotPasswordDlg(prefill){
   };
   $('#fp-legacy').onclick=()=>{closeModal();legacyResetRequestDlg(hasAt?'':prefill)};
 }
+/* ---------------- PHONE AUTH (Blaze) ---------------- */
+function normPhone(v){
+  v=String(v||'').replace(/[^\d+]/g,'');
+  if(v.startsWith('+'))return v;
+  if(v.length===10)return '+91'+v;
+  if(v.length===11&&v.startsWith('0'))return '+91'+v.slice(1);
+  if(v.length===12&&v.startsWith('91'))return '+'+v;
+  return v?'+'+v:'';
+}
+let _rcv=null;
+function newCaptcha(){
+  try{if(_rcv){_rcv.clear();}}catch(e){}
+  const old=document.getElementById('rcv');if(old)old.remove();
+  const el=document.createElement('div');el.id='rcv';document.body.appendChild(el);
+  _rcv=new firebase.auth.RecaptchaVerifier(el,{size:'invisible'});
+  return _rcv;
+}
+// Shared OTP dialog. sendFn(verifier)->confirmationResult. onCred(cred) after confirm.
+function otpModal(phone,sendFn,onCred,backTo){
+  let conf=null,busy=false;
+  const paint=(msg)=>{
+    openModal('<h3>Enter the code</h3>'+
+      '<p class="sub mb">We sent a 6-digit code by SMS to <b>'+esc(phone)+'</b>.'+(msg?' <span style="color:var(--red);font-weight:700">'+esc(msg)+'</span>':'')+'</p>'+
+      '<div class="field"><label>SMS code</label><input class="in num" id="ot-c" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" style="letter-spacing:6px;font-size:20px;text-align:center"></div>'+
+      '<button class="btn pri block" id="ot-go">'+ico('check')+'Verify</button>'+
+      '<button class="btn block mt" id="ot-re" disabled>Resend code (30)</button>');
+    const c=$('#ot-c');setTimeout(()=>{try{c.focus()}catch(e){}},60);
+    c.onkeydown=e=>{if(e.key==='Enter')$('#ot-go').click()};
+    let left=30;const tm=setInterval(()=>{left--;const b=$('#ot-re');if(!b){clearInterval(tm);return}if(left<=0){clearInterval(tm);b.disabled=false;b.textContent='Resend code'}else b.textContent='Resend code ('+left+')'},1000);
+    $('#ot-re').onclick=async()=>{try{$('#ot-re').disabled=true;conf=await sendFn(newCaptcha());toast('Code sent again','ok');paint('')}catch(e){toast(authErrMsg(e),'err');$('#ot-re').disabled=false}};
+    $('#ot-go').onclick=async()=>{
+      if(busy)return;const code=(c.value||'').trim();
+      if(code.length<6){toast('Enter the 6-digit code','err');return}
+      busy=true;$('#ot-go').disabled=true;$('#ot-go').textContent='Verifying…';
+      try{const cred=await conf.confirm(code);await onCred(cred);}
+      catch(e){busy=false;$('#ot-go').disabled=false;$('#ot-go').innerHTML=ico('check')+'Verify';paint(authErrMsg(e));}
+    };
+  };
+  (async()=>{
+    try{conf=await sendFn(newCaptcha());paint('');}
+    catch(e){closeModal();if(backTo)backTo(authErrMsg(e));else toast(authErrMsg(e),'err');}
+  })();
+}
+// signup ('up') or login ('in') by phone
+function startPhoneAuth(kind,d,backTo){
+  const phone=normPhone(d.phone);
+  if(!/^\+\d{11,14}$/.test(phone)){if(backTo)backTo('Enter a valid phone number (10 digits)');return}
+  otpModal(phone,
+    v=>firebase.auth().signInWithPhoneNumber(phone,v),
+    async(cred)=>{
+      if(kind==='up'){
+        const uref=db.collection('users').doc(cred.user.uid);
+        let us=null;try{us=await uref.get()}catch(e){}
+        if(!us||!us.exists){
+          const prof={id:cred.user.uid,userid:d.uid,name:d.nm,phone:phone,role:'user',status:'pending',createdAt:Date.now()};
+          try{await cred.user.updateProfile({displayName:d.nm})}catch(e){}
+          await uref.set(prof);
+        }
+      }
+      closeModal();location.hash='#home';location.reload();
+    },backTo);
+}
+// email-account user links a phone
+function linkPhoneFlow(){
+  if(MODE!=='cloud'||!fbUser)return;
+  openModal('<h3>Link phone number</h3>'+
+    '<p class="sub mb">After linking, you can sign in with either your email or an SMS code to this number.</p>'+
+    '<div class="field"><label>Phone (India +91)</label><input class="in" id="lk-p" type="tel" inputmode="tel" autocomplete="tel" placeholder="98765 43210"></div>'+
+    '<button class="btn pri block" id="lk-go">'+ico('check')+'Send code</button>');
+  setTimeout(()=>{try{$('#lk-p').focus()}catch(e){}},50);
+  $('#lk-go').onclick=()=>{
+    const phone=normPhone($('#lk-p').value);
+    if(!/^\+\d{11,14}$/.test(phone)){toast('Enter a valid phone number','err');return}
+    closeModal();
+    otpModal(phone,
+      v=>fbUser.linkWithPhoneNumber(phone,v),
+      async()=>{try{await db.collection('users').doc(fbUser.uid).set({phone:phone},{merge:true})}catch(e){}
+        closeModal();toast('Phone linked — you can now sign in by SMS too','ok');},
+      m=>{toast(m,'err');linkPhoneFlow();});
+  };
+}
+// phone-only user adds email + password
+function addEmailPasswordFlow(){
+  if(MODE!=='cloud'||!fbUser)return;
+  openModal('<h3>Add email & password</h3>'+
+    '<p class="sub mb">Adds a second way to sign in, and enables email password-reset.</p>'+
+    '<div class="field"><label>Email</label><input class="in" id="aep-e" type="email" inputmode="email" autocomplete="email" autocapitalize="none"></div>'+
+    '<div class="field"><label>Password (min 6)</label><input class="in" id="aep-p" type="password" autocomplete="new-password"></div>'+
+    '<button class="btn pri block" id="aep-go">'+ico('check')+'Add sign-in</button>');
+  $('#aep-go').onclick=async()=>{
+    const em=($('#aep-e').value||'').trim(),pw=$('#aep-p').value;
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){toast('Enter a valid email','err');return}
+    if(!pw||pw.length<6){toast('Password must be 6+ characters','err');return}
+    const b=$('#aep-go');b.disabled=true;b.textContent='Adding…';
+    try{
+      await fbUser.linkWithCredential(firebase.auth.EmailAuthProvider.credential(em,pw));
+      try{await fbUser.sendEmailVerification()}catch(e){}
+      try{await db.collection('users').doc(fbUser.uid).set({email:em},{merge:true})}catch(e){}
+      closeModal();toast('Email added — verification sent to '+em,'ok');
+    }catch(e){b.disabled=false;b.innerHTML=ico('check')+'Add sign-in';toast(authErrMsg(e),'err');}
+  };
+}
 function legacyResetRequestDlg(prefill){
   openModal('<h3>Old account — no email</h3>'+
     '<p class="sub mb">We\'ll tell the admin. They will set a new password and pass it to you. (Adding an email later enables self-service reset.)</p>'+
@@ -4055,39 +4200,60 @@ function legacyResetRequestDlg(prefill){
     }catch(e){btn.disabled=false;btn.innerHTML=ico('check')+'Send request to admin';toast('Could not send — tell the admin directly','err');}
   };
 }
-function vLogin(err,tab){
-  tab=tab||'in';
+function vLogin(err,tab,m){
+  tab=tab||'in';m=m||'em';
   topTitle('Welcome','');
-  $('#main').innerHTML='<div class="welcome"><div class="eyebrow" style="color:#C9A86C">Invento</div><h2>'+(tab==='in'?'Sign in':'Create your account')+'</h2><p>'+(tab==='in'?'You stay signed in on this device.':'Use a real email — it\'s how you reset a forgotten password. An admin approves new accounts.')+'</p></div>'+
+  const seg='<div class="seg mb" style="margin-top:2px"><button id="mm-em" class="'+(m==='em'?'on':'')+'">'+ico('lock')+'Email</button><button id="mm-ph" class="'+(m==='ph'?'on':'')+'">'+ico('scan')+'Phone</button></div>';
+  $('#main').innerHTML='<div class="welcome"><div class="eyebrow" style="color:#C9A86C">Invento</div><h2>'+(tab==='in'?'Sign in':'Create your account')+'</h2><p>'+(tab==='in'?'You stay signed in on this device.':(m==='ph'?'Sign up with your mobile — we text a 6-digit code. An admin approves new accounts.':'Use a real email — it\'s how you reset a forgotten password. An admin approves new accounts.'))+'</p></div>'+
     '<div class="seg mb"><button id="tb-in" class="'+(tab==='in'?'on':'')+'">Sign in</button><button id="tb-up" class="'+(tab==='up'?'on':'')+'">Sign up</button></div>'+
-    '<div class="card pad">'+
+    '<div class="card pad">'+seg+
     (err?'<p class="sub" style="color:var(--red);margin-bottom:12px;font-weight:600">'+esc(err)+'</p>':'')+
     (tab==='up'?'<div class="field"><label>Full name</label><input class="in" id="lg-n" autocomplete="name" placeholder="e.g. Ramesh Kumar"></div>':'')+
-    (tab==='up'?'<div class="field"><label>User ID <span class="muted">(short name for the team)</span></label><input class="in" id="lg-u" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="e.g. ramesh"></div>':'')+
-    (tab==='up'
-      ?'<div class="field"><label>Email</label><input class="in" id="lg-e" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="e.g. ramesh@gmail.com"></div>'
-      :'<div class="field"><label>Email <span class="muted">(or user ID for old accounts)</span></label><input class="in" id="lg-u" type="text" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="you@gmail.com or ramesh"></div>')+
-    '<div class="field"><label>Password</label><input class="in" id="lg-p" type="password" autocomplete="'+(tab==='up'?'new-password':'current-password')+'" enterkeyhint="go" placeholder="'+(tab==='up'?'At least 6 characters':'')+'"></div>'+
-    '<button class="btn pri block" id="lg-go">'+ico('check')+(tab==='in'?'Sign in':'Create account')+'</button>'+
-    (tab==='in'?'<button class="btn block mt" id="lg-forgot" style="font-weight:600">'+ico('lock')+'Forgot password?</button>':'<div class="hint mt">The email gets a verification link. Your team sees only your name and user ID.</div>')+
+    (tab==='up'?'<div class="field"><label>User ID <span class="muted">(short name for the team)</span></label><input class="in" id="lg-u2" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="e.g. ramesh"></div>':'')+
+    (m==='ph'
+      ?'<div class="field"><label>Phone (India +91)</label><input class="in" id="lg-ph" type="tel" inputmode="tel" autocomplete="tel" placeholder="98765 43210"></div>'
+      :(tab==='up'
+        ?'<div class="field"><label>Email</label><input class="in" id="lg-e" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="e.g. ramesh@gmail.com"></div>'
+        :'<div class="field"><label>Email <span class="muted">(or user ID for old accounts)</span></label><input class="in" id="lg-u" type="text" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="you@gmail.com or ramesh"></div>'))+
+    (m==='em'?'<div class="field"><label>Password</label><input class="in" id="lg-p" type="password" autocomplete="'+(tab==='up'?'new-password':'current-password')+'" enterkeyhint="go" placeholder="'+(tab==='up'?'At least 6 characters':'')+'"></div>':'')+
+    '<button class="btn pri block" id="lg-go">'+ico('check')+(m==='ph'?(tab==='in'?'Send code & sign in':'Send code & create account'):(tab==='in'?'Sign in':'Create account'))+'</button>'+
+    (tab==='in'&&m==='em'?'<button class="btn block mt" id="lg-forgot" style="font-weight:600">'+ico('lock')+'Forgot password?</button>':'')+
+    (m==='ph'?'<div class="hint mt">SMS charges apply to the business, not you. Standard code delivery.</div>':(tab==='up'?'<div class="hint mt">The email gets a verification link. Your team sees only your name and user ID.</div>':''))+
     '</div>';
-  $('#tb-in').onclick=()=>vLogin('','in');
-  $('#tb-up').onclick=()=>vLogin('','up');
-  const fg=$('#lg-forgot');if(fg)fg.onclick=()=>forgotPasswordDlg(($('#lg-u').value||'').trim());
+  $('#tb-in').onclick=()=>vLogin('','in',m);
+  $('#tb-up').onclick=()=>vLogin('','up',m);
+  $('#mm-em').onclick=()=>vLogin('',tab,'em');
+  $('#mm-ph').onclick=()=>vLogin('',tab,'ph');
+  const fg=$('#lg-forgot');if(fg)fg.onclick=()=>forgotPasswordDlg((($('#lg-u')||{}).value||'').trim());
   const doAuth=async()=>{
-    const p=$('#lg-p').value;
     const btn=$('#lg-go');
+    if(m==='ph'){
+      const phone=(($('#lg-ph')||{}).value||'').trim();
+      if(tab==='up'){
+        const nm=(($('#lg-n')||{}).value||'').trim();
+        const uid=(($('#lg-u2')||{}).value||'').trim().toLowerCase().replace(/[^a-z0-9._-]/g,'');
+        if(!nm){toast('Enter your name','err');return}
+        if(uid.length<2){toast('Pick a user ID','err');return}
+        btn.disabled=true;btn.textContent='Sending code…';
+        startPhoneAuth('up',{phone:phone,nm:nm,uid:uid},msg=>vLogin(msg,tab,m));
+      }else{
+        btn.disabled=true;btn.textContent='Sending code…';
+        startPhoneAuth('in',{phone:phone},msg=>vLogin(msg,tab,m));
+      }
+      return;
+    }
+    const p=$('#lg-p').value;
     try{
       if(tab==='in'){
         const u=$('#lg-u').value.trim();
         if(!u||!p){toast('Enter your email/ID and password','err');return}
         btn.disabled=true;btn.textContent='Signing in…';
-        const email=u.indexOf('@')>=0?u:authEmail(u); // legacy IDs map to @invento.app
+        const email=u.indexOf('@')>=0?u:authEmail(u);
         await firebase.auth().signInWithEmailAndPassword(email,p);
       }else{
-        const nm=($('#lg-n').value||'').trim();
-        const uid=($('#lg-u').value||'').trim().toLowerCase().replace(/[^a-z0-9._-]/g,'');
-        const email=($('#lg-e').value||'').trim();
+        const nm=$('#lg-n').value.trim();
+        const uid=$('#lg-u2').value.trim().toLowerCase().replace(/[^a-z0-9._-]/g,'');
+        const email=$('#lg-e').value.trim();
         if(!nm){toast('Enter your name','err');return}
         if(uid.length<2){toast('Pick a user ID (letters/numbers)','err');return}
         if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){toast('Enter a real email address','err');return}
@@ -4100,11 +4266,11 @@ function vLogin(err,tab){
         try{await cred.user.sendEmailVerification()}catch(e){}
       }
       location.hash='#home';location.reload();
-    }catch(e){vLogin(authErrMsg(e),tab)}
+    }catch(e){vLogin(authErrMsg(e),tab,m)}
   };
   $('#lg-go').onclick=doAuth;
-  $('#lg-p').onkeydown=e=>{if(e.key==='Enter')doAuth()};
-  $(tab==='up'?'#lg-n':'#lg-u').focus();
+  const pw=$('#lg-p');if(pw)pw.onkeydown=e=>{if(e.key==='Enter')doAuth()};
+  const first=$(tab==='up'?'#lg-n':(m==='ph'?'#lg-ph':'#lg-u'));if(first)first.focus();
 }
 function vPending(){
   topTitle('Awaiting approval','');
