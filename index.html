@@ -1339,7 +1339,7 @@ function vItem(id){
   topTitle(i.name,'#stock'+(i.folder?'/'+i.folder:''),can('additem')?'<button class="icobtn ghost" data-act="edititem" data-id="'+i.id+'" aria-label="Edit">'+ico('edit')+'</button>':'');
   const low=isLow(i);
   let h='';
-  h+='<div class="gallery mb" id="gal"><div class="g">'+(i.thumb?'<img src="'+i.thumb+'" alt="">':ico('photo'))+'</div></div>';
+  h+='<div class="gallery mb" id="gal"><div class="g">'+((i.img||i.thumb)?'<img src="'+esc(i.img||i.thumb)+'" alt="" referrerpolicy="no-referrer">':ico('photo'))+'</div></div>';
   h+='<div class="row mb wrap"><h1 class="page" style="margin:0" id="iname">'+esc(i.name)+'</h1>'+(low?'<span class="pill low">Low stock</span>':((+i.qty||0)===0?'<span class="pill zero">Out of stock</span>':''))+'</div>';
   if((i.tags||[]).length)h+='<div class="row wrap mb">'+(i.tags||[]).map(t=>'<span class="tag">'+esc(t)+'</span>').join(' ')+'</div>';
   h+='<div class="card pad mb"><div class="eyebrow" style="margin-bottom:7px">Quantity on hand</div>'+
@@ -1368,9 +1368,16 @@ function vItem(id){
   h+='<div class="section-h"><h2>History</h2></div>';
   h+=hist.length?'<div class="card" style="padding:4px 14px"><div class="hist">'+hist.map(txHTML).join('')+'</div></div>':'<div class="sub">No history yet.</div>';
   if(can('delitem'))h+='<button class="btn danger block mt" data-act="delitem" data-id="'+i.id+'">'+ico('trash')+'Move to trash</button>';
+    // per-item history (last 30 movements of THIS item)
+  const myTx=(S.txns||[]).filter(t=>t.itemId===i.id).slice(0,30);
+  h+='<div class="card pad mt"><div class="eyebrow mb">History</div>'+
+    (myTx.length?('<div class="hist" style="font-size:13px">'+myTx.map(t=>{
+      const qch=(t.fromQ!=null&&t.toQ!=null)?' <span class="num">'+fmtQty(t.fromQ)+' → '+fmtQty(t.toQ)+'</span>':(t.qty?' <span class="num">'+fmtQty(t.qty)+'</span>':'');
+      return '<div style="padding:6px 0;border-bottom:1px solid var(--line2)"><b>'+esc(cap1(t.act||''))+'</b>'+qch+(t.detail?' · '+esc(t.detail):'')+'<div class="small muted">'+esc(t.user||'')+' · '+ago(t.ts)+'</div></div>';
+    }).join('')+'</div>'+((S.txns||[]).filter(t=>t.itemId===i.id).length>30?'<div class="small muted mt">Older entries are in the Activity log.</div>':'')):'<div class="sub">No movements recorded yet.</div>')+'</div>';
   $('#main').innerHTML=h;
   // photos
-  getPhotos(i.id).then(ps=>{if(!ps.length)return;const g=$('#gal');if(!g)return;g.innerHTML=ps.map(p=>'<div class="g"><img src="'+p+'" alt=""></div>').join('')});
+  getPhotos(i.id).then(ps=>{if(!ps.length)return;const g=$('#gal');if(!g)return;g.innerHTML=(i.img?'<div class="g"><img src="'+esc(i.img)+'" alt="" referrerpolicy="no-referrer"></div>':'')+ps.map(p=>'<div class="g"><img src="'+p+'" alt=""></div>').join('')});
   // qty controls — delta only
   const an=$('#adj-n');
   if($('#adj-m'))$('#adj-m').onclick=()=>{an.value=fmtQty(Math.max(1,round4((parseFloat(an.value)||1)-1)))};
