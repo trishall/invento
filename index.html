@@ -913,10 +913,53 @@ const fById=id=>S.folders.find(f=>f.id===id)||null;
 const iById=id=>S.items.find(i=>i.id===id)||null;
 function folderPath(id){const seg=[];let f=fById(id),guard=0;while(f&&guard++<30){seg.unshift(f.name);f=fById(f.parent)}return seg.join(' / ')||'All stock'}
 function childFolders(pid){return S.folders.filter(f=>(f.parent||null)===(pid||null)).sort((a,b)=>a.name.localeCompare(b.name))}
-function itemsIn(fid){return S.items.filter(i=>(i.folder||null)===(fid||null))}
+function itemsIn(fid){return S.items.filter(i=>pilesOf(i).some(p=>(p.f||null)===(fid||null)))}
+/* ============================================================
+   MULTI-LOCATION PILES (plan A)
+   An item may hold stock in several racks at once:
+   i.piles = [{f:folderId,q:number},...]  ·  sum(q) === i.qty  ·  i.folder === piles[0].f
+   Items WITHOUT a piles field behave exactly as before (single location).
+   ============================================================ */
+function pilesOf(i){if(Array.isArray(i.piles)&&i.piles.length)return i.piles;return[{f:i.folder||null,q:+i.qty||0}]}
+function isMultiRack(i){return Array.isArray(i.piles)&&i.piles.length>1}
+function setPiles(i,ps){
+  const m={},order=[];
+  (ps||[]).forEach(p=>{const q=round4(+p.q||0);if(q<=1e-9)return;const k=String(p.f||'');if(!(k in m)){m[k]={f:p.f||null,q:0};order.push(k)}m[k].q=round4(m[k].q+q)});
+  const out=order.map(k=>m[k]);
+  i.qty=round4(out.reduce((s,p)=>s+p.q,0));
+  if(out.length<=1){delete i.piles;if(out.length)i.folder=out[0].f}
+  else{i.piles=out;i.folder=out[0].f}
+  i.updatedAt=Date.now();
+}
+function pileAdd(i,f,q){q=round4(+q||0);if(q<=0)return;const ps=pilesOf(i).map(p=>({f:p.f,q:p.q}));const t=ps.find(p=>String(p.f||'')===String(f||''));if(t)t.q=round4(t.q+q);else ps.push({f:f===undefined?i.folder||null:f,q:q});setPiles(i,ps)}
+/* remove q, preferring pile preferF, draining others in order. Returns 'from' text for logs. */
+function pileDrain(i,q,preferF){
+  q=round4(+q||0);if(q<=0)return '';
+  const ps=pilesOf(i).map(p=>({f:p.f,q:p.q}));
+  if(preferF!==undefined){const ix=ps.findIndex(p=>String(p.f||'')===String(preferF||''));if(ix>0){const t=ps.splice(ix,1)[0];ps.unshift(t)}}
+  const took=[];
+  for(const p of ps){if(q<=1e-9)break;const t=Math.min(p.q,q);if(t>1e-9){p.q=round4(p.q-t);q=round4(q-t);took.push(shelfName(p.f)+' ·'+fmtQty(t))}}
+  setPiles(i,ps);
+  return took.join(' + ');
+}
+function shelfName(f){const x=fById(f);return x?x.name:'All stock'}
+/* short location text: "R31C2 ·8 + R8C2 ·7" for multi, full path for single */
+function pileSummary(i){if(!isMultiRack(i))return folderPath(i.folder);return i.piles.map(p=>shelfName(p.f)+' ·'+fmtQty(p.q)).join(' + ')}
+/* after any DIRECT i.qty set on a multi-rack item: rebalance the primary pile */
+function syncPilesToQty(i){
+  if(!isMultiRack(i))return;
+  let target=round4(+i.qty||0);
+  const ps=i.piles.map(p=>({f:p.f,q:p.q}));
+  const others=ps.slice(1).reduce((s,p)=>s+p.q,0);
+  if(target>=others){ps[0].q=round4(target-others)}
+  else{ps[0].q=0;let need=round4(others-target);for(let ix=ps.length-1;ix>=1&&need>1e-9;ix--){const t=Math.min(ps[ix].q,need);ps[ix].q=round4(ps[ix].q-t);need=round4(need-t)}}
+  setPiles(i,ps);
+}
+/* select of an item's piles */
+function pileSelect(i,id){return '<select class="in" id="'+id+'" style="flex:1;min-width:120px;padding:9px 10px">'+pilesOf(i).map((p,ix)=>'<option value="'+ix+'">'+esc(shelfName(p.f))+' — '+fmtQty(p.q)+' here</option>').join('')+'</select>'}
 function descFolderIds(fid){const out=[fid];const walk=p=>{childFolders(p).forEach(c=>{out.push(c.id);walk(c.id)})};walk(fid);return out}
 function warehouses(){return S.folders.filter(f=>!f.parent && f.isWarehouse).sort((a,b)=>a.name.localeCompare(b.name))}
-function itemsInTree(fid){if(!fid)return S.items.slice();const ids=descFolderIds(fid);return S.items.filter(i=>ids.includes(i.folder))}
+function itemsInTree(fid){if(!fid)return S.items.slice();const ids=descFolderIds(fid);return S.items.filter(i=>pilesOf(i).some(p=>ids.includes(p.f)))}
 function whName(id){const f=fById(id);return f?f.name:'All warehouses'}
 function deepStats(fid){const ids=fid?descFolderIds(fid):[null].concat(S.folders.map(f=>f.id));const its=fid?S.items.filter(i=>ids.includes(i.folder)):S.items;return{count:its.length,qty:sum(its,i=>+i.qty||0),value:sum(its,i=>(+i.qty||0)*(+i.price||0))}}
 function flatFolders(){const out=[];const walk=(pid,d)=>{childFolders(pid).forEach(f=>{out.push({id:f.id,name:f.name,depth:d});walk(f.id,d+1)})};walk(null,0);return out}
@@ -1127,7 +1170,7 @@ function rowHTML(i,opt){
     '<span class="th">'+((i.img||i.thumb)?'<img src="'+esc(i.img||i.thumb)+'" alt="" loading="lazy" referrerpolicy="no-referrer">':ico('box'))+'</span>'+
     '<div class="grow"><div class="nm ellip">'+esc(i.name)+'</div><div class="meta">'+
       (i.sku?'<span class="skutag">'+esc(i.sku)+'</span>':'')+
-      '<span class="ellip">'+esc(folderPath(i.folder))+'</span>'+
+      '<span class="ellip">'+esc(pileSummary(i))+'</span>'+
       (isLow(i)?'<span class="pill low">Low</span>':'')+'</div></div>'+
     '<div class="qcol"><div class="q num">'+fmtQty(i.qty)+' <small style="font-weight:600;color:var(--muted)">'+esc(i.unit||'')+'</small></div>'+(+i.price?'<div class="v num">'+fmtMoney(itemValue(i),0)+'</div>':'')+'</div></div>';
 }
@@ -1346,7 +1389,8 @@ function vItem(id){
     '<div class="row" style="justify-content:space-between;align-items:baseline"><div class="num" id="qbig" style="font-size:34px;font-weight:800;letter-spacing:-.01em">'+fmtQty(i.qty)+'<span class="muted" style="font-size:15px;font-weight:600"> '+esc(i.unit||'')+'</span></div><span class="num muted" id="qval" style="font-size:13px">Value '+fmtMoney(itemValue(i))+'</span></div>'+
     (i.min!==''&&i.min!=null?'<div class="small muted" style="margin-top:2px">Low-stock alert at '+fmtQty(i.min)+'</div>':'')+
     (can('adjqty')?'<div class="row mt" style="gap:8px;flex-wrap:wrap"><div class="stepper" style="max-width:150px;flex:0 0 auto"><button id="adj-m" aria-label="Less">−</button><input id="adj-n" class="num" inputmode="decimal" value="1"><button id="adj-p" aria-label="More">+</button></div>'+
-    '<select class="in" id="adj-r" style="flex:1;min-width:120px;padding:9px 10px">'+ADJ_REASONS.map(r=>'<option>'+r+'</option>').join('')+'</select></div>':'')+
+    '<select class="in" id="adj-r" style="flex:1;min-width:120px;padding:9px 10px">'+ADJ_REASONS.map(r=>'<option>'+r+'</option>').join('')+'</select></div>'+
+    (isMultiRack(i)?'<div class="row mt" style="gap:8px"><div class="eyebrow" style="align-self:center;flex:0 0 auto">Rack</div>'+pileSelect(i,'adj-f')+'</div>':''):'')+
     (can('adjqty')?'<div class="row mt" style="gap:8px"><button class="btn grow danger" id="adj-out" style="font-weight:800">− Remove</button><button class="btn grow pri" id="adj-in" style="font-weight:800">+ Add</button></div>'+
     '<div class="hint" style="margin-top:7px">Stock only moves by adding or removing — every change lands in the movement history with its reason.</div>':'<div class="hint" style="margin-top:7px">You do not have permission to change stock quantity.</div>')+'</div>';
   h+='<div class="actgrid mb">'+
@@ -1355,7 +1399,7 @@ function vItem(id){
     '<button class="btn" data-act="labelone" data-id="'+i.id+'">'+ico('label')+'Label</button>'+
     '<button class="btn" data-act="addto" data-id="'+i.id+'">'+ico('pick')+'Add to…</button></div>';
   h+='<div class="kv mb">'+
-    '<div><div class="k">'+locTerm()+'</div><div class="v">'+esc(folderPath(i.folder))+'</div></div>'+
+    '<div'+(isMultiRack(i)?' style="grid-column:1/-1"':'')+'><div class="k">'+locTerm()+(isMultiRack(i)?' — '+i.piles.length+' racks':'')+'</div><div class="v">'+(isMultiRack(i)?i.piles.map(p=>'<span class="skutag" style="font-size:13px;margin:0 5px 5px 0;display:inline-block">'+esc(shelfName(p.f))+' · <b class="num">'+fmtQty(p.q)+'</b></span>').join(''):esc(folderPath(i.folder)))+'</div></div>'+
     '<div style="grid-column:1/-1"><div class="k">SKU'+(skusOf(i).length>1?'s ('+skusOf(i).length+')':'')+'</div><div class="v">'+(skusOf(i).length?skusOf(i).map((s,ix)=>'<span class="skutag" style="font-size:13px;margin:0 5px 5px 0;display:inline-block">'+esc(s)+(ix===0?' ·main':'')+'</span>').join(''):'<span class="muted">—</span>')+'</div></div>'+
     '<div><div class="k">Min quantity</div><div class="v num">'+(i.min!==''&&i.min!=null?fmtQty(i.min)+' '+esc(i.unit||''):'<span class="muted">No alert</span>')+'</div></div>'+
     '<div><div class="k">Price</div><div class="v num">'+(+i.price?fmtMoney(+i.price):'<span class="muted">—</span>')+'</div></div>'+
@@ -1387,13 +1431,17 @@ function vItem(id){
     if(!(n>0)){toast('Enter how many to '+(dir>0?'add':'remove'),'err');return}
     const old=+i.qty||0;
     if(dir<0&&n>old){toast('Only '+fmtQty(old)+' in stock','err');return}
-    const nv=round4(old+dir*n);const reason=$('#adj-r').value;
-    i.qty=nv;i.updatedAt=Date.now();save('items');
-    logTx(dir>0?'in':'out',{itemId:i.id,itemName:i.name,fromQ:old,toQ:nv,qty:n,reason:reason,detail:reason});
+    const reason=$('#adj-r').value;
+    const pf=$('#adj-f')?pilesOf(i)[+$('#adj-f').value].f:(i.folder||null);
+    if(dir<0){const cap=$('#adj-f')?pilesOf(i)[+$('#adj-f').value].q:old;if(n>cap+1e-9){toast('Only '+fmtQty(cap)+' in '+shelfName(pf),'err');return}}
+    if(dir>0)pileAdd(i,pf,n);else pileDrain(i,n,pf);
+    const nv=+i.qty||0;save('items');
+    logTx(dir>0?'in':'out',{itemId:i.id,itemName:i.name,fromQ:old,toQ:nv,qty:n,reason:reason,detail:reason+($('#adj-f')?' · '+shelfName(pf):'')});
     $('#qbig').innerHTML=fmtQty(nv)+'<span class="muted" style="font-size:15px;font-weight:600"> '+esc(i.unit||'')+'</span>';
     $('#qval').textContent='Value '+fmtMoney(itemValue(i));
     an.value='1';updateBadges();beep(true);
     toast((dir>0?'Added ':'Removed ')+fmtQty(n)+' — now '+fmtQty(nv),'ok');
+    if(isMultiRack(i)||$('#adj-f'))route();
   };
   if($('#adj-out'))$('#adj-out').onclick=()=>adj(-1);
   if($('#adj-in'))$('#adj-in').onclick=()=>adj(1);
@@ -1452,7 +1500,11 @@ function vEdit(id,folderArg){
     const allNew=[d.sku,d.code].concat(d.alt||[]).map(s=>String(s||'').trim().toLowerCase()).filter(Boolean);
     const dup=allNew.length?S.items.find(x=>x.id!==i.id&&skusOf(x).some(s=>allNew.indexOf(String(s).toLowerCase())>=0)):null;
     if(dup&&isNew){const ok=await confirmDlg('Possible duplicate','“'+esc(dup.name)+'” already uses this SKU/code. Add anyway?','Add anyway');if(!ok)return}
-    Object.assign(i,d,{qty:round4(d.qty),updatedAt:Date.now()});
+    if(isMultiRack(i)){
+      if(String(d.folder||'')!==String(i.folder||'')){const ps=pilesOf(i).map(p=>({f:p.f,q:p.q}));ps[0].f=d.folder;setPiles(i,ps)}
+      delete d.folder;delete d.qty; // multi-rack qty/location managed by piles
+      Object.assign(i,d,{updatedAt:Date.now()});
+    } else Object.assign(i,d,{qty:round4(d.qty),updatedAt:Date.now()});
     setSkus(i,[d.sku||d.code].concat(d.alt||[]).filter(Boolean));
     if(editPhotosDirty){await setPhotos(i.id,editPhotos.slice(0,3));i.photoN=Math.min(editPhotos.length,3);i.thumb=editPhotos.length?(i._thumbCand||i.thumb||await makeThumbFromDataURL(editPhotos[0])):''}
     delete i._thumbCand;
@@ -1538,12 +1590,15 @@ async function ensureFolderByName(name){
 
 function moveDlg(items){
   const one=items.length===1?items[0]:null;
+  const multi1=one&&isMultiRack(one);
   openModal('<h3>Move '+(one?'“'+esc(one.name)+'”':items.length+' items')+'</h3>'+
-    (one?'<div class="field"><label>Quantity to move (have '+fmtQty(one.qty)+' '+esc(one.unit||'')+')</label><input class="in num" id="mv-q" inputmode="decimal" value="'+fmtQty(one.qty)+'"><div class="hint">Move part of the stock and the rest stays where it is.</div></div>':'<p class="sub mb">Full quantity of each selected item will move.</p>')+
+    (multi1?'<div class="field"><label>From which rack</label>'+pileSelect(one,'mv-from')+'</div>':'')+
+    (one?'<div class="field"><label>Quantity to move'+(multi1?'':' (have '+fmtQty(one.qty)+' '+esc(one.unit||'')+')')+'</label><input class="in num" id="mv-q" inputmode="decimal" value="'+fmtQty(multi1?pilesOf(one)[0].q:one.qty)+'"><div class="hint">Move part of the stock and the rest stays where it is'+(multi1?' — each rack keeps its own count':'')+'.</div></div>':'<p class="sub mb">Full quantity of each selected item will move'+(items.some(isMultiRack)?' (all racks combined into the destination)':'')+'.</p>')+
     locPickerHTML('mv',one?one.folder:null)+
     '<div class="field"><label>Reason</label><select class="in" id="mv-r">'+MOVE_REASONS.map(r=>'<option>'+r+'</option>').join('')+'</select></div>'+
     '<button class="btn pri block" id="mv-go">'+ico('move')+'Move</button>');
   wireLocPicker('mv');
+  if(multi1)$('#mv-from').onchange=()=>{$('#mv-q').value=fmtQty(pilesOf(one)[+$('#mv-from').value].q)};
   $('#mv-go').onclick=async()=>{
     const res=await resolveLocPicker('mv');
     if(!res)return;
@@ -1551,22 +1606,29 @@ function moveDlg(items){
     const reason=$('#mv-r').value;
     if(one){
       const q=round4(parseFloat($('#mv-q').value));
-      if(!(q>0)||q>(+one.qty||0)+1e-9){toast('Enter a quantity up to '+fmtQty(one.qty),'err');return}
-      doMove(one,q,dest,reason);
-    } else items.forEach(it=>doMove(it,+it.qty||0,dest,reason));
+      const fromP=multi1?pilesOf(one)[+($('#mv-from').value||0)]:null;
+      const cap=fromP?fromP.q:(+one.qty||0);
+      if(!(q>0)||q>cap+1e-9){toast('Enter a quantity up to '+fmtQty(cap)+(fromP?' (in '+shelfName(fromP.f)+')':''),'err');return}
+      doMove(one,q,dest,reason,fromP?fromP.f:undefined);
+    } else items.forEach(it=>{if(isMultiRack(it))setPiles(it,[{f:dest,q:+it.qty||0}]),logTx('moved',{itemId:it.id,itemName:it.name,qtyMoved:+it.qty||0,from:pileSummary(it),to:folderPath(dest),detail:reason});else doMove(it,+it.qty||0,dest,reason)});
     save('items');closeModal();view.sel.clear();renderBulk();toast('Moved','ok');route();
   };
 }
-function doMove(i,q,dest,reason){
-  if((i.folder||null)===(dest||null))return;
-  const fromName=folderPath(i.folder),toName=folderPath(dest);
-  const moveAll=Math.abs(q-(+i.qty||0))<1e-9;
+function doMove(i,q,dest,reason,fromF){
+  const srcF=fromF!==undefined?fromF:(i.folder||null);
+  if((srcF||null)===(dest||null))return;
+  const fromName=folderPath(srcF),toName=folderPath(dest);
+  const moveAll=!isMultiRack(i)&&Math.abs(q-(+i.qty||0))<1e-9&&fromF===undefined;
   if(moveAll){i.folder=dest;i.updatedAt=Date.now()}
   else{
-    i.qty=round4((+i.qty||0)-q);i.updatedAt=Date.now();
-    let tgt=S.items.find(x=>x.id!==i.id&&(x.folder||null)===(dest||null)&&((i.sku&&x.sku===i.sku)||(!i.sku&&x.name===i.name&&x.unit===i.unit)));
-    if(tgt){tgt.qty=round4((+tgt.qty||0)+q);tgt.updatedAt=Date.now()}
-    else{const c=newItem(Object.assign(JSON.parse(JSON.stringify(i)),{id:uid('i'),folder:dest,qty:q,createdAt:Date.now(),updatedAt:Date.now()}));delete c._thumbCand;S.items.push(c)}
+    /* pile-based: take q from the source rack, add it to the destination rack — SAME item */
+    const ps=pilesOf(i).map(p=>({f:p.f,q:p.q}));
+    let s=ps.find(p=>String(p.f||'')===String(srcF||''));if(!s)s=ps[0];
+    const take=Math.min(s?s.q:0,q);if(take<=1e-9)return;
+    s.q=round4(s.q-take);
+    const t=ps.find(p=>String(p.f||'')===String(dest||''));
+    if(t)t.q=round4(t.q+take);else ps.push({f:dest,q:take});
+    setPiles(i,ps);
   }
   logTx('moved',{itemId:i.id,itemName:i.name,qtyMoved:q,from:fromName,to:toName,detail:reason});
 }
@@ -1695,7 +1757,8 @@ function vScan(mode,arg){
   }
   function quickScanModal(it){
     openModal('<div class="mhead"><span class="th" style="width:46px;height:46px;border-radius:9px;overflow:hidden;display:grid;place-items:center;background:var(--saddle-bg)">'+((it.img||it.thumb)?'<img src="'+esc(it.img||it.thumb)+'" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover">':ico('box'))+'</span><h3 class="ellip">'+esc(it.name)+'</h3></div>'+
-      '<div class="sub mb num">In stock: <b id="qs-cur">'+fmtQty(it.qty)+'</b> '+esc(it.unit||'')+' · '+esc(folderPath(it.folder))+'</div>'+
+      '<div class="sub mb num">In stock: <b id="qs-cur">'+fmtQty(it.qty)+'</b> '+esc(it.unit||'')+' · '+esc(pileSummary(it))+'</div>'+
+      (isMultiRack(it)?'<div class="row mb" style="gap:8px"><div class="eyebrow" style="align-self:center;flex:0 0 auto">Rack</div>'+pileSelect(it,'qs-f')+'</div>':'')+
       '<div class="row mb" style="gap:8px"><div class="stepper" style="max-width:150px;flex:0 0 auto"><button id="qs-m" aria-label="Less">−</button><input id="qs-q" class="num" inputmode="decimal" value="1"><button id="qs-p" aria-label="More">+</button></div>'+
       '<select class="in" id="qs-r" style="flex:1;min-width:110px;padding:9px 10px">'+ADJ_REASONS.map(r=>'<option>'+r+'</option>').join('')+'</select></div>'+
 
@@ -1713,9 +1776,11 @@ function vScan(mode,arg){
       if(!(n>0)){toast('Enter how many','err');return}
       const old=+it.qty||0;
       if(dir<0&&n>old){beep(false);toast('Only '+fmtQty(old)+' in stock','err');return}
-      const nv=round4(old+dir*n);
-      it.qty=nv;it.updatedAt=Date.now();save('items');
-      logTx(dir>0?'in':'out',{itemId:it.id,itemName:it.name,fromQ:old,toQ:nv,qty:n,reason:$('#qs-r').value,detail:'Scan · '+$('#qs-r').value});
+      const pf=$('#qs-f')?pilesOf(it)[+$('#qs-f').value].f:(it.folder||null);
+      if(dir<0&&$('#qs-f')){const cap=pilesOf(it)[+$('#qs-f').value].q;if(n>cap+1e-9){beep(false);toast('Only '+fmtQty(cap)+' in '+shelfName(pf),'err');return}}
+      if(dir>0)pileAdd(it,pf,n);else pileDrain(it,n,pf);
+      const nv=+it.qty||0;save('items');
+      logTx(dir>0?'in':'out',{itemId:it.id,itemName:it.name,fromQ:old,toQ:nv,qty:n,reason:$('#qs-r').value,detail:'Scan · '+$('#qs-r').value+($('#qs-f')?' · '+shelfName(pf):'')});
       updateBadges();beep(true);closeModal();
       toast((dir>0?'Added ':'Removed ')+fmtQty(n)+' — '+it.name+' now '+fmtQty(nv),'ok');
     };
@@ -2082,7 +2147,7 @@ function vList(id){
     l.items.forEach(x=>{
       const it=iById(x.itemId);const p=+x.picked||0;
       if(!it||p<=0)return;
-      const old=+it.qty||0;it.qty=round4(Math.max(0,old-p));it.updatedAt=Date.now();
+      const old=+it.qty||0;pileDrain(it,Math.min(p,old));
       logTx('picked',{itemId:it.id,itemName:it.name,fromQ:old,toQ:it.qty,detail:l.name});
     });
     l.status='completed';l.completedAt=Date.now();l.updatedAt=Date.now();
@@ -2396,13 +2461,16 @@ function vPO(id){
         '<div class="row" style="gap:8px"><div class="grow"><div class="eyebrow">Good — into stock</div><input class="in num" data-rcv="'+ix+'" inputmode="decimal" value="'+fmtQty(rem)+'" style="text-align:right"></div>'+
         '<div class="grow"><div class="eyebrow" style="color:var(--red)">Damaged</div><input class="in num" data-dmg="'+ix+'" inputmode="decimal" value="0" style="text-align:right;border-color:var(--red-bg)"></div></div></div>';
     });
-    mh+='<div class="eyebrow" style="margin:2px 0 6px">How were the good pieces handled?</div>'+
+    mh+='<label class="row mb" style="gap:8px;font-size:14px"><input type="checkbox" id="rc-rack"> Put the good pieces into a specific rack</label>'+
+        '<div id="rc-rackwrap" style="display:none">'+locPickerHTML('rc')+'</div>'+
+        '<div class="eyebrow" style="margin:2px 0 6px">How were the good pieces handled?</div>'+
         '<div class="seg mb" id="rc-chk"><button data-ck="1" class="on">'+ico('check')+' Checked & stocked</button><button data-ck="0">Stocked (check later)</button></div>'+
         '<div class="hint" style="margin:-4px 0 10px">Good pieces are added to stock. Damaged pieces are recorded on the PO but NOT added to sellable stock.</div>';
     mh+='<button class="btn pri block" id="rc-go">'+ico('check')+'Receive</button>';
     if(p.status==='partial'||p.items.some(x=>(+x.received||0)<(+x.qty||0)))mh+='<button class="btn block mt" id="rc-close" style="font-weight:600">Nothing more coming — close this PO</button>';
     openModal(mh);
     $$('#rc-chk button').forEach(b=>b.onclick=()=>{$$('#rc-chk button').forEach(x=>x.classList.remove('on'));b.classList.add('on')});
+    $('#rc-rack').onchange=()=>{$('#rc-rackwrap').style.display=$('#rc-rack').checked?'':'none';if($('#rc-rack').checked)wireLocPicker('rc')};
     const rcClose=$('#rc-close');if(rcClose)rcClose.onclick=async()=>{
       const ok=await confirmDlg('Close '+esc(p.number)+' short?','Remaining pieces will not be expected any more. Received stock stays as is.','Close PO',false);
       if(!ok)return;
@@ -2412,6 +2480,8 @@ function vPO(id){
     };
     $('#rc-go').onclick=async()=>{
       const checked=(($('#rc-chk .on')||{}).dataset||{}).ck==='1';
+      let rackF; // undefined = each item's own primary rack
+      if($('#rc-rack')&&$('#rc-rack').checked){const rr=await resolveLocPicker('rc');if(!rr)return;rackF=rr.folderId}
       let any=false;
       $$('#modal [data-rcv]').forEach(inp=>{
         const x=p.items[+inp.dataset.rcv];if(!x)return;
@@ -2423,8 +2493,8 @@ function vPO(id){
         if(dmg>0)x.damaged=round4((+x.damaged||0)+dmg);
         if(good>0)x.checked=checked;
         const it=iById(x.itemId);
-        if(it&&good>0){const old=+it.qty||0;it.qty=round4(old+good);it.updatedAt=Date.now();
-          logTx('received',{itemId:it.id,itemName:it.name,fromQ:old,toQ:it.qty,qty:good,detail:p.number+(p.vendor?' · '+p.vendor:'')+(dmg>0?' · '+fmtQty(dmg)+' damaged (not stocked)':'')+(checked?' · checked':' · not checked yet')});}
+        if(it&&good>0){const old=+it.qty||0;pileAdd(it,rackF!==undefined?rackF:(it.folder||null),good);
+          logTx('received',{itemId:it.id,itemName:it.name,fromQ:old,toQ:it.qty,qty:good,detail:p.number+(p.vendor?' · '+p.vendor:'')+(rackF!==undefined?' · into '+shelfName(rackF):'')+(dmg>0?' · '+fmtQty(dmg)+' damaged (not stocked)':'')+(checked?' · checked':' · not checked yet')});}
         else if(dmg>0){logTx('po',{itemId:x.itemId,itemName:(it?it.name:x.name),detail:p.number+' — '+fmtQty(dmg)+' received damaged (not stocked)'});}
         any=true;
       });
@@ -2486,7 +2556,7 @@ function parseCSV(text){
 }
 function exportItemsCSV(its){
   const rows=[['Name','Location','Quantity','Unit','Price','Cost','Min quantity','SKU','Barcode','Other SKUs','Tags','Notes','Image URL','Value','Updated']];
-  its.forEach(i=>rows.push([i.name,folderPath(i.folder),i.qty,i.unit,i.price,i.cost,i.min,i.sku,i.code,(i.alt||[]).join('; '),(i.tags||[]).join('; '),i.notes,i.img||'',itemValue(i),new Date(i.updatedAt).toISOString()]));
+  its.forEach(i=>rows.push([i.name,pileSummary(i),i.qty,i.unit,i.price,i.cost,i.min,i.sku,i.code,(i.alt||[]).join('; '),(i.tags||[]).join('; '),i.notes,i.img||'',itemValue(i),new Date(i.updatedAt).toISOString()]));
   download('invento-items-'+new Date().toISOString().slice(0,10)+'.csv',buildCSV(rows),'text/csv');
   logTx('export',{detail:its.length+' items to CSV'});
   toast('CSV downloaded','ok');
@@ -2593,8 +2663,12 @@ function exportUnicommerce(){
         adjType=d>0?'ADD':'REMOVE';
         qty=Math.abs(round4(d));
       } else {
-        adjType='REPLACE';
-        qty=round4(+i.qty||0);
+        /* REPLACE: one row PER RACK so Uniware mirrors the shelf-wise split */
+        pilesOf(i).forEach(p=>{
+          rows.push([sku,round4(p.q),shelfName(p.f)||'DEFAULT','REPLACE','','','','','Invento sync '+stamp,'']);
+          n++;
+        });
+        return;
       }
       rows.push([sku,qty,shelfCodeFor(i),adjType,'','','','','Invento sync '+stamp,'']);
       n++;
@@ -2835,6 +2909,7 @@ function vImport(){
           if(mode==='skip'){skipped++;return}
           if(mode==='update'){
             Object.assign(ex,{name:p.name,qty:p.qty,unit:p.unit,price:p.price,cost:p.cost,min:p.min,tags:p.tags.length?p.tags:ex.tags,notes:p.notes||ex.notes,img:p.img||ex.img,updatedAt:Date.now()});
+            syncPilesToQty(ex);
             if(p.sku||p.alt.length)setSkus(ex,[p.sku||p.code||ex.sku].concat(p.alt||[]).filter(Boolean));
             if(p.folderName)ex.folder=folderFor(p.folderName);
             updated++;return;
@@ -3570,15 +3645,32 @@ async function saveDispatch(){
     (deductable.length?'<br>Stock will be reduced for '+deductable.length+' scanned item'+(deductable.length>1?'s':'')+'.':'<br>No catalog items matched, so nothing is deducted — saved as a record.'),
     'Save dispatch');
   if(!ok)return;
+  /* plan A: for multi-rack items, ask which rack the pieces are being taken from */
+  const rackChoice={};
+  const multiLines=dDraft.lines.filter(l=>{const it=l.itemId&&iById(l.itemId);return it&&isMultiRack(it)});
+  if(multiLines.length){
+    const picked=await new Promise(res=>{
+      let mh='<h3>Which rack?</h3><p class="sub mb">These items sit in more than one rack — pick where the pieces are coming from. If a rack runs short, the rest is taken from the other racks automatically.</p>';
+      multiLines.forEach((l,ix)=>{const it=iById(l.itemId);
+        mh+='<div class="field"><label class="ellip">'+esc(it.name)+' — taking '+fmtQty(l.qty)+'</label><select class="in" data-rkpick="'+ix+'">'+pilesOf(it).map((p,pix)=>'<option value="'+pix+'"'+(pix===0?' selected':'')+'>'+esc(shelfName(p.f))+' — '+fmtQty(p.q)+' here</option>').join('')+'</select></div>';});
+      mh+='<button class="btn pri block" id="rk-go">'+ico('check')+'Continue</button>';
+      openModal(mh);
+      $('#rk-go').onclick=()=>{const out={};$$('#modal [data-rkpick]').forEach(s=>{const l=multiLines[+s.dataset.rkpick];const it=iById(l.itemId);out[l.itemId+'|'+dDraft.lines.indexOf(l)]=pilesOf(it)[+s.value].f});closeModal();res(out)};
+      const ovv=$('#ovl');const obs2=new MutationObserver(()=>{if(!ovv.classList.contains('show')){obs2.disconnect();res(null)}});obs2.observe(ovv,{attributes:true,attributeFilter:['class']});
+    });
+    if(!picked)return; // user closed the rack question — dispatch not saved
+    Object.assign(rackChoice,picked);
+  }
   const sv=$('#d-save');if(sv){sv.disabled=true;sv.textContent='Saving…'}
   const no=await nextDispatchNo();
-  // deduct stock + log movements
+  // deduct stock + log movements (pile-aware)
   for(const ln of dDraft.lines){
     if(!ln.itemId)continue;
     const it=iById(ln.itemId);if(!it)continue;
-    const old=+it.qty||0;const q=+ln.qty||0;
-    it.qty=round4(Math.max(0,old-q));it.updatedAt=Date.now();
-    logTx('out',{itemId:it.id,itemName:it.name,fromQ:old,toQ:it.qty,qty:q,reason:'Dispatched · '+dDraft.orderId,detail:'Dispatch '+dDraft.orderId});
+    const old=+it.qty||0;const q=Math.min(+ln.qty||0,old);
+    const pf=rackChoice[ln.itemId+'|'+dDraft.lines.indexOf(ln)];
+    const fromTxt=pileDrain(it,q,pf);
+    logTx('out',{itemId:it.id,itemName:it.name,fromQ:old,toQ:it.qty,qty:q,reason:'Dispatched · '+dDraft.orderId,detail:'Dispatch '+dDraft.orderId+(fromTxt&&pf!==undefined?' · from '+fromTxt:'')});
   }
   // store photos separately (keyed) to keep dispatch doc small
   const rec={id:uid('d'),number:no,orderId:dDraft.orderId,dest:dDraft.dest,ts:Date.now(),by:userName(),dupApproved:!!dDraft.dupApproved,
@@ -3927,7 +4019,7 @@ async function saveReturn(){
       logTx('in',{itemId:rec.id,itemName:rec.name,fromQ:old,toQ:rec.qty,qty:q,reason:'Return (damaged) · '+rDraft.refId,detail:'Return '+rDraft.refId+' → '+DAMAGED_FOLDER_NAME});
       savedLines.push({itemId:rec.id,name:rec.name,code:rec.sku||ln.code,qty:q,cond:'bad',placedIn:folderPath(rec.folder)});
     } else {
-      const old=+src.qty||0;src.qty=round4(old+q);src.updatedAt=Date.now();
+      const old=+src.qty||0;pileAdd(src,src.folder||null,q);
       logTx('in',{itemId:src.id,itemName:src.name,fromQ:old,toQ:src.qty,qty:q,reason:'Return (good) · '+rDraft.refId,detail:'Return '+rDraft.refId});
       savedLines.push({itemId:src.id,name:src.name,code:src.sku||ln.code,qty:q,cond:'good',placedIn:folderPath(src.folder)});
     }
