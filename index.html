@@ -1024,6 +1024,91 @@ async function loadSample(){
   await Promise.all([saveNow('folders'),saveNow('items')]);
 }
 
+
+/* ============================================================
+   HINDI MODE (option a) — runtime UI translation layer
+   English stays the source of truth in code; when hi is on,
+   a DOM pass swaps known strings. Numbers/SKUs (.num/.mono)
+   are never touched. Toggle: login screen + Settings.
+   ============================================================ */
+function langHi(){try{return localStorage.getItem('invento_lang')==='hi'}catch(e){return false}}
+function setLang(l){try{localStorage.setItem('invento_lang',l)}catch(e){}}
+const HI={
+'Home':'होम','Stock':'स्टॉक','Dispatch':'डिस्पैच','Scan':'स्कैन','Workflows':'वर्कफ़्लो','Labels':'लेबल','Reports':'रिपोर्ट','More':'अन्य',
+'Welcome':'स्वागत है','Set up Invento':'Invento शुरू करें','Quick actions':'क्विक एक्शन','Recent activity':'हाल की एक्टिविटी','No activity yet':'अभी कोई एक्टिविटी नहीं','View all':'सब देखें','Low stock':'कम स्टॉक','Out of stock':'स्टॉक खत्म','Stock value':'स्टॉक की कीमत','Items':'आइटम','Item':'आइटम','Items here':'यहाँ आइटम','Add first item':'पहला आइटम जोड़ें','Load sample data':'सैंपल डेटा भरें','Import CSV':'CSV इम्पोर्ट करें',
+'Add item':'आइटम जोड़ें','New item':'नया आइटम','Every product in one list':'सारे प्रोडक्ट एक लिस्ट में','Folders':'फ़ोल्डर','Folder':'फ़ोल्डर','No folders yet':'अभी कोई फ़ोल्डर नहीं','Folder name':'फ़ोल्डर का नाम','New folder':'नया फ़ोल्डर','Inside':'किसके अंदर','All stock':'पूरा स्टॉक','All warehouses':'सभी गोदाम','Warehouse':'गोदाम','New warehouse':'नया गोदाम','Warehouse name':'गोदाम का नाम','+ Warehouse':'+ गोदाम','Godown':'गोदाम',
+'Search':'खोजें','Sort by':'क्रम','Name':'नाम','Qty':'मात्रा','Quantity':'मात्रा','Price':'कीमत','Unit':'यूनिट','Notes':'नोट्स','Tags':'टैग','Add tag':'टैग जोड़ें','History':'हिस्ट्री','No history yet.':'अभी कोई हिस्ट्री नहीं।','No matches.':'कुछ नहीं मिला।','No movements recorded yet.':'अभी कोई मूवमेंट दर्ज नहीं।','Older entries are in the Activity log.':'पुरानी एंट्री एक्टिविटी लॉग में हैं।',
+'Quantity on hand':'मौजूद मात्रा','Min quantity':'कम-से-कम मात्रा','Min qty (low-stock alert)':'कम-से-कम मात्रा (अलर्ट के लिए)','No alert':'कोई अलर्ट नहीं','Price (sell)':'बेचने की कीमत','Cost (USD)':'लागत (USD)','Barcode / QR value':'बारकोड / QR कोड','More SKUs / barcodes (optional)':'और SKU / बारकोड (ज़रूरी नहीं)','Image link':'फोटो का लिंक','Photos (up to 3)':'फोटो (ज़्यादा से ज़्यादा 3)','Take photo':'फोटो लें','Created':'बना','Updated':'बदला','Save':'सेव करें','Save settings':'सेटिंग सेव करें','Saved':'सेव हो गया','Done':'हो गया','Cancel':'रद्द करें','Delete':'डिलीट','Edit':'बदलें','Move':'मूव करें','Clone':'कॉपी बनाएँ','Copies':'कॉपियाँ','Quantity each':'हर एक की मात्रा','Restore':'वापस लाएँ','Download':'डाउनलोड','Open':'खोलें','Open item':'आइटम खोलें','Close':'बंद करें','Total':'कुल','Units':'यूनिट','Total units':'कुल यूनिट',
+'Add':'जोड़ें','Remove':'घटाएँ','Reason':'वजह','Adjust':'घटा-बढ़ाएँ','Add to which rack?':'किस रैक में जोड़ें?','Remove from which rack?':'किस रैक से निकालें?','A different rack…':'कोई और रैक…','Add here':'यहाँ जोड़ें','From which rack':'किस रैक से','Quantity to move':'कितना मूव करना है','Move part of the stock and the rest stays where it is.':'जितना चाहें उतना मूव करें — बाकी वहीं रहेगा।','Move part of the stock and the rest stays where it is — each rack keeps its own count.':'जितना चाहें उतना मूव करें — हर रैक का हिसाब अलग रहेगा।','Full quantity of each selected item will move.':'चुने हुए हर आइटम की पूरी मात्रा मूव होगी।',
+'Sold':'बिक गया','Damaged':'खराब / डैमेज','Restock / received':'माल आया','Purchase / received':'खरीदा / आया','Production':'प्रोडक्शन','Production (made)':'प्रोडक्शन (बना)','Used in production':'प्रोडक्शन में लगा','Sample':'सैंपल','Sample given':'सैंपल दिया','Customer return':'ग्राहक से वापसी','Lost / missing':'गुम / नहीं मिला','Stock correction':'गिनती सुधार','Correction':'सुधार','Opening stock':'शुरुआती स्टॉक','Transfer':'ट्रांसफर','Restock':'रीस्टॉक','Adjustment':'एडजस्टमेंट','Other':'अन्य','Return':'वापसी','Received':'मिल गया','Picked':'निकाला','Low':'कम','Need':'चाहिए',
+'Scan using the barcode scanner':'बारकोड स्कैनर से स्कैन करें','Point at a barcode or QR code':'बारकोड या QR कोड पर कैमरा रखें','Or enter code manually':'या कोड खुद टाइप करें','Code not found':'कोड नहीं मिला','No item matches':'कोई आइटम नहीं मिला','Keep scanning':'स्कैन करते रहें','Scan a code':'कोड स्कैन करें','Scan SKU':'SKU स्कैन करें','Code type':'कोड का टाइप','QR code':'QR कोड','Size':'साइज़','Copies each':'हर एक की कॉपियाँ','Select all':'सब चुनें','Preview':'प्रीव्यू','Print':'प्रिंट','No items with a code':'कोड वाला कोई आइटम नहीं',
+'Pick lists':'पिक लिस्ट','Purchase orders':'परचेज़ ऑर्डर','No pick lists yet':'अभी कोई पिक लिस्ट नहीं','No purchase orders yet':'अभी कोई परचेज़ ऑर्डर नहीं','Rename list':'लिस्ट का नाम बदलें','Lines':'लाइनें','Which items':'कौन से आइटम','Vendor':'सप्लायर','Expected by':'कब तक आएगा','Unit cost':'एक की लागत','Amount':'रकम','Enter what arrived. Stock updates immediately.':'जो आया है वो भरें। स्टॉक तुरंत अपडेट होगा।','How were the good pieces handled?':'सही माल का क्या किया?','Stocked (check later)':'स्टॉक में रखा (बाद में जाँचेंगे)',
+'Settings':'सेटिंग','Company / shop name':'कंपनी / दुकान का नाम','Your name (shown in activity)':'आपका नाम (एक्टिविटी में दिखेगा)','Currency symbol':'करेंसी का निशान','Default min qty hint':'कम-से-कम मात्रा (डिफ़ॉल्ट)','Language / भाषा':'भाषा / Language','Team sync':'टीम सिंक','Team members':'टीम के लोग','Permissions':'परमिशन','Sign out':'लॉग आउट','Signed in as':'लॉग इन:','Connected — realtime':'जुड़ा हुआ — लाइव','Connecting…':'जुड़ रहा है…','Offline — will sync later':'ऑफ़लाइन — बाद में सिंक होगा','Trash':'ट्रैश','Help & FAQ':'मदद और सवाल-जवाब','Report a problem':'दिक्कत बताएँ','What happened?':'क्या हुआ?','Screenshot (optional)':'स्क्रीनशॉट (ज़रूरी नहीं)','Dashboard':'डैशबोर्ड','Recovery points':'बैकअप','Approvals':'अप्रूवल','Admin approval needed':'एडमिन की मंज़ूरी चाहिए','Export all items':'सारे आइटम एक्सपोर्ट करें','Export':'एक्सपोर्ट','Include':'शामिल करें','Current items only':'सिर्फ अभी के आइटम','Also include Trash':'ट्रैश भी शामिल करें',
+'Sign in':'लॉग इन करें','Sign up':'नया अकाउंट','Create your account':'नया अकाउंट बनाएँ','Create account':'अकाउंट बनाएँ','You stay signed in on this device.':'इस फोन पर आप लॉग इन रहेंगे।','Email':'ईमेल','Phone':'फोन','Phone (India +91)':'फोन (भारत +91)','Password':'पासवर्ड','Current password':'अभी का पासवर्ड','Full name':'पूरा नाम','User ID':'यूज़र ID','Forgot password?':'पासवर्ड भूल गए?','Send code & sign in':'कोड भेजें और लॉग इन करें','Send code & create account':'कोड भेजें और अकाउंट बनाएँ','Sending code…':'कोड भेज रहे हैं…','Verify your email':'ईमेल वेरिफ़ाई करें','Add a recovery email':'रिकवरी ईमेल जोड़ें','Enter your name':'अपना नाम भरें','Pick a user ID':'यूज़र ID चुनें','Could not connect':'कनेक्ट नहीं हो पाया',
+'Moved':'मूव हो गया','Deleted':'डिलीट हो गया','Restored':'वापस आ गया','Cloned':'कॉपी बन गई','Imported':'इम्पोर्ट हो गया','Exported':'एक्सपोर्ट हो गया','Quantity changed':'मात्रा बदली','Stock in':'माल आया','Stock out':'माल गया','Edited':'बदला गया','Reports':'रिपोर्ट','Last 7 days':'पिछले 7 दिन','Last 15 days':'पिछले 15 दिन','Last 30 days':'पिछले 30 दिन','Last 1 day':'पिछला 1 दिन','Last 2 days':'पिछले 2 दिन','Inventory Adjustment':'स्टॉक एडजस्टमेंट','Stock value (sell price)':'स्टॉक की कीमत (बेचने के भाव)','No sales recorded in this period.':'इस दौरान कोई बिक्री दर्ज नहीं।','Running out fast':'तेज़ी से खत्म हो रहा','Nothing at risk at current speed.':'अभी कुछ भी खतरे में नहीं।','Should be ordered (below min)':'ऑर्डर करना चाहिए (मिनिमम से कम)','Nothing below minimum.':'कुछ भी मिनिमम से कम नहीं।','No dispatches in this period.':'इस दौरान कोई डिस्पैच नहीं।','No quantity changes in this period':'इस दौरान मात्रा में कोई बदलाव नहीं','In':'आया','Out':'गया','Net':'नेट','SKU / code':'SKU / कोड','Location':'लोकेशन','Locations':'लोकेशन','Rack':'रैक','Racks':'रैक','Shelf':'शेल्फ़','Bin':'बिन','same location':'वही जगह','Skip them':'छोड़ दें','Machine':'मशीन','Rules':'नियम','If':'अगर','Click':'क्लिक करें','Choose':'चुनें','Upload File':'फ़ाइल अपलोड करें','No recovery points yet':'अभी कोई बैकअप नहीं','Tap the button above to create the first one.':'पहला बैकअप बनाने के लिए ऊपर का बटन दबाएँ।','HIGH':'ज़्यादा','AUTO':'ऑटो','Low priority':'कम ज़रूरी'
+};
+const HI_RX=[
+[/^Only ([\d.,]+) in stock$/,m=>'स्टॉक में सिर्फ '+m[1]+' हैं'],
+[/^Only ([\d.,]+) in (.+)$/,m=>m[2]+' में सिर्फ '+m[1]+' हैं'],
+[/^Added ([\d.,]+) in (.+) — now ([\d.,]+)$/,m=>m[2]+' में '+m[1]+' जोड़े — अब कुल '+m[3]],
+[/^Removed ([\d.,]+) in (.+) — now ([\d.,]+)$/,m=>m[2]+' से '+m[1]+' घटाए — अब कुल '+m[3]],
+[/^Enter how many to add$/,()=>'कितने जोड़ने हैं, वो भरें'],
+[/^Enter how many to remove$/,()=>'कितने घटाने हैं, वो भरें'],
+[/^Enter a quantity up to ([\d.,]+)(.*)$/,m=>m[1]+' तक की मात्रा भरें'+m[2]],
+[/^Quantity to move \(have ([\d.,]+) ?(.*)\)$/,m=>'कितना मूव करना है (कुल '+m[1]+' '+m[2]+' हैं)'],
+[/^(\d+) items?$/,m=>m[1]+' आइटम'],
+[/^(\d+) here$/,m=>'यहाँ '+m[1]],
+[/^([\d.,]+) here$/,m=>'यहाँ '+m[1]],
+[/^(\d+) low$/,m=>m[1]+' कम'],
+[/^just now$/,()=>'अभी'],
+[/^(\d+)m ago$/,m=>m[1]+' मिनट पहले'],
+[/^(\d+)h ago$/,m=>m[1]+' घंटे पहले'],
+[/^(\d+)d ago$/,m=>m[1]+' दिन पहले'],
+[/^adding$/,()=>'जोड़ रहे हैं'],[/^removing$/,()=>'घटा रहे हैं'],
+[/^Move (\d+) items$/,m=>m[1]+' आइटम मूव करें'],
+[/^(\d+) clones? created$/,m=>m[1]+' कॉपी बन गई'],
+[/^Screen error: (.*)$/,m=>'स्क्रीन में गड़बड़: '+m[1]]
+];
+function trHi(s){
+  if(!s)return s;const t=s.trim();if(!t||/^[\d.,:%₹$+\-—·]*$/.test(t))return s;
+  let out=HI[t];
+  if(out===undefined){for(const r of HI_RX){const m=t.match(r[0]);if(m){out=r[1](m);break}}}
+  if(out===undefined)return s;
+  return s.replace(t,out);
+}
+function i18nWalk(root){
+  if(!langHi()||!root)return;
+  const bad={SCRIPT:1,STYLE:1,TEXTAREA:1,INPUT:1};
+  const skip=el=>{for(let e=el;e&&e.nodeType===1;e=e.parentElement){if(bad[e.tagName]||e.classList&&(e.classList.contains('num')||e.classList.contains('mono'))||e.hasAttribute&&e.hasAttribute('data-noi18n'))return true}return false};
+  const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null);
+  const nodes=[];let n;while(n=w.nextNode())nodes.push(n);
+  nodes.forEach(nd=>{if(skip(nd.parentElement))return;const v=nd.nodeValue,t2=trHi(v);if(t2!==v)nd.nodeValue=t2});
+  (root.querySelectorAll?[root].concat(Array.from(root.querySelectorAll('[placeholder],[title],[aria-label]'))):[]).forEach(el=>{
+    if(!el.getAttribute)return;
+    ['placeholder','title','aria-label'].forEach(a=>{const v=el.getAttribute&&el.getAttribute(a);if(v){const t2=trHi(v);if(t2!==v)el.setAttribute(a,t2)}});
+  });
+}
+function i18nBoot(){
+  if(!document.body)return;
+  if(langHi()){document.documentElement.lang='hi';i18nWalk(document.body)}
+  const mo=new MutationObserver(muts=>{
+    if(!langHi())return;
+    muts.forEach(m=>m.addedNodes&&m.addedNodes.forEach(nd=>{
+      if(nd.nodeType===3){const v=nd.nodeValue,t2=trHi(v);if(t2!==v)nd.nodeValue=t2}
+      else if(nd.nodeType===1)i18nWalk(nd);
+    }));
+  });
+  mo.observe(document.body,{childList:true,subtree:true});
+  document.addEventListener('change',e=>{
+    if(e.target&&e.target.id==='st-lang'){setLang(e.target.value);location.reload()}
+  });
+  document.addEventListener('click',e=>{
+    const b=e.target&&e.target.closest&&e.target.closest('#lang-flip');
+    if(b){setLang(langHi()?'en':'hi');location.reload()}
+  });
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',i18nBoot);else i18nBoot();
+
 /* ============================================================
    ROUTER + NAV
    ============================================================ */
@@ -2988,6 +3073,7 @@ function vMore(){
   h+='<div class="section-h"><h2>Settings</h2></div><div class="card pad mb">'+
     '<div class="field"><label>Company / shop name</label><input class="in" id="st-co" value="'+esc(S.meta.company)+'" placeholder="Classy Leather Bags" '+(isAdminU()?'':'disabled')+'></div>'+
     '<div class="field"><label>Your name (shown in activity)</label><input class="in" id="st-us" value="'+esc(MODE==='cloud'?userName():S.meta.user)+'" placeholder="Trishal"></div>'+
+    '<div class="field"><label>Language / भाषा</label><select class="in" id="st-lang"><option value="en"'+(langHi()?'':' selected')+'>English</option><option value="hi"'+(langHi()?' selected':'')+'>हिंदी</option></select></div>'+
     '<div class="f2"><div class="field" style="margin-bottom:0"><label>Currency symbol</label><input class="in" id="st-cur" value="'+esc(S.meta.currency)+'" maxlength="4" '+(isAdminU()?'':'disabled')+'></div>'+
     '<div class="field" style="margin-bottom:0"><label>Default min qty hint</label><input class="in num" id="st-low" inputmode="numeric" value="'+esc(S.meta.lowDefault)+'"></div></div>'+
     '<div class="f2"><div class="field" style="margin-bottom:0"><label>Word for a place (singular)</label><input class="in" id="st-loc" value="'+esc(S.meta.locTerm||'Location')+'" placeholder="Location" '+(isAdminU()?'':'disabled')+'></div>'+
@@ -4557,7 +4643,8 @@ function vLogin(err,tab,m){
     '<button class="btn pri block" id="lg-go">'+ico('check')+(m==='ph'?(tab==='in'?'Send code & sign in':'Send code & create account'):(tab==='in'?'Sign in':'Create account'))+'</button>'+
     (tab==='in'&&m==='em'?'<button class="btn block mt" id="lg-forgot" style="font-weight:600">'+ico('lock')+'Forgot password?</button>':'')+
     (m==='ph'?'<div class="hint mt">SMS charges apply to the business, not you. Standard code delivery.</div>':(tab==='up'?'<div class="hint mt">The email gets a verification link. Your team sees only your name and user ID.</div>':''))+
-    '</div>';
+    '</div>'+
+    '<button class="btn block mt" id="lang-flip" data-noi18n style="font-weight:700">'+(langHi()?'View in English':'हिंदी में देखें')+'</button>';
   $('#tb-in').onclick=()=>vLogin('','in',m);
   $('#tb-up').onclick=()=>vLogin('','up',m);
   $('#mm-em').onclick=()=>vLogin('',tab,'em');
