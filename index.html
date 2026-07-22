@@ -1214,6 +1214,30 @@ function topTitle(title,backHash,extra){
   '<div class="tb-title">'+esc(title)+'</div>'+(extra||'')+acctButtonHTML());
 }
 
+
+/* Torch / flashlight for camera scanners. Shows a button only if the device supports it. */
+function addTorchBtn(stream,videoEl){
+  try{
+    const track=stream.getVideoTracks()[0];if(!track)return;
+    const caps=track.getCapabilities?track.getCapabilities():{};
+    if(!caps.torch)return;
+    const wrap=videoEl&&videoEl.closest('.scanwrap');if(!wrap||wrap.querySelector('.torchbtn'))return;
+    const b=document.createElement('button');
+    b.className='torchbtn';b.setAttribute('data-noi18n','');b.setAttribute('aria-label','Torch');
+    b.style.cssText='position:absolute;top:10px;right:10px;z-index:5;width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.45);color:#fff;font-size:22px;display:grid;place-items:center;cursor:pointer;backdrop-filter:blur(3px)';
+    b.textContent='🔦';
+    let on=false;
+    b.onclick=async e=>{e.preventDefault();e.stopPropagation();
+      on=!on;
+      try{await track.applyConstraints({advanced:[{torch:on}]})}
+      catch(err){on=false;toast(langHi()?'टॉर्च चालू नहीं हो पाई':'Torch not available','err');b.remove();return}
+      b.style.background=on?'var(--saddle,#a8703d)':'rgba(0,0,0,.45)';
+      b.style.borderColor=on?'var(--saddle,#a8703d)':'rgba(255,255,255,.35)';
+    };
+    wrap.appendChild(b);
+  }catch(e){}
+}
+
 let scannerStop=null; // active camera teardown
 const view={sel:new Set(),q:'',tag:'',low:false,warehouse:null};
 function go(h){location.hash=h}
@@ -1951,6 +1975,7 @@ function vScan(mode,arg){
       if(closed){stream.getTracks().forEach(t=>t.stop());return}
       video.srcObject=stream;
       scannerStop=()=>{closed=true;try{stream.getTracks().forEach(t=>t.stop())}catch(e){}};
+      addTorchBtn(stream,video);
       if(!Detector){note.textContent='Live decoding is not supported in this browser — camera is on for reference, but type the code manually or use Chrome on Android for auto-detect.';return}
       let formats=['qr_code','ean_13','ean_8','code_128','code_39','upc_a','upc_e','itf','codabar','data_matrix'];
       try{const sup=await Detector.getSupportedFormats();formats=formats.filter(f=>sup.includes(f))}catch(e){}
@@ -3758,6 +3783,7 @@ function dispatchScan(force){
     catch(e){feed.textContent='Camera blocked. Allow camera access, or type the SKU above.';return}
     const v=$('#dsv');if(!v){try{stream.getTracks().forEach(t=>t.stop())}catch(e){}return}
     v.srcObject=stream;await v.play().catch(()=>{});
+    addTorchBtn(stream,v);
     stop=()=>{try{stream.getTracks().forEach(t=>t.stop())}catch(e){}};
     if(!('BarcodeDetector' in window)){feed.innerHTML='Live scan isn’t supported on this browser — type SKUs above, or use the <b>Take photo</b> option instead.';return}
     let fmts;try{fmts=await BarcodeDetector.getSupportedFormats()}catch(e){fmts=[]}
@@ -4111,6 +4137,7 @@ function returnScan(){
     let stream;try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});}catch(e){feed.textContent='Camera blocked. Allow access or type the SKU above.';return}
     const v=$('#rsv');if(!v){try{stream.getTracks().forEach(t=>t.stop())}catch(e){}return}
     v.srcObject=stream;await v.play().catch(()=>{});
+    addTorchBtn(stream,v);
     stop=()=>{try{stream.getTracks().forEach(t=>t.stop())}catch(e){}};
     if(!('BarcodeDetector' in window)){feed.innerHTML='Live scan not supported here — type SKUs above.';return}
     let fmts;try{fmts=await BarcodeDetector.getSupportedFormats()}catch(e){fmts=[]}
