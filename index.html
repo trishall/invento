@@ -1500,7 +1500,7 @@ function vItem(id){
   h+='<div class="card pad mb"><div class="eyebrow" style="margin-bottom:7px">Quantity on hand</div>'+
     '<div class="row" style="justify-content:space-between;align-items:baseline"><div class="num" id="qbig" style="font-size:34px;font-weight:800;letter-spacing:-.01em">'+fmtQty(i.qty)+'<span class="muted" style="font-size:15px;font-weight:600"> '+esc(i.unit||'')+'</span></div><span class="num muted" id="qval" style="font-size:13px">Value '+fmtMoney(itemValue(i))+'</span></div>'+
     (i.min!==''&&i.min!=null?'<div class="small muted" style="margin-top:2px">Low-stock alert at '+fmtQty(i.min)+'</div>':'')+
-    (can('adjqty')?'<div class="row mt" style="gap:8px;flex-wrap:wrap"><div class="stepper" style="max-width:150px;flex:0 0 auto"><button id="adj-m" aria-label="Less">−</button><input id="adj-n" class="num" inputmode="decimal" value="1"><button id="adj-p" aria-label="More">+</button></div>'+
+    (can('adjqty')?'<div class="row mt" style="gap:8px;flex-wrap:wrap"><input id="adj-n" class="in num" inputmode="decimal" placeholder="0" style="max-width:110px;flex:0 0 auto;text-align:center;font-weight:800;font-size:19px">'+
     '<select class="in" id="adj-r" style="flex:1;min-width:120px;padding:9px 10px">'+ADJ_REASONS.map(r=>'<option>'+r+'</option>').join('')+'</select></div>':'')+
     (can('adjqty')?'<div class="row mt" style="gap:8px"><button class="btn grow danger" id="adj-out" style="font-weight:800">− Remove</button><button class="btn grow pri" id="adj-in" style="font-weight:800">+ Add</button></div>'+
     '<div class="hint" style="margin-top:7px">Stock only moves by adding or removing — every change lands in the movement history with its reason.</div>':'<div class="hint" style="margin-top:7px">You do not have permission to change stock quantity.</div>')+'</div>';
@@ -1535,8 +1535,6 @@ function vItem(id){
   getPhotos(i.id).then(ps=>{if(!ps.length)return;const g=$('#gal');if(!g)return;g.innerHTML=(i.img?'<div class="g"><img src="'+esc(i.img)+'" alt="" referrerpolicy="no-referrer"></div>':'')+ps.map(p=>'<div class="g"><img src="'+p+'" alt=""></div>').join('')});
   // qty controls — delta only
   const an=$('#adj-n');
-  if($('#adj-m'))$('#adj-m').onclick=()=>{an.value=fmtQty(Math.max(1,round4((parseFloat(an.value)||1)-1)))};
-  if($('#adj-p'))$('#adj-p').onclick=()=>{an.value=fmtQty(round4((parseFloat(an.value)||0)+1))};
   const adj=async dir=>{
     let n=round4(parseFloat(an.value));
     if(!(n>0)){toast('Enter how many to '+(dir>0?'add':'remove'),'err');return}
@@ -1554,7 +1552,7 @@ function vItem(id){
     updateBadges();beep(true);
     toast((dir>0?'Added ':'Removed ')+fmtQty(n)+' in '+shelfName(pf)+' — now '+fmtQty(nv),'ok');
     if(wasMulti||isMultiRack(i))route();
-    else{const qb=$('#qbig');if(qb)qb.innerHTML=fmtQty(nv)+'<span class="muted" style="font-size:15px;font-weight:600"> '+esc(i.unit||'')+'</span>';const qv=$('#qval');if(qv)qv.textContent='Value '+fmtMoney(itemValue(i));const an2=$('#adj-n');if(an2)an2.value='1'}
+    else{const qb=$('#qbig');if(qb)qb.innerHTML=fmtQty(nv)+'<span class="muted" style="font-size:15px;font-weight:600"> '+esc(i.unit||'')+'</span>';const qv=$('#qval');if(qv)qv.textContent='Value '+fmtMoney(itemValue(i));const an2=$('#adj-n');if(an2)an2.value=''}
   };
   if($('#adj-out'))$('#adj-out').onclick=()=>adj(-1);
   if($('#adj-in'))$('#adj-in').onclick=()=>adj(1);
@@ -1872,15 +1870,13 @@ function vScan(mode,arg){
     openModal('<div class="mhead"><span class="th" style="width:46px;height:46px;border-radius:9px;overflow:hidden;display:grid;place-items:center;background:var(--saddle-bg)">'+((it.img||it.thumb)?'<img src="'+esc(it.img||it.thumb)+'" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover">':ico('box'))+'</span><h3 class="ellip">'+esc(it.name)+'</h3></div>'+
       '<div class="sub mb num">In stock: <b id="qs-cur">'+fmtQty(it.qty)+'</b> '+esc(it.unit||'')+' · '+esc(pileSummary(it))+'</div>'+
 
-      '<div class="row mb" style="gap:8px"><div class="stepper" style="max-width:150px;flex:0 0 auto"><button id="qs-m" aria-label="Less">−</button><input id="qs-q" class="num" inputmode="decimal" value="1"><button id="qs-p" aria-label="More">+</button></div>'+
+      '<div class="row mb" style="gap:8px"><input id="qs-q" class="in num" inputmode="decimal" placeholder="0" style="max-width:110px;flex:0 0 auto;text-align:center;font-weight:800;font-size:19px">'+
       '<select class="in" id="qs-r" style="flex:1;min-width:110px;padding:9px 10px">'+ADJ_REASONS.map(r=>'<option>'+r+'</option>').join('')+'</select></div>'+
 
       '<div class="row mb" style="gap:8px"><button class="btn grow danger" id="qs-out" style="font-weight:800">− Remove</button><button class="btn pri grow" id="qs-in" style="font-weight:800">+ Add</button></div>'+
       (can('dispatch')?'<div class="row mb" style="gap:8px"><button class="btn grow" id="qs-dispatch">'+ico('send')+'Dispatch</button><button class="btn grow" id="qs-return">'+ico('undo')+'Return</button></div>':'')+
       '<button class="btn block" id="qs-open">Open item</button>');
     const q=$('#qs-q');
-    $('#qs-m').onclick=()=>{q.value=fmtQty(Math.max(1,round4((parseFloat(q.value)||1)-1)))};
-    $('#qs-p').onclick=()=>{q.value=fmtQty(round4((parseFloat(q.value)||0)+1))};
     $('#qs-open').onclick=()=>{closeModal();go('#item/'+it.id)};
     const dsb=$('#qs-dispatch');if(dsb)dsb.onclick=()=>{closeModal();ensureMarketThen(()=>startDispatch(it))};
     const rtb=$('#qs-return');if(rtb)rtb.onclick=()=>{closeModal();ensureMarketThen(()=>startReturn(it))};
