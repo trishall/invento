@@ -435,6 +435,7 @@ body.printing #printArea{display:block;padding:8mm}
     <a href="#stock" data-nav="stock" id="sn-stock"></a>
     <a href="#dispatch" data-nav="dispatch" id="sn-dispatch"></a>
     <a href="#scan" data-nav="scan" id="sn-scan"></a>
+    <a href="#ai" data-nav="ai" id="sn-ai"></a>
     <a href="#flows" data-nav="flows" id="sn-flows"></a>
     <a href="#labels" data-nav="labels" id="sn-labels"></a>
     <a href="#reports" data-nav="reports" id="sn-reports"></a>
@@ -468,6 +469,7 @@ body.printing #printArea{display:block;padding:8mm}
 
 /* ---------- icons ---------- */
 const IC = {
+spark:'<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/>',
   home:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/>',
   box:'<path d="M21 8.5 12 3 3 8.5v8L12 21l9-4.5z"/><path d="M3 8.5 12 13l9-4.5"/><path d="M12 13v8"/>',
   folder:'<path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4l2 2.5h9A1.5 1.5 0 0 1 21 9v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18z"/>',
@@ -1081,7 +1083,7 @@ Object.assign(HI,{
 'Change my password':'पासवर्ड बदलें','Confirm new password':'नया पासवर्ड दोबारा','New password (min 6 characters)':'नया पासवर्ड (कम से कम 6 अक्षर)','New password must be 6+ characters':'नया पासवर्ड 6+ अक्षर का हो','New passwords do not match':'दोनों पासवर्ड मेल नहीं खाते','Password updated':'पासवर्ड बदल गया','Password must be 6+ characters':'पासवर्ड 6+ अक्षर का हो','Password must be at least 6 characters':'पासवर्ड कम से कम 6 अक्षर का हो','Password (min 6)':'पासवर्ड (कम से कम 6)','Enter your password':'अपना पासवर्ड भरें','Enter your current password':'अभी का पासवर्ड भरें','Enter your email/ID and password':'ईमेल/ID और पासवर्ड भरें','Enter your user ID':'अपना यूज़र ID भरें','Your email':'आपका ईमेल','Your password':'आपका पासवर्ड','Your user ID':'आपका यूज़र ID','Forgot password':'पासवर्ड भूल गए','Request sent — the admin will set a new password':'रिक्वेस्ट भेज दी — एडमिन नया पासवर्ड सेट करेंगे','Add email & password':'ईमेल और पासवर्ड जोड़ें','My account has no email (old account)':'मेरे अकाउंट में ईमेल नहीं है (पुराना अकाउंट)','Enter a valid email':'सही ईमेल भरें','Enter a real email address':'सही ईमेल पता भरें','Enter a valid phone number':'सही फोन नंबर भरें','Link phone number':'फोन नंबर जोड़ें','Phone linked — you can now sign in by SMS too':'फोन जुड़ गया — अब SMS से भी लॉग इन कर सकते हैं','SMS code':'SMS कोड','Enter the code':'कोड भरें','Enter the 6-digit code':'6 अंकों का कोड भरें','Code sent again':'कोड दोबारा भेजा','Check your inbox':'अपना इनबॉक्स देखें','Verification email sent — check inbox/spam':'वेरिफ़िकेशन ईमेल भेजा — इनबॉक्स/स्पैम देखें','At least 6 characters':'कम से कम 6 अक्षर','Pick a user ID (letters/numbers)':'यूज़र ID चुनें (अक्षर/नंबर)','Delete my account':'मेरा अकाउंट डिलीट करें','Delete account':'अकाउंट डिलीट करें','Sign out':'लॉग आउट',
 'Import items from CSV':'CSV से आइटम लाएँ','Choose a CSV file':'CSV फ़ाइल चुनें','or drop it here':'या यहाँ छोड़ें','Ready to import':'इम्पोर्ट के लिए तैयार','Valid rows':'सही लाइनें','Skipped rows':'छोड़ी गई लाइनें','Show skipped rows':'छोड़ी गई लाइनें दिखाएँ','Create as new item':'नया आइटम बनाएँ','Create as new items anyway':'फिर भी नए आइटम बनाएँ','Update existing items (qty &amp; details)':'पुराने आइटम अपडेट करें (मात्रा और जानकारी)','Could not read file':'फ़ाइल नहीं पढ़ पाए','Could not find Name and Quantity columns':'Name और Quantity कॉलम नहीं मिले','File needs a header row and at least one data row':'फ़ाइल में हेडर और कम से कम एक लाइन चाहिए','Not sure of the format?':'फॉर्मेट समझ नहीं आ रहा?','download this file':'यह फ़ाइल डाउनलोड करें','Template downloaded — fill it and import':'टेम्पलेट डाउनलोड हुआ — भरकर इम्पोर्ट करें','Minimum columns:':'कम से कम कॉलम:','CSV downloaded':'CSV डाउनलोड हो गई','No items to export':'एक्सपोर्ट के लिए कुछ नहीं','Sample data loaded':'सैंपल डेटा आ गया','Load sample leather-goods data':'लेदर सामान का सैंपल डेटा भरें','Imported —':'इम्पोर्ट हुआ —','Review import results':'इम्पोर्ट का नतीजा देखें',
 'Sales & reorder':'बिक्री और री-ऑर्डर','Best sellers':'सबसे ज़्यादा बिके','No sales data yet':'अभी बिक्री का डेटा नहीं','No activity in this period':'इस दौरान कोई एक्टिविटी नहीं','No movements in this period':'इस दौरान कोई मूवमेंट नहीं','No stock changes in that period':'उस दौरान स्टॉक में बदलाव नहीं','Nothing is low':'कुछ भी कम नहीं है','In &amp; out':'आया और गया','Total in':'कुल आया','Total out':'कुल गया','Stock in only':'सिर्फ आया','Stock out only':'सिर्फ गया','All actions':'सारे काम','Last 30 days (full history)':'पिछले 30 दिन (पूरी हिस्ट्री)','Adjustments, picks and receipts will show up here.':'एडजस्टमेंट, पिक और आवक यहाँ दिखेंगे।','Changes to items, folders and stock counts will show up here.':'आइटम, फ़ोल्डर और स्टॉक के बदलाव यहाँ दिखेंगे।',
-'Barcode &amp; QR labels':'बारकोड और QR लेबल','Restock labels':'रीस्टॉक लेबल','Allow pop-ups to print':'प्रिंट के लिए पॉप-अप चालू करें','Code library offline — labels show text only':'कोड लाइब्रेरी ऑफ़लाइन — लेबल पर सिर्फ टेक्स्ट दिखेगा','Barcode machine':'बारकोड मशीन','Content':'क्या छापें','Code + text':'कोड + टेक्स्ट','Only barcode / QR':'सिर्फ बारकोड / QR','Only text':'सिर्फ टेक्स्ट','Border':'बॉर्डर',
+'Barcode &amp; QR labels':'बारकोड और QR लेबल','Restock labels':'रीस्टॉक लेबल','Allow pop-ups to print':'प्रिंट के लिए पॉप-अप चालू करें','Code library offline — labels show text only':'कोड लाइब्रेरी ऑफ़लाइन — लेबल पर सिर्फ टेक्स्ट दिखेगा','Barcode machine':'बारकोड मशीन','Content':'क्या छापें','Quick command':'झटपट कमांड','AI assistant':'AI असिस्टेंट','Ask anything about your stock — in Hindi or English':'स्टॉक के बारे में कुछ भी पूछें — हिंदी या English में','One line: item, quantity, rack. Add the word remove to take stock out.':'एक लाइन में: आइटम, मात्रा, रैक। स्टॉक घटाने के लिए remove या निकालो लिखें।','Which item?':'कौन सा आइटम?','Quick command':'झटपट कमांड','Code + text':'कोड + टेक्स्ट','Only barcode / QR':'सिर्फ बारकोड / QR','Only text':'सिर्फ टेक्स्ट','Border':'बॉर्डर',
 'Settings saved':'सेटिंग सेव हो गई','Recovery point saved':'बैकअप बन गया','Backup':'बैकअप','Backup downloaded':'बैकअप डाउनलोड हुआ','Backup restored':'बैकअप वापस आ गया','15-day recovery point saved automatically':'हर 15 दिन में बैकअप अपने आप बनता है','Not a valid backup file':'यह सही बैकअप फ़ाइल नहीं है','Could not read that recovery point':'वह बैकअप नहीं पढ़ पाए','All data erased':'सारा डेटा मिट गया','This device only':'सिर्फ इस फोन पर','Use on this device only (no sync)':'सिर्फ इस फोन पर (बिना सिंक)','Describe the problem first':'पहले दिक्कत लिखें','Describe what went wrong. A screenshot helps a lot.':'क्या गड़बड़ हुई, लिखें। स्क्रीनशॉट से बहुत मदद मिलती है।','Sent — the admin will see it in Help':'भेज दिया — एडमिन को मदद में दिखेगा','Could not send — tell the admin directly':'नहीं भेज पाए — एडमिन को सीधे बताएँ','Word for a place (singular)':'जगह के लिए शब्द (एकवचन)','…plural':'…बहुवचन','Which market?':'कौन सा मार्केट?','Choose market':'मार्केट चुनें','Switch market':'मार्केट बदलें',
 'Could not sync — retrying':'सिंक नहीं हुआ — दोबारा कोशिश','Could not save — storage error':'सेव नहीं हुआ — स्टोरेज की दिक्कत','Check internet on this device':'इस फोन का इंटरनेट देखें','Could not run action':'यह काम नहीं हो पाया'
 });
@@ -1182,7 +1184,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 /* ============================================================
    ROUTER + NAV
    ============================================================ */
-const NAV=[['home','Home','home'],['stock','Stock','box'],['dispatch','Dispatch','truck'],['scan','Scan','scan'],['flows','Workflows','flows'],['labels','Labels','label'],['reports','Reports','report'],['more','More','more']];
+const NAV=[['home','Home','home'],['stock','Stock','box'],['dispatch','Dispatch','truck'],['scan','Scan','scan'],['ai','AI','spark'],['flows','Workflows','flows'],['labels','Labels','label'],['reports','Reports','report'],['more','More','more']];
 function paintNav(){
   NAV.forEach(([k,label,icon])=>{
     const sn=$('#sn-'+k);if(sn)sn.innerHTML=ico(icon)+'<span>'+label+'</span>'+(k==='home'?'<span class="navbadge" id="sbadge" style="display:none"></span>':'');
@@ -1290,7 +1292,7 @@ function route(){
   const h=(location.hash||'#home').slice(1);
   const [p,a,b]=h.split('/');
   const main=$('#main');main.scrollTop=0;window.scrollTo(0,0);
-  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals,awb:()=>vAwb(a||null,b||null),uniexport:()=>{vMore();setTimeout(exportUnicommerce,30)},backups:vBackups,dash:()=>vDash(30),help:vHelp,exportall:()=>{vMore();setTimeout(exportAllItems,30)}};
+  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),ai:vAI,flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals,awb:()=>vAwb(a||null,b||null),uniexport:()=>{vMore();setTimeout(exportUnicommerce,30)},backups:vBackups,dash:()=>vDash(30),help:vHelp,exportall:()=>{vMore();setTimeout(exportAllItems,30)}};
   setActiveNav(p==='item'||p==='edit'||p==='folders'?'stock':(p==='list'||p==='po'?'flows':(p==='trash'||p==='import'?'more':((p==='return'||p==='awb')?'dispatch':p))));
   try{(map[p]||vHome)();}
   catch(e){
@@ -1933,13 +1935,78 @@ function vScan(mode,arg){
     // Barcode machine ON — no camera, just the always-focused scanner input
     h+='<div class="card pad mb" style="text-align:center;border:2px solid var(--saddle)"><div style="width:54px;height:54px;border-radius:50%;background:var(--saddle-bg);color:var(--saddle);display:grid;place-items:center;margin:0 auto 10px">'+ico('scan')+'</div><h2 style="margin:0 0 4px">Scan using the barcode scanner</h2><div class="sub">Point the machine and scan — items pop up instantly. No camera needed.</div></div>';
     h+='<div class="card pad"><div class="row"><input class="in mono grow" id="man" placeholder="Waiting for scan…" autocomplete="off" autocapitalize="off" autocorrect="off"><button class="btn pri" id="mango">Go</button></div><div class="hint">Tip: turn the barcode machine off in the menu to use the phone camera instead.</div></div>';
+  h+='<div class="card pad mt"><div class="eyebrow" style="margin-bottom:6px">Quick command</div>'+
+    '<div class="row"><input class="in grow" id="qc" placeholder="SKU / name + qty + rack — e.g. MTWL0099 5 R11C4" autocomplete="off" autocapitalize="off" autocorrect="off"><button class="btn pri" id="qc-go">Go</button></div>'+
+    '<div class="hint">One line: item, quantity, rack. Add the word remove to take stock out.</div><div id="qc-out" class="mt"></div></div>';
+
   } else {
     h+='<div class="scanwrap mb"><video id="cam" playsinline muted autoplay></video><div class="scanbox"><div class="frame"><div class="laser"></div></div></div><div class="scanmsg" id="scanmsg">Point at a barcode or QR code</div></div>';
     h+='<div class="card pad"><div class="eyebrow" style="margin-bottom:6px">Or enter code manually</div><div class="row"><input class="in mono grow" id="man" placeholder="SKU or barcode value" autocomplete="off"><button class="btn pri" id="mango">Go</button></div><div class="hint" id="camnote"></div></div>';
+  h+='<div class="card pad mt"><div class="eyebrow" style="margin-bottom:6px">Quick command</div>'+
+    '<div class="row"><input class="in grow" id="qc" placeholder="SKU / name + qty + rack — e.g. MTWL0099 5 R11C4" autocomplete="off" autocapitalize="off" autocorrect="off"><button class="btn pri" id="qc-go">Go</button></div>'+
+    '<div class="hint">One line: item, quantity, rack. Add the word remove to take stock out.</div><div id="qc-out" class="mt"></div></div>';
+
   }
   $('#main').innerHTML=h;
   const man=$('#man');
   $('#mango').onclick=()=>{const v=man.value.trim();if(v)handleCode(v)};
+
+  /* ---- Quick command: "<sku|name> <qty> <rack>" one-line stocking ---- */
+  function qcRender(msg){$('#qc-out').innerHTML=msg||''}
+  function qcParse(raw){
+    const toks=raw.trim().split(/\s+/).filter(Boolean);if(!toks.length)return null;
+    let dir=1,qty=null,rackF,rest=[];
+    const findF=t=>S.folders.find(f=>String(f.name||'').toLowerCase()===t.toLowerCase());
+    const OUTW=['remove','out','minus','nikalo','nikaal','निकालो','घटाओ','घटाएँ','माइनस'];
+    const INW=['add','in','stock','put','jodo','जोड़ो','जोड़ें','रखो'];
+    toks.forEach(t=>{
+      const lw=t.toLowerCase();
+      if(rackF===undefined){const f=findF(t);if(f){rackF=f.id;return}}
+      if(qty===null&&/^[+\-]?\d+(\.\d+)?$/.test(t)){if(t[0]==='-')dir=-1;qty=Math.abs(parseFloat(t));return}
+      if(OUTW.indexOf(lw)>=0){dir=-1;return}
+      if(INW.indexOf(lw)>=0){dir=1;return}
+      rest.push(t);
+    });
+    return {dir:dir,qty:qty,rackF:rackF,q:rest.join(' ')};
+  }
+  function qcConfirm(it,dir,n,rackF){
+    const pf=rackF!==undefined?rackF:(it.folder||null);
+    const pp=pilesOf(it).find(p=>String(p.f||'')===String(pf||''));
+    const here=pp?pp.q:0;
+    qcRender('<div class="card pad" style="border:2px solid var(--saddle)">'+
+      '<div style="font-weight:800">'+esc(it.name)+'</div>'+
+      '<div class="sub"><span class="num">'+(dir>0?'+':'−')+fmtQty(n)+'</span> → '+esc(shelfName(pf))+' · '+(langHi()?'यहाँ अभी ':'here now ')+'<span class="num">'+fmtQty(here)+'</span></div>'+
+      '<div class="row mt"><button class="btn grow" id="qc-no">Cancel</button><button class="btn pri grow" id="qc-yes">'+(dir>0?'Add':'Remove')+'</button></div></div>');
+    $('#qc-no').onclick=()=>qcRender('');
+    $('#qc-yes').onclick=()=>{
+      const old=+it.qty||0;
+      if(dir<0){const cap=here;if(n>cap+1e-9){beep(false);toast('Only '+fmtQty(cap)+' in '+shelfName(pf),'err');return}}
+      if(dir>0)pileAdd(it,pf,n);else pileDrain(it,n,pf);
+      const nv=+it.qty||0;save('items');
+      logTx(dir>0?'in':'out',{itemId:it.id,itemName:it.name,fromQ:old,toQ:nv,qty:n,reason:'Quick command',detail:'Command · '+shelfName(pf)});
+      updateBadges();beep(true);qcRender('');$('#qc').value='';
+      toast((dir>0?'Added ':'Removed ')+fmtQty(n)+' in '+shelfName(pf)+' — now '+fmtQty(nv),'ok');
+    };
+  }
+  function qcGo(){
+    if(!can('adjqty')){toast(langHi()?'आपको स्टॉक बदलने की परमिशन नहीं है':'No permission','err');return}
+    const p=qcParse($('#qc').value||'');
+    if(!p||!p.q){qcRender('');toast(langHi()?'आइटम का नाम या SKU भी लिखें':'Include an item name or SKU','err');return}
+    if(!(p.qty>0)){toast(langHi()?'मात्रा भी लिखें — जैसे: MTWL0099 5 R11C4':'Include a quantity — e.g. MTWL0099 5 R11C4','err');return}
+    let it=findByCode(p.q);
+    if(!it){
+      const cands=S.items.filter(i=>matches(i,p.q)).slice(0,6);
+      if(!cands.length){beep(false);toast(langHi()?'यह आइटम नहीं मिला':'No item matches','err');return}
+      if(cands.length===1)it=cands[0];
+      else{
+        qcRender('<div class="hint mb">'+(langHi()?'कौन सा आइटम?':'Which item?')+'</div>'+cands.map((c,ix)=>'<button class="btn block mb" data-qc="'+ix+'" style="text-align:left">'+esc(c.name)+' <span class="num sub">· '+fmtQty(c.qty)+'</span></button>').join(''));
+        $$('#qc-out [data-qc]').forEach(b=>b.onclick=()=>qcConfirm(cands[+b.dataset.qc],p.dir,p.qty,p.rackF));
+        return;
+      }
+    }
+    qcConfirm(it,p.dir,p.qty,p.rackF);
+  }
+  if($('#qc')){$('#qc-go').onclick=qcGo;$('#qc').addEventListener('keydown',e=>{if(e.key==='Enter')qcGo()})}
   man.onkeydown=e=>{if(e.key==='Enter')$('#mango').click()};
   if(hw){
     setTimeout(()=>{try{man.focus()}catch(e){}},80);
@@ -3150,6 +3217,88 @@ function vImport(){
 /* ============================================================
    MORE / SETTINGS / TRASH
    ============================================================ */
+
+/* ============================================================
+   AI ASSISTANT — inventory chatbot via Firebase AI Logic (Gemini)
+   Read-only: it can look at items/movements and answer; it never writes.
+   ============================================================ */
+let AIC=[];  /* chat history for this session */
+async function aiModelGet(){
+  if(aiModelGet.m)return aiModelGet.m;
+  const V='11.4.0';
+  const [appM,aiM]=await Promise.all([
+    import('https://www.gstatic.com/firebasejs/'+V+'/firebase-app.js'),
+    import('https://www.gstatic.com/firebasejs/'+V+'/firebase-ai.js')
+  ]);
+  const cfg=(typeof fbApp!=='undefined'&&fbApp&&fbApp.options)?fbApp.options:FB_CONFIG;
+  const app=appM.getApps().find(a=>a.name==='aiapp')||appM.initializeApp(cfg,'aiapp');
+  const ai=aiM.getAI(app,{backend:new aiM.GoogleAIBackend()});
+  aiModelGet.m=aiM.getGenerativeModel(ai,{model:'gemini-2.5-flash'});
+  return aiModelGet.m;
+}
+function aiContext(){
+  let lines=S.items.map(i=>{
+    const racks=isMultiRack(i)?pilesOf(i).map(p=>shelfName(p.f)+':'+fmtQty(p.q)).join('|'):shelfName(i.folder);
+    return [i.name,(skusOf(i)[0]||''),fmtQty(i.qty),racks,(i.min||''),(i.price||'')].join(' ~ ');
+  }).join('\n');
+  if(lines.length>220000)lines=lines.slice(0,220000)+'\n…(truncated)';
+  const tx=S.txns.slice(0,150).map(t=>[new Date(t.ts).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}),t.act,(t.itemName||''),(t.qty!=null?fmtQty(t.qty):''),(t.detail||t.reason||''),(t.user||'')].join(' ~ ')).join('\n');
+  const low=lowItems().length,units=fmtQty(sum(S.items,i=>+i.qty||0));
+  return 'You are the inventory assistant inside "Invento", the warehouse app of '+(S.meta.company||'this business')+' (leather goods, Udaipur, India). Today: '+new Date().toDateString()+'.\n'+
+  'Rules: answer ONLY from the DATA below with exact numbers; if the answer is not in the data, say you do not know; be short and practical for warehouse staff; reply in the same language the user writes (use Devanagari Hindi for Hindi'+(langHi()?'; the app is currently in Hindi mode, so prefer Hindi':'')+'); match loosely-written item names to the closest item and say which one you matched; never invent items, quantities or racks; you cannot change stock — if asked to, explain how to do it in the app (Scan page, Quick command, or item page).\n\n'+
+  'DATA\nTOTALS: '+S.items.length+' items · '+units+' units · '+low+' low-stock.\n'+
+  'ITEMS (name ~ sku ~ total qty ~ location/racks ~ min ~ price):\n'+lines+'\n\n'+
+  'RECENT MOVEMENTS (newest first · time ~ action ~ item ~ qty ~ detail ~ by):\n'+tx;
+}
+function aiPaint(){
+  const box=$('#ai-log');if(!box)return;
+  box.innerHTML=AIC.map(m=>{
+    const me=m.role==='user';
+    const t=esc(m.text).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');
+    return '<div style="max-width:88%;padding:10px 13px;border-radius:14px;line-height:1.45;'+(me
+      ?'align-self:flex-end;background:var(--saddle);color:#fff;border-bottom-right-radius:4px'
+      :'align-self:flex-start;background:var(--card);border:1px solid var(--line2);border-bottom-left-radius:4px')+'">'+t+'</div>';
+  }).join('')+($('#ai-log').dataset.busy?'<div class="sub" style="align-self:flex-start;padding:6px 13px">'+(langHi()?'सोच रहा है…':'Thinking…')+'</div>':'');
+  box.scrollTop=box.scrollHeight;
+}
+async function aiSend(){
+  const inp=$('#ai-q');const q=(inp.value||'').trim();if(!q)return;
+  inp.value='';AIC.push({role:'user',text:q});
+  $('#ai-log').dataset.busy='1';aiPaint();$('#ai-send').disabled=true;
+  try{
+    const model=await aiModelGet();
+    const res=await model.generateContent({
+      systemInstruction:{role:'system',parts:[{text:aiContext()}]},
+      contents:AIC.map(m=>({role:m.role==='user'?'user':'model',parts:[{text:m.text}]}))
+    });
+    const out=(res&&res.response&&res.response.text&&res.response.text())||'';
+    AIC.push({role:'model',text:out||(langHi()?'AI जवाब नहीं दे पाया':'No answer')});
+  }catch(e){
+    console.error('ai',e);
+    const msg=String(e&&e.message||e);
+    AIC.push({role:'model',text:(langHi()?'AI जवाब नहीं दे पाया। ':'AI could not answer. ')+
+      (/403|permission|not.*enabled|api.*disabled|blocked/i.test(msg)
+        ?(langHi()?'Firebase console → AI Logic → "Get started" दबाकर Gemini Developer API चालू करें, फिर दोबारा कोशिश करें।':'Enable it once: Firebase console → AI Logic → Get started (Gemini Developer API), then try again.')
+        :(langHi()?'इंटरनेट देखें और दोबारा कोशिश करें।':'Check the connection and try again.'))});
+  }
+  delete $('#ai-log').dataset.busy;$('#ai-send').disabled=false;aiPaint();
+}
+function vAI(){
+  topTitle('AI','#home');
+  let h='<h1 class="page">AI</h1>';
+  h+='<div class="card pad mb"><div class="row" style="align-items:flex-start;gap:10px"><span class="th" style="background:var(--saddle-bg);color:var(--saddle);flex:0 0 auto">'+ico('spark')+'</span><div class="sub">'+
+    (langHi()?'अपने स्टॉक के बारे में कुछ भी पूछें — जैसे: "शैनन टोट कितने बचे हैं?", "R11C4 में क्या-क्या रखा है?", "आज किसने क्या निकाला?", "कौन से आइटम कम हो रहे हैं?"'
+    :'Ask anything about your stock — e.g. "How many Shannon Totes are left?", "What is in R11C4?", "What went out today?", "What is running low?"')+'</div></div></div>';
+  h+='<div id="ai-log" data-noi18n style="display:flex;flex-direction:column;gap:10px;margin-bottom:12px;min-height:120px;max-height:52vh;overflow-y:auto"></div>';
+  h+='<div class="row" data-noi18n><input class="in grow" id="ai-q" placeholder="'+(langHi()?'अपने स्टॉक के बारे में पूछें…':'Ask about your inventory…')+'" autocomplete="off"><button class="btn pri" id="ai-send">'+(langHi()?'पूछें':'Ask')+'</button></div>';
+  h+='<div class="row mt"><button class="btn sm" id="ai-clr">'+(langHi()?'चैट साफ़ करें':'Clear chat')+'</button></div>';
+  $('#main').innerHTML=h;
+  aiPaint();
+  $('#ai-send').onclick=aiSend;
+  $('#ai-q').addEventListener('keydown',e=>{if(e.key==='Enter')aiSend()});
+  $('#ai-clr').onclick=()=>{AIC=[];aiPaint()};
+}
+
 function vMore(){
   topTitle('More','#home');
   let h='<h1 class="page">More</h1>';
@@ -3160,6 +3309,7 @@ function vMore(){
   rows.push(['#trash',ico('trash'),'Trash','Restore deleted items ('+S.trash.length+')']);
   if(can('dispatch')){const od=awbOverdue().length;rows.push(['#awb',ico('ticket'),'AWB / Shipments'+(od?' ('+od+')':''),'Accept, dispatch & track shipping labels'+(od?' — '+od+' overdue':'')]);}
   if(isAdminU())rows.push(['#orders',ico('truck'),'Dispatch orders','Review orders, SKUs, photos & data used']);
+  rows.push(['#ai',ico('spark'),'AI assistant','Ask anything about your stock — in Hindi or English']);
   rows.push(['#help',ico('inbox'),'Help & FAQ','How-to guides · report a problem']);
   if(isAdminU())rows.push(['#dash',ico('chart'),'Dashboard','Sales, best sellers, reorder & risk analysis']);
   if(isAdminU())rows.push(['#backups',ico('undo'),'Recovery points','Auto snapshot every 15 days · restore anytime']);
