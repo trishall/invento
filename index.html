@@ -3225,7 +3225,7 @@ function vImport(){
 let AIC=[];  /* chat history for this session */
 async function aiModelGet(){
   if(aiModelGet.m)return aiModelGet.m;
-  const V='11.4.0';
+  const V='12.16.0';
   const [appM,aiM]=await Promise.all([
     import('https://www.gstatic.com/firebasejs/'+V+'/firebase-app.js'),
     import('https://www.gstatic.com/firebasejs/'+V+'/firebase-ai.js')
@@ -3277,9 +3277,10 @@ async function aiSend(){
     console.error('ai',e);
     const msg=String(e&&e.message||e);
     AIC.push({role:'model',text:(langHi()?'AI जवाब नहीं दे पाया। ':'AI could not answer. ')+
-      (/403|permission|not.*enabled|api.*disabled|blocked/i.test(msg)
-        ?(langHi()?'Firebase console → AI Logic → "Get started" दबाकर Gemini Developer API चालू करें, फिर दोबारा कोशिश करें।':'Enable it once: Firebase console → AI Logic → Get started (Gemini Developer API), then try again.')
-        :(langHi()?'इंटरनेट देखें और दोबारा कोशिश करें।':'Check the connection and try again.'))});
+      (/403|permission|not.*enabled|api.*disabled|SERVICE_DISABLED|has not been used|aiplatform|firebasevertexai|blocked/i.test(msg)
+        ?(langHi()?'Firebase console → AI Logic → Settings में Vertex AI Gemini API चालू करें, फिर दोबारा कोशिश करें।':'Enable it once: Firebase console → AI Logic → Settings → enable Vertex AI Gemini API, then try again.')
+        :(langHi()?'इंटरनेट देखें और दोबारा कोशिश करें।':'Check the connection and try again.'))+
+      '\n\n[' + msg.slice(0,180) + ']'});
   }
   delete $('#ai-log').dataset.busy;$('#ai-send').disabled=false;aiPaint();
 }
