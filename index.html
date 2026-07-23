@@ -3275,12 +3275,12 @@ async function aiSend(){
     AIC.push({role:'model',text:out||(langHi()?'AI जवाब नहीं दे पाया':'No answer')});
   }catch(e){
     console.error('ai',e);
-    const msg=String(e&&e.message||e);
+    const msg=String(e&&e.message||e).replace(/https:\/\/[^\s:]+[^\s]*/g,'<api>');
     AIC.push({role:'model',text:(langHi()?'AI जवाब नहीं दे पाया। ':'AI could not answer. ')+
-      (/403|permission|not.*enabled|api.*disabled|SERVICE_DISABLED|has not been used|aiplatform|firebasevertexai|blocked/i.test(msg)
+      (/403|permission|not.*enabled|api.*disabled|SERVICE_DISABLED|has not been used/i.test(msg)
         ?(langHi()?'Firebase console → AI Logic → Settings में Vertex AI Gemini API चालू करें, फिर दोबारा कोशिश करें।':'Enable it once: Firebase console → AI Logic → Settings → enable Vertex AI Gemini API, then try again.')
         :(langHi()?'इंटरनेट देखें और दोबारा कोशिश करें।':'Check the connection and try again.'))+
-      '\n\n[' + msg.slice(0,180) + ']'});
+      '\n\n[' + msg.slice(0,500) + ']'});
   }
   delete $('#ai-log').dataset.busy;$('#ai-send').disabled=false;aiPaint();
 }
