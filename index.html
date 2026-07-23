@@ -3232,7 +3232,7 @@ async function aiModelGet(){
   ]);
   const cfg=(typeof fbApp!=='undefined'&&fbApp&&fbApp.options)?fbApp.options:FB_CONFIG;
   const app=appM.getApps().find(a=>a.name==='aiapp')||appM.initializeApp(cfg,'aiapp');
-  const ai=aiM.getAI(app,{backend:new aiM.GoogleAIBackend()});
+  const ai=aiM.getAI(app,{backend:new aiM.VertexAIBackend()});
   aiModelGet.m=aiM.getGenerativeModel(ai,{model:'gemini-2.5-flash'});
   return aiModelGet.m;
 }
