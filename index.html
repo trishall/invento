@@ -903,6 +903,7 @@ function userName(){
 }
 function logTx(act,o){
   const t=Object.assign({id:uid('t'),ts:Date.now(),user:userName(),act:act},o||{});
+  try{if((act==='out'||act==='dispatch'||act==='pick')&&o&&o.itemId&&(+o.fromQ>0)&&((+o.toQ||0)<=0))queueStockoutPrompt(o.itemId)}catch(e){}
   S.txns.unshift(t);
   if(S.txns.length>1500)S.txns.length=1500;
   if(MODE==='cloud'){if(writeOK(1)){try{db.collection('txns').doc(t.id).set(clean(t))}catch(e){console.error('txn',e)}}else wlBlocked();}
@@ -1083,7 +1084,7 @@ Object.assign(HI,{
 'Change my password':'पासवर्ड बदलें','Confirm new password':'नया पासवर्ड दोबारा','New password (min 6 characters)':'नया पासवर्ड (कम से कम 6 अक्षर)','New password must be 6+ characters':'नया पासवर्ड 6+ अक्षर का हो','New passwords do not match':'दोनों पासवर्ड मेल नहीं खाते','Password updated':'पासवर्ड बदल गया','Password must be 6+ characters':'पासवर्ड 6+ अक्षर का हो','Password must be at least 6 characters':'पासवर्ड कम से कम 6 अक्षर का हो','Password (min 6)':'पासवर्ड (कम से कम 6)','Enter your password':'अपना पासवर्ड भरें','Enter your current password':'अभी का पासवर्ड भरें','Enter your email/ID and password':'ईमेल/ID और पासवर्ड भरें','Enter your user ID':'अपना यूज़र ID भरें','Your email':'आपका ईमेल','Your password':'आपका पासवर्ड','Your user ID':'आपका यूज़र ID','Forgot password':'पासवर्ड भूल गए','Request sent — the admin will set a new password':'रिक्वेस्ट भेज दी — एडमिन नया पासवर्ड सेट करेंगे','Add email & password':'ईमेल और पासवर्ड जोड़ें','My account has no email (old account)':'मेरे अकाउंट में ईमेल नहीं है (पुराना अकाउंट)','Enter a valid email':'सही ईमेल भरें','Enter a real email address':'सही ईमेल पता भरें','Enter a valid phone number':'सही फोन नंबर भरें','Link phone number':'फोन नंबर जोड़ें','Phone linked — you can now sign in by SMS too':'फोन जुड़ गया — अब SMS से भी लॉग इन कर सकते हैं','SMS code':'SMS कोड','Enter the code':'कोड भरें','Enter the 6-digit code':'6 अंकों का कोड भरें','Code sent again':'कोड दोबारा भेजा','Check your inbox':'अपना इनबॉक्स देखें','Verification email sent — check inbox/spam':'वेरिफ़िकेशन ईमेल भेजा — इनबॉक्स/स्पैम देखें','At least 6 characters':'कम से कम 6 अक्षर','Pick a user ID (letters/numbers)':'यूज़र ID चुनें (अक्षर/नंबर)','Delete my account':'मेरा अकाउंट डिलीट करें','Delete account':'अकाउंट डिलीट करें','Sign out':'लॉग आउट',
 'Import items from CSV':'CSV से आइटम लाएँ','Choose a CSV file':'CSV फ़ाइल चुनें','or drop it here':'या यहाँ छोड़ें','Ready to import':'इम्पोर्ट के लिए तैयार','Valid rows':'सही लाइनें','Skipped rows':'छोड़ी गई लाइनें','Show skipped rows':'छोड़ी गई लाइनें दिखाएँ','Create as new item':'नया आइटम बनाएँ','Create as new items anyway':'फिर भी नए आइटम बनाएँ','Update existing items (qty &amp; details)':'पुराने आइटम अपडेट करें (मात्रा और जानकारी)','Could not read file':'फ़ाइल नहीं पढ़ पाए','Could not find Name and Quantity columns':'Name और Quantity कॉलम नहीं मिले','File needs a header row and at least one data row':'फ़ाइल में हेडर और कम से कम एक लाइन चाहिए','Not sure of the format?':'फॉर्मेट समझ नहीं आ रहा?','download this file':'यह फ़ाइल डाउनलोड करें','Template downloaded — fill it and import':'टेम्पलेट डाउनलोड हुआ — भरकर इम्पोर्ट करें','Minimum columns:':'कम से कम कॉलम:','CSV downloaded':'CSV डाउनलोड हो गई','No items to export':'एक्सपोर्ट के लिए कुछ नहीं','Sample data loaded':'सैंपल डेटा आ गया','Load sample leather-goods data':'लेदर सामान का सैंपल डेटा भरें','Imported —':'इम्पोर्ट हुआ —','Review import results':'इम्पोर्ट का नतीजा देखें',
 'Sales & reorder':'बिक्री और री-ऑर्डर','Best sellers':'सबसे ज़्यादा बिके','No sales data yet':'अभी बिक्री का डेटा नहीं','No activity in this period':'इस दौरान कोई एक्टिविटी नहीं','No movements in this period':'इस दौरान कोई मूवमेंट नहीं','No stock changes in that period':'उस दौरान स्टॉक में बदलाव नहीं','Nothing is low':'कुछ भी कम नहीं है','In &amp; out':'आया और गया','Total in':'कुल आया','Total out':'कुल गया','Stock in only':'सिर्फ आया','Stock out only':'सिर्फ गया','All actions':'सारे काम','Last 30 days (full history)':'पिछले 30 दिन (पूरी हिस्ट्री)','Adjustments, picks and receipts will show up here.':'एडजस्टमेंट, पिक और आवक यहाँ दिखेंगे।','Changes to items, folders and stock counts will show up here.':'आइटम, फ़ोल्डर और स्टॉक के बदलाव यहाँ दिखेंगे।',
-'Barcode &amp; QR labels':'बारकोड और QR लेबल','Restock labels':'रीस्टॉक लेबल','Allow pop-ups to print':'प्रिंट के लिए पॉप-अप चालू करें','Code library offline — labels show text only':'कोड लाइब्रेरी ऑफ़लाइन — लेबल पर सिर्फ टेक्स्ट दिखेगा','Barcode machine':'बारकोड मशीन','Content':'क्या छापें','Quick command':'झटपट कमांड','AI assistant':'AI असिस्टेंट','Ask anything about your stock — in Hindi or English':'स्टॉक के बारे में कुछ भी पूछें — हिंदी या English में','One line: item, quantity, rack. Add the word remove to take stock out.':'एक लाइन में: आइटम, मात्रा, रैक। स्टॉक घटाने के लिए remove या निकालो लिखें।','Which item?':'कौन सा आइटम?','Quick command':'झटपट कमांड','Code + text':'कोड + टेक्स्ट','Only barcode / QR':'सिर्फ बारकोड / QR','Only text':'सिर्फ टेक्स्ट','Border':'बॉर्डर',
+'Barcode &amp; QR labels':'बारकोड और QR लेबल','Restock labels':'रीस्टॉक लेबल','Allow pop-ups to print':'प्रिंट के लिए पॉप-अप चालू करें','Code library offline — labels show text only':'कोड लाइब्रेरी ऑफ़लाइन — लेबल पर सिर्फ टेक्स्ट दिखेगा','Barcode machine':'बारकोड मशीन','Content':'क्या छापें','Quick command':'झटपट कमांड','Cancelled':'रद्द','Cancel PO':'PO रद्द करें','Pending order nos. — e.g. #1043, #1051':'पेंडिंग ऑर्डर नं. — जैसे #1043, #1051','AI assistant':'AI असिस्टेंट','Ask anything about your stock — in Hindi or English':'स्टॉक के बारे में कुछ भी पूछें — हिंदी या English में','One line: item, quantity, rack. Add the word remove to take stock out.':'एक लाइन में: आइटम, मात्रा, रैक। स्टॉक घटाने के लिए remove या निकालो लिखें।','Which item?':'कौन सा आइटम?','Quick command':'झटपट कमांड','Code + text':'कोड + टेक्स्ट','Only barcode / QR':'सिर्फ बारकोड / QR','Only text':'सिर्फ टेक्स्ट','Border':'बॉर्डर',
 'Settings saved':'सेटिंग सेव हो गई','Recovery point saved':'बैकअप बन गया','Backup':'बैकअप','Backup downloaded':'बैकअप डाउनलोड हुआ','Backup restored':'बैकअप वापस आ गया','15-day recovery point saved automatically':'हर 15 दिन में बैकअप अपने आप बनता है','Not a valid backup file':'यह सही बैकअप फ़ाइल नहीं है','Could not read that recovery point':'वह बैकअप नहीं पढ़ पाए','All data erased':'सारा डेटा मिट गया','This device only':'सिर्फ इस फोन पर','Use on this device only (no sync)':'सिर्फ इस फोन पर (बिना सिंक)','Describe the problem first':'पहले दिक्कत लिखें','Describe what went wrong. A screenshot helps a lot.':'क्या गड़बड़ हुई, लिखें। स्क्रीनशॉट से बहुत मदद मिलती है।','Sent — the admin will see it in Help':'भेज दिया — एडमिन को मदद में दिखेगा','Could not send — tell the admin directly':'नहीं भेज पाए — एडमिन को सीधे बताएँ','Word for a place (singular)':'जगह के लिए शब्द (एकवचन)','…plural':'…बहुवचन','Which market?':'कौन सा मार्केट?','Choose market':'मार्केट चुनें','Switch market':'मार्केट बदलें',
 'Could not sync — retrying':'सिंक नहीं हुआ — दोबारा कोशिश','Could not save — storage error':'सेव नहीं हुआ — स्टोरेज की दिक्कत','Check internet on this device':'इस फोन का इंटरनेट देखें','Could not run action':'यह काम नहीं हो पाया'
 });
@@ -1634,6 +1635,7 @@ function vItem(id){
   const adj=async dir=>{
     let n=round4(parseFloat(an.value));
     if(!(n>0)){toast('Enter how many to '+(dir>0?'add':'remove'),'err');return}
+    if(dir>0&&guardPOBeforeAdd(i,()=>adj(dir)))return;
     const old=+i.qty||0;
     if(dir<0&&n>old){toast('Only '+fmtQty(old)+' in stock','err');return}
     const reason=$('#adj-r').value;
@@ -1880,7 +1882,10 @@ function addToDlg(i){
   h+='<button class="btn block" style="justify-content:flex-start" data-po="new">'+ico('plus')+'New purchase order</button>';
   openModal(h);
   $$('#modal [data-pl]').forEach(b=>b.onclick=async()=>{closeModal();const id=b.dataset.pl==='new'?await createList():b.dataset.pl;const l=S.lists.find(x=>x.id===id);addLineToList(l,i,1);save('lists');toast('Added to '+l.name,'ok');go('#list/'+id)});
-  $$('#modal [data-po]').forEach(b=>b.onclick=async()=>{closeModal();const id=b.dataset.po==='new'?await createPO():b.dataset.po;const p=S.pos.find(x=>x.id===id);addLineToPO(p,i,1);save('pos');toast('Added to '+p.number,'ok');go('#po/'+id)});
+  $$('#modal [data-po]').forEach(b=>b.onclick=async()=>{closeModal();
+    const dup=openPOFor(i.id);
+    if(dup&&b.dataset.po!==dup.id){toast((langHi()?'पहले से ':'Already on ')+dup.number+(langHi()?' पर है':''),'err');go('#po/'+dup.id);return}
+    const id=b.dataset.po==='new'?await createPO():b.dataset.po;const p=S.pos.find(x=>x.id===id);if(!addLineToPO(p,i,1))return;save('pos');toast('Added to '+p.number,'ok');go('#po/'+id)});
 }
 
 /* ============================================================
@@ -1979,6 +1984,7 @@ function vScan(mode,arg){
       '<div class="row mt"><button class="btn grow" id="qc-no">Cancel</button><button class="btn pri grow" id="qc-yes">'+(dir>0?'Add':'Remove')+'</button></div></div>');
     $('#qc-no').onclick=()=>qcRender('');
     $('#qc-yes').onclick=()=>{
+      if(dir>0&&guardPOBeforeAdd(it,()=>{const b=$('#qc-yes');if(b)b.click()}))return;
       const old=+it.qty||0;
       if(dir<0){const cap=here;if(n>cap+1e-9){beep(false);toast('Only '+fmtQty(cap)+' in '+shelfName(pf),'err');return}}
       if(dir>0)pileAdd(it,pf,n);else pileDrain(it,n,pf);
@@ -2045,6 +2051,7 @@ function vScan(mode,arg){
     const apply=async dir=>{
       let n=round4(parseFloat(q.value));
       if(!(n>0)){toast('Enter how many','err');return}
+      if(dir>0&&guardPOBeforeAdd(it,()=>apply(dir)))return;
       const old=+it.qty||0;
       if(dir<0&&n>old){beep(false);toast('Only '+fmtQty(old)+' in stock','err');return}
       const reason=$('#qs-r').value;
@@ -2195,7 +2202,7 @@ function printNow(){
    WORKFLOWS HUB — PICK LISTS + PURCHASE ORDERS
    ============================================================ */
 const PL_STATUS={draft:['Draft','gray'],progress:['In progress','info'],completed:['Completed','ok']};
-const PO_STATUS={draft:['Draft','gray'],ordered:['Ordered','info'],partial:['Partially received','warn'],received:['Received','ok']};
+const PO_STATUS={draft:['Draft','gray'],ordered:['Ordered','info'],partial:['Partially received','warn'],received:['Received','ok'],cancelled:['Cancelled','danger']};
 function plPill(s){const x=PL_STATUS[s]||PL_STATUS.draft;return '<span class="pill '+x[1]+'">'+x[0]+'</span>'}
 function poPill(s){const x=PO_STATUS[s]||PO_STATUS.draft;return '<span class="pill '+x[1]+'">'+x[0]+'</span>'}
 
@@ -2219,7 +2226,7 @@ function vFlows(tab){
     if(!S.pos.length)h+='<div class="empty">'+ico('po')+'<div class="t">No purchase orders yet</div><div class="s">Raise a PO on a vendor, then receive goods against it — received quantities add straight into stock.</div></div>';
     else{
       const ps=S.pos.slice().sort((a,b)=>{
-        const ao=a.status!=='received',bo=b.status!=='received';
+        const ao=!poClosed(a),bo=!poClosed(b);
         if(ao!==bo)return ao?-1:1;
         const ah=a.priority==='high'?1:0,bh=b.priority==='high'?1:0;
         if(ah!==bh)return bh-ah;
@@ -2229,12 +2236,16 @@ function vFlows(tab){
         const total=sum(p.items,x=>(+x.qty||0)*(+x.cost||0));
         const recd=sum(p.items,x=>+x.received||0),ordq=sum(p.items,x=>+x.qty||0);
         const late=poIsOverdue(p);
-        const cls=p.status==='received'?'done':(late?'late':(p.priority==='high'?'hi':'lo'));
+        const cls=poClosed(p)?'done':(late?'late':(p.priority==='high'?'hi':'lo'));
         h+='<button class="pocard '+cls+'" data-open="po/'+p.id+'">'+
           '<div class="po-t">'+esc(p.number)+(p.priority==='high'?'<span class="pill danger">HIGH</span>':'')+(p.auto?'<span class="pill info">AUTO</span>':'')+poPill(p.status)+'</div>'+
           '<div class="po-m">'+(p.vendor?esc(p.vendor)+' · ':'')+'<span class="num">'+p.items.length+' lines · '+fmtUSD(total,0)+'</span>'+
             (p.expected?' · <span class="po-due'+(late?' over':'')+'">'+(late?'was due '+poDaysLate(p)+'d ago':'due '+esc(p.expected))+'</span>':'')+'</div>'+
-          (p.status!=='draft'&&ordq>0?'<div class="prog"><i style="width:'+Math.min(100,Math.round(recd/ordq*100))+'%"></i></div>':'')+
+          (()=>{const nms=p.items.map(x=>{const it=iById(x.itemId);return it?it.name:''}).filter(Boolean);
+            return nms.length?'<div class="po-m ellip" style="opacity:.75">'+esc(nms.slice(0,3).join(', '))+(nms.length>3?' +'+(nms.length-3):'')+'</div>':''})()+
+          (()=>{const pend=p.items.map(x=>x.pending).filter(Boolean).join(', ');
+            return pend?'<div class="po-m ellip" style="color:var(--amber);font-weight:600">⏳ '+esc(pend)+'</div>':''})()+
+          (p.status!=='draft'&&p.status!=='cancelled'&&ordq>0?'<div class="prog"><i style="width:'+Math.min(100,Math.round(recd/ordq*100))+'%"></i></div>':'')+
           '</button>';
       });
     }
@@ -2454,6 +2465,55 @@ function vList(id){
 }
 
 /* ---------- purchase orders ---------- */
+
+/* -------- Out-of-stock → PO prompt (only at the moment it hits zero) -------- */
+let _soQ=[],_soT=null;
+function queueStockoutPrompt(itemId){
+  if(!can('additem')&&!isAdminU())return;
+  _soQ.push(itemId);clearTimeout(_soT);_soT=setTimeout(showStockoutPrompt,700);
+}
+function showStockoutPrompt(){
+  const ids=Array.from(new Set(_soQ));_soQ=[];
+  const items=ids.map(iById).filter(Boolean).filter(i=>(+i.qty||0)<=0);
+  if(!items.length)return;
+  const fresh=items.filter(i=>!openPOFor(i.id));
+  const onpo=items.filter(i=>openPOFor(i.id));
+  if(!fresh.length){
+    if(onpo.length){const p0=openPOFor(onpo[0].id);toast(onpo[0].name+(langHi()?' खत्म — पहले से ':' out of stock — already on ')+p0.number,'warn')}
+    return;
+  }
+  openModal('<h3>'+(langHi()?'स्टॉक खत्म':'Out of stock')+'</h3><p class="sub mb">'+(langHi()?'ये आइटम अभी खत्म हुए हैं। परचेज़ ऑर्डर में जोड़ें?':'These items just ran out. Add them to a purchase order?')+'</p>'+
+    fresh.map((i,ix)=>'<label class="row" style="gap:9px;margin-bottom:8px;align-items:center;cursor:pointer"><input type="checkbox" data-soc="'+ix+'" checked style="width:19px;height:19px;accent-color:var(--saddle)"><span class="grow ellip" style="font-weight:600">'+esc(i.name)+'</span></label>').join('')+
+    (onpo.length?'<div class="hint mb">'+onpo.map(i=>{const p0=openPOFor(i.id);return esc(i.name)+(langHi()?' — पहले से ':' — already on ')+p0.number}).join('<br>')+'</div>':'')+
+    '<div class="row mt" style="gap:9px"><button class="btn grow" onclick="closeModal()">'+(langHi()?'छोड़ें':'Skip')+'</button><button class="btn pri grow" id="so-add">'+(langHi()?'PO में जोड़ें':'Add to PO')+'</button></div>');
+  const sb=$('#so-add');if(sb)sb.onclick=async()=>{
+    const chosen=fresh.filter((i,ix)=>{const c=$('#modal [data-soc="'+ix+'"]');return c&&c.checked});
+    closeModal();if(!chosen.length)return;
+    let p=S.pos.find(x=>x.status==='draft');
+    if(!p){const id=await createPO();p=S.pos.find(x=>x.id===id)}
+    let n=0;chosen.forEach(i=>{const need=Math.max(round4((+i.min||0)-(+i.qty||0)),1);if(addLineToPO(p,i,need))n++});
+    if(n){p.updatedAt=Date.now();await saveNow('pos');logTx('po',{detail:n+' out-of-stock item'+(n>1?'s':'')+' added to '+p.number});toast(n+(langHi()?' आइटम '+p.number+' में जुड़े':' item'+(n>1?'s':'')+' added to '+p.number),'ok')}
+  };
+}
+/* -------- Manual stock-in guard: acknowledge the open PO first -------- */
+function guardPOBeforeAdd(it,retry){
+  const p=openPOFor(it.id);
+  if(!p)return false;
+  if(p.status==='draft'){toast((langHi()?'नोट: यह आइटम ड्राफ्ट ':'Note: also on draft ')+p.number+(langHi()?' पर भी है':''),'warn');return false}
+  openModal('<h3>'+(langHi()?'पहले PO निपटाएँ':'PO pending for this item')+'</h3><p class="sub mb">'+esc(it.name)+(langHi()?' पहले से ':' is already on ')+'<b>'+esc(p.number)+'</b> ('+(PO_STATUS[p.status]||['?'])[0]+'). '+(langHi()?'पहले उस PO को receive या cancel करें, तभी स्टॉक जोड़ें — ताकि PO का हिसाब बना रहे।':'Receive or cancel that PO first so it stays acknowledged, then add stock.')+'</p>'+
+    '<button class="btn pri block mb" id="gpo-open">'+(langHi()?'खोलें ':'Open ')+esc(p.number)+'</button>'+
+    (isAdminU()?'<button class="btn block mb" id="gpo-cancel">'+(langHi()?'इसकी PO लाइन cancel करके जोड़ें':'Cancel its PO line & add anyway')+'</button>':'')+
+    '<button class="btn block" onclick="closeModal()">'+(langHi()?'वापस':'Back')+'</button>');
+  const go1=$('#gpo-open');if(go1)go1.onclick=()=>{closeModal();go('#po/'+p.id)};
+  const gc=$('#gpo-cancel');if(gc)gc.onclick=()=>{closeModal();
+    p.items=(p.items||[]).filter(x=>x.itemId!==it.id);
+    if(!p.items.length)p.status='cancelled';
+    p.updatedAt=Date.now();save('pos');
+    logTx('po',{detail:p.number+': line for '+it.name+' cancelled before manual stock-in'});
+    if(retry)setTimeout(retry,60)};
+  return true;
+}
+
 /* -------- Auto purchase orders (min-stock reorder) --------
    Items ticked "auto-add to PO" that fall to/below their min are
    collected into one draft PO named by AUTO_PO flag. An item already
@@ -2476,7 +2536,9 @@ function maybePoOverduePopup(){
 }
 let _apoT=null;
 function scheduleAutoPO(){clearTimeout(_apoT);_apoT=setTimeout(()=>{autoPOSweep().catch(()=>{})},900)}
-function itemOnOpenPO(itemId){return S.pos.some(p=>p.status!=='received'&&(p.items||[]).some(x=>x.itemId===itemId))}
+function poClosed(p){return p.status==='received'||p.status==='cancelled'}
+function openPOFor(itemId){return S.pos.find(p=>!poClosed(p)&&(p.items||[]).some(x=>x.itemId===itemId))||null}
+function itemOnOpenPO(itemId){return !!openPOFor(itemId)}
 async function autoPOSweep(){
   if(!can('additem')&&!isAdminU())return; // needs write perms to create POs
   const due=S.items.filter(i=>i.autoPO&&(+i.min>0)&&((+i.qty||0)<=(+i.min))&&!itemOnOpenPO(i.id));
@@ -2672,17 +2734,19 @@ async function createPO(){
   return p.id;
 }
 function addLineToPO(p,i,n){
-  if(!p)return;
+  if(!p)return false;
+  const other=S.pos.find(o=>o.id!==p.id&&!poClosed(o)&&(o.items||[]).some(x=>x.itemId===i.id));
+  if(other){toast((langHi()?'पहले से ':'Already on ')+other.number+(langHi()?' पर है — डुप्लीकेट रोका':' — duplicate blocked'),'err');return false}
   const ex=p.items.find(x=>x.itemId===i.id);
   if(ex)ex.qty=round4((+ex.qty||0)+(n||1));
   else p.items.push({itemId:i.id,qty:n||1,cost:+i.cost||0,received:0});
-  p.updatedAt=Date.now();
+  p.updatedAt=Date.now();return true;
 }
 function poVendors(){const m={};S.pos.forEach(p=>{if(p.vendor)m[p.vendor.trim()]=1});return Object.keys(m).sort()}
 function vPO(id){
   const p=S.pos.find(x=>x.id===id);
   if(!p){toast('PO not found','err');go('#flows/po');return}
-  const ro=p.status==='received';
+  const ro=poClosed(p);
   const editable=p.status==='draft';
   topTitle(p.number,'#flows/po');
   const total=sum(p.items,x=>(+x.qty||0)*(+x.cost||0));
@@ -2704,7 +2768,9 @@ function vPO(id){
           (editable
             ?'<span class="row" style="gap:7px;margin-top:5px">Qty <input class="in num" data-poq="'+ix+'" inputmode="decimal" value="'+fmtQty(x.qty)+'" style="width:70px;padding:7px 8px;text-align:right"> @ <input class="in num" data-poc="'+ix+'" inputmode="decimal" value="'+esc(x.cost)+'" style="width:84px;padding:7px 8px;text-align:right"></span>'
             :fmtQty(x.qty)+' @ '+fmtUSD(+x.cost||0)+(p.status!=='draft'?' · received '+fmtQty(x.received)+((+x.damaged||0)?' · <span style=\"color:var(--red);font-weight:700\">'+fmtQty(x.damaged)+' dmg</span>':'')+((+x.received||0)>0?(x.checked?' · <span style=\"color:var(--green);font-weight:700\">✓ checked</span>':' · <span style=\"color:var(--amber);font-weight:700\">check pending</span>'):''):''))+
-        '</div></div>'+
+        '</div>'+
+          '<input class="in" data-pop="'+ix+'" value="'+esc(x.pending||'')+'" placeholder="'+(langHi()?'पेंडिंग ऑर्डर नं. — जैसे #1043, #1051':'Pending order nos. — e.g. #1043, #1051')+'" style="margin-top:6px;font-size:12.5px;padding:7px 9px;width:100%" '+(ro?'disabled':'')+'>'+
+        '</div>'+
         '<div style="text-align:right;flex:0 0 auto"><div class="num" style="font-weight:800">'+fmtUSD((+x.qty||0)*(+x.cost||0),0)+'</div>'+
         (editable?'<button class="icobtn ghost" data-porm="'+ix+'" aria-label="Remove" style="margin-top:5px;width:30px;height:30px">'+ico('x')+'</button>':'')+
         '</div></div>';
@@ -2715,7 +2781,7 @@ function vPO(id){
   if(p.status==='draft')h+='<button class="btn pri grow" id="po-order" '+(p.items.length?'':'disabled')+'>'+ico('check')+'Mark as ordered</button>';
   if(p.status==='ordered'||p.status==='partial')h+='<button class="btn pri grow" id="po-recv">'+ico('down')+'Receive items</button>';
   h+='</div>';
-  h+='<div class="row wrap" style="gap:9px"><button class="btn grow" id="po-print">'+ico('print')+'Print PO</button><button class="btn grow" id="po-csv">'+ico('csv')+'CSV</button>'+(!ro&&isAdminU()?'<button class="btn danger" id="po-del">'+ico('trash')+'</button>':'')+'</div>';
+  h+='<div class="row wrap" style="gap:9px"><button class="btn grow" id="po-print">'+ico('print')+'Print PO</button><button class="btn grow" id="po-csv">'+ico('csv')+'CSV</button>'+(!ro&&isAdminU()?'<button class="btn" id="po-cancel" style="color:var(--red);border-color:var(--red-bg)">'+ico('x')+(langHi()?'PO रद्द करें':'Cancel PO')+'</button>':'')+(!ro&&isAdminU()?'<button class="btn danger" id="po-del">'+ico('trash')+'</button>':'')+'</div>';
   $('#main').innerHTML=h;
 
   const vIn=$('#po-v');if(vIn&&editable)vIn.onchange=()=>{p.vendor=vIn.value.trim();p.updatedAt=Date.now();save('pos')};
@@ -2728,12 +2794,18 @@ function vPO(id){
       const pool=sortItems(S.items.filter(i=>matches(i,v))).slice(0,8);
       res.innerHTML=pool.length?pool.map(i=>'<div class="irow" data-add="'+i.id+'"><span class="th">'+(i.thumb?'<img src="'+i.thumb+'" alt="">':ico('box'))+'</span><div class="grow"><div class="nm ellip">'+esc(i.name)+'</div><div class="meta num">cost '+fmtMoney(+i.cost||0)+(i.sku?' · '+esc(i.sku):'')+'</div></div>'+ico('plus','muted')+'</div>').join(''):'<div class="sub" style="padding:10px 4px">No matches.</div>';
       res.style.display='block';
-      $$('#po-res [data-add]').forEach(r=>r.onclick=()=>{const it=iById(r.dataset.add);if(!it)return;addLineToPO(p,it,1);save('pos');toast('Added '+it.name,'ok');route()});
+      $$('#po-res [data-add]').forEach(r=>r.onclick=()=>{const it=iById(r.dataset.add);if(!it)return;if(!addLineToPO(p,it,1))return;save('pos');toast('Added '+it.name,'ok');route()});
     };
   }
   $$('#main [data-poq]').forEach(inp=>inp.onchange=()=>{const x=p.items[+inp.dataset.poq];const v=round4(parseFloat(inp.value));if(!(v>0)){inp.value=fmtQty(x.qty);return}x.qty=v;p.updatedAt=Date.now();save('pos');route()});
   $$('#main [data-poc]').forEach(inp=>inp.onchange=()=>{const x=p.items[+inp.dataset.poc];const v=parseFloat(inp.value);x.cost=isNaN(v)?0:round4(v);p.updatedAt=Date.now();save('pos');route()});
   $$('#main [data-porm]').forEach(b=>b.onclick=()=>{p.items.splice(+b.dataset.porm,1);p.updatedAt=Date.now();save('pos');route()});
+  $$('#main [data-pop]').forEach(inp=>inp.onchange=()=>{const x=p.items[+inp.dataset.pop];if(!x)return;x.pending=inp.value.trim();p.updatedAt=Date.now();save('pos')});
+  const pc=$('#po-cancel');if(pc)pc.onclick=()=>{
+    openModal('<h3 style="color:var(--red)">'+(langHi()?p.number+' रद्द करें?':'Cancel '+p.number+'?')+'</h3><p class="sub mb">'+(langHi()?'रद्द करने के बाद इसमें कुछ नहीं आएगा। आइटम फिर से नए PO या स्टॉक-इन के लिए खुल जाएँगे।':'Nothing can be received against a cancelled PO. Its items become free for new POs and manual stock-in.')+'</p>'+
+      '<div class="row" style="gap:9px"><button class="btn grow" onclick="closeModal()">'+(langHi()?'वापस':'Back')+'</button><button class="btn grow" id="pc-yes" style="color:var(--red);border-color:var(--red-bg)">'+(langHi()?'हाँ, रद्द करें':'Yes, cancel it')+'</button></div>');
+    $('#pc-yes').onclick=async()=>{closeModal();p.status='cancelled';p.updatedAt=Date.now();await saveNow('pos');logTx('po',{detail:p.number+' cancelled'});toast(p.number+(langHi()?' रद्द हो गया':' cancelled'),'ok');route()};
+  };
 
   const od=$('#po-order');if(od)od.onclick=()=>{p.status='ordered';p.updatedAt=Date.now();save('pos');logTx('po',{detail:p.number+' → ordered'+(p.vendor?' from '+p.vendor:'')});route()};
   const rc=$('#po-recv');if(rc)rc.onclick=()=>{
