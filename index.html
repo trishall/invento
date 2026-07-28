@@ -3987,10 +3987,27 @@ function vDispatch(sub,arg){
   topTitle('Dispatch','#home');
   let h=modeSlider('dispatch')+marketBar();
   h+='<button class="dbig" id="d-go">'+ico('send')+'<div>Dispatch</div><div class="sub">Scan or photograph items going out</div></button>';
+  h+='<button class="btn block mt" id="d-pack" style="border-color:var(--saddle);color:var(--saddle);font-weight:700">'+ico('camera')+(langHi()?'पैकिंग मोड — स्कैनर + कैमरा':'Packing mode — scanner + camera')+'</button>';
   h+='<div class="row mt" style="gap:9px"><button class="btn grow" onclick="location.hash=\'#dispatch/sales\'">'+ico('trend')+'Sales & reorder</button></div>';
   $('#main').innerHTML=h;
   wireModeSlider();wireMarketBar();
   $('#d-go').onclick=()=>ensureMarketThen(()=>startDispatch());
+  $('#d-pack').onclick=()=>ensureMarketThen(()=>parcelCamFlow({
+    title:(langHi()?'पैकिंग · ':'Packing · ')+marketLabel(),
+    intl:getMarket()==='intl',
+    validate:async code=>{const a=awbByNo(code);
+      if(a&&a.status==='dispatched')return {ok:false,msg:(langHi()?'पहले ही डिस्पैच · ':'Already dispatched · ')+ago(a.resolvedAt)};
+      if(a&&a.status==='returned')return {ok:false,msg:langHi()?'ऑफिस वापस जा चुका':'Was returned to office'};
+      return {ok:true}},
+    onDone:async(code,med)=>{
+      const a=awbByNo(code);
+      if(a&&a.status==='accepted'){await dispatchAwbByNo(code,{sku:med.sku,photo:med.photo,video:med.video});return}
+      S.awbs.unshift({id:uid('awb'),awb:code,status:'dispatched',acceptedBy:userName(),acceptedAt:Date.now(),resolvedBy:userName(),resolvedAt:Date.now(),sku:med.sku||'',photo:med.photo||'',video:med.video||'',market:getMarket()});
+      await saveNow('awbs');
+      logTx('dispatch',{detail:'Packed · '+code+(med.sku?' · '+med.sku:'')});
+    },
+    onClose:()=>route()
+  }));
 }
 
 function startDispatch(seed){
@@ -4881,81 +4898,102 @@ async function pcRecStop(code,intl){
   return await pcSave(blob,code,intl);
 }
 
-/* opts: {title, intl, validate(code)->{ok,msg}, onDone(code,{photo,video}), onClose()} */
+/* opts: {title, intl, validate(code)->{ok,msg}, onDone(code,{sku,photo,video}), onClose()}
+   scan AWB -> scan SKU (or Skip) -> scan AWB = photo -> scan AWB = video on
+   -> scan AWB = video off & parcel complete.  Video auto-caps at VID_MAX_S. */
+const VID_MAX_S=60;
 async function parcelCamFlow(opts){
   let cam=null;try{cam=await pcCam()}catch(e){cam=null}
   await pcDirGet();
-  let stage='idle',cur='',photo='',n=0,busy=false;
+  let stage='idle',cur='',sku='',photo='',n=0,busy=false,secs=0,tmr=null;
   const T=(hi,en)=>langHi()?hi:en;
+  const steps=[['1',T('AWB','AWB')],['2',T('SKU','SKU')],['3',T('फोटो','Photo')],['4',T('वीडियो','Video')],['5',T('पूरा','Done')]];
+  const stepIx={idle:0,sku:1,photo:2,video:3,rec:4};
+
+  const bar=()=>{const at=stepIx[stage]||0;
+    return '<div class="row mb" style="gap:5px">'+steps.map((s,i)=>'<div style="flex:1;text-align:center;padding:5px 2px;border-radius:8px;font-size:11px;font-weight:700;background:'+(i<at?'var(--green-bg,rgba(120,160,120,.18))':i===at?'var(--saddle)':'var(--line2)')+';color:'+(i===at?'#fff':'inherit')+'">'+s[1]+'</div>').join('')+'</div>'};
 
   const paint=()=>{
-    let h='<h3>'+esc(opts.title||T('डिस्पैच','Dispatch'))+'</h3>';
+    let h='<h3>'+esc(opts.title||T('डिस्पैच','Dispatch'))+'</h3>'+bar();
     h+='<div class="row mb" style="gap:8px;align-items:center">'+
-       '<span class="pill '+(opts.intl?'info':'gray')+'">'+(opts.intl?T('इंटरनेशनल','International'):T('घरेलू','Domestic'))+'</span>'+
-       '<span class="grow"></span>'+
-       (cam?'<button class="btn sm" id="pc-fold">'+ico('folder')+(_pcDir?T('फ़ोल्डर ✓','Folder ✓'):T('वीडियो फ़ोल्डर चुनें','Set video folder'))+'</button>':'')+'</div>';
+       '<span class="pill '+(opts.intl?'info':'gray')+'">'+(opts.intl?T('इंटरनेशनल','International'):T('घरेलू','Domestic'))+'</span><span class="grow"></span>'+
+       (cam?'<button class="btn sm" id="pc-fold">'+ico('folder')+(_pcDir?T('फ़ोल्डर ✓','Folder ✓'):T('वीडियो फ़ोल्डर','Set video folder'))+'</button>':'')+'</div>';
     if(!cam)h+='<div class="hint mb" style="color:var(--amber)">'+T('कैमरा नहीं मिला — सिर्फ स्कैन चलेगा।','No camera — scanning only.')+'</div>';
-    if(!_pcDir&&cam)h+='<div class="hint mb" style="color:var(--amber)">'+T('वीडियो फ़ोल्डर चुनें — एक ही बार पूछेगा (Desktop चुनें)।','Set the video folder once — pick Desktop. It is remembered after that.')+'</div>';
 
-    if(stage==='idle')  h+='<div class="card pad mb" style="text-align:center;border:2px dashed var(--line2)"><div style="font-size:30px">'+ico('scan')+'</div><b>'+T('AWB स्कैन करें','Scan the AWB')+'</b><div class="sub">'+T('नया पार्सल शुरू करने के लिए','to start the next parcel')+'</div></div>';
-    if(stage==='count') h+='<div class="card pad mb" style="text-align:center;border:2px solid var(--saddle)"><div class="mono" style="font-weight:800">'+esc(cur)+'</div><div id="pc-cd" style="font-size:52px;font-weight:800;color:var(--saddle);line-height:1.1">3</div><div class="sub">'+T('आइटम कैमरे के सामने रखें','hold the item in front of the camera')+'</div></div>';
-    if(stage==='armed') h+='<div class="card pad mb" style="text-align:center;border:2px solid var(--green)"><div class="mono" style="font-weight:800">'+esc(cur)+'</div>'+(photo?'<img src="'+photo+'" style="max-width:150px;border-radius:10px;margin:8px auto;display:block">':'')+'<b style="color:var(--green)">'+T('फोटो हो गई','Photo taken')+'</b><div class="sub">'+T('रिकॉर्डिंग शुरू करने के लिए वही AWB दोबारा स्कैन करें','scan the same AWB again to start recording')+'</div></div>';
-    if(stage==='rec')   h+='<div class="card pad mb" style="text-align:center;border:2px solid var(--red)"><div class="mono" style="font-weight:800">'+esc(cur)+'</div><div style="font-size:34px;color:var(--red)">●</div><b style="color:var(--red)">'+T('रिकॉर्डिंग चल रही है','Recording')+'</b><div class="sub">'+T('पैक करें — फिर वही AWB स्कैन करके पूरा करें','pack it — then scan the same AWB to finish')+'</div></div>';
-    if(cam&&(stage==='count'||stage==='rec'))h+='<div class="scanwrap mb" style="max-height:34dvh"><video id="pc-v" playsinline muted autoplay></video></div>';
-    h+='<div class="searchbar mb" style="border-color:var(--saddle)">'+ico('ticket')+'<input id="pc-in" placeholder="'+T('स्कैन का इंतज़ार…','Waiting for scan…')+'" autocomplete="off" autocapitalize="characters"></div>';
-    h+='<div id="pc-feed" class="sub" style="min-height:36px;margin-bottom:8px"></div>';
+    if(stage==='idle')h+='<div class="card pad mb" style="text-align:center;border:2px dashed var(--line2)"><div style="font-size:28px">'+ico('ticket')+'</div><b>'+T('AWB स्कैन करें','Scan the AWB')+'</b><div class="sub">'+T('नया पार्सल शुरू करने के लिए','to start the next parcel')+'</div></div>';
+    if(stage==='sku'){
+      h+='<div class="card pad mb" style="border:2px solid var(--saddle)"><div class="mono" style="font-weight:800;font-size:15px">'+esc(cur)+'</div><div class="sub">'+T('आइटम का SKU स्कैन करें','Scan the item SKU')+'</div></div>';
+      h+='<button class="btn block mb" id="pc-skip">'+T('छोड़ें (Skip)','Skip')+'</button>';
+    }
+    if(stage==='photo'){
+      h+='<div class="card pad mb" style="text-align:center;border:2px solid var(--saddle)"><div class="mono" style="font-weight:800">'+esc(cur)+'</div>'+(sku?'<div class="sub">SKU: <b>'+esc(sku)+'</b></div>':'')+'<b>'+T('फोटो के लिए वही AWB दोबारा स्कैन करें','Scan the same AWB to take the photo')+'</b></div>';
+    }
+    if(stage==='video')h+='<div class="card pad mb" style="text-align:center;border:2px solid var(--green)">'+(photo?'<img src="'+photo+'" style="max-width:140px;border-radius:10px;margin:0 auto 8px;display:block">':'')+'<b style="color:var(--green)">'+T('फोटो हो गई','Photo taken')+'</b><div class="sub">'+T('वीडियो चालू करने के लिए फिर से AWB स्कैन करें','scan the AWB again to start the video')+'</div></div>';
+    if(stage==='rec')h+='<div class="card pad mb" style="text-align:center;border:2px solid var(--red)"><div style="font-size:30px;color:var(--red)">●</div><b style="color:var(--red)">'+T('रिकॉर्डिंग','Recording')+' <span id="pc-t" class="num">'+secs+'s</span></b><div class="sub">'+T('पैक करें — फिर AWB स्कैन करके बंद करें और पूरा करें','pack it — then scan the AWB to stop and finish')+'</div></div>';
+    if(cam&&(stage==='photo'||stage==='rec'))h+='<div class="scanwrap mb" style="max-height:32dvh"><video id="pc-v" playsinline muted autoplay></video></div>';
+    h+='<div class="searchbar mb" style="border-color:var(--saddle)">'+ico('scan')+'<input id="pc-in" placeholder="'+T('स्कैन का इंतज़ार…','Waiting for scan…')+'" autocomplete="off" autocapitalize="characters"></div>';
+    h+='<div id="pc-feed" class="sub" style="min-height:34px;margin-bottom:8px"></div>';
     h+='<button class="btn pri block" id="pc-done">'+ico('check')+T('खत्म','Done')+(n?' · '+n:'')+'</button>';
     $('#modal').innerHTML=h;wire();
+    const v=$('#pc-v');if(v&&cam){v.srcObject=cam;v.play().catch(()=>{})}
   };
   const feed=html=>{const f=$('#pc-feed');if(f)f.innerHTML=html};
-  const err=(code,msg)=>{beep(false);feed('<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:10px;padding:9px 11px"><b style="color:var(--red)">'+esc(code)+'</b><div style="color:var(--red);font-weight:600;font-size:13px">'+esc(msg)+'</div></div>')};
+  const err=(c,m)=>{beep(false);feed('<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:10px;padding:9px 11px"><b style="color:var(--red)">'+esc(c)+'</b><div style="color:var(--red);font-weight:600;font-size:13px">'+esc(m)+'</div></div>')};
 
-  const runCountdown=()=>new Promise(res=>{
-    let k=3;const tick=()=>{const el=$('#pc-cd');if(el)el.textContent=k;
-      if(k<=0){res();return}
-      k--;setTimeout(tick,1000)};
-    tick();
-  });
+  const tick=()=>{secs++;const el=$('#pc-t');if(el)el.textContent=secs+'s';
+    if(secs>=VID_MAX_S){clearInterval(tmr);tmr=null;capHit()}};
+  const startRec=()=>{if(!cam||!pcRecStart())return false;secs=0;clearInterval(tmr);tmr=setInterval(tick,1000);return true};
+
+  const capHit=async()=>{
+    const path=await pcRecStop(cur,opts.intl);
+    stage='video';paint();
+    openModal('<h3>'+T('वीडियो '+VID_MAX_S+' सेकंड का हो गया','Video hit '+VID_MAX_S+'s')+'</h3><p class="sub mb">'+esc(cur)+' — '+T('और रिकॉर्ड करना है या यहीं पूरा करें?','keep recording, or finish this parcel here?')+'</p>'+
+      '<button class="btn pri block mb" id="pc-cont">'+T('और रिकॉर्ड करें','Keep recording')+'</button><button class="btn block" id="pc-fin">'+T('यहीं पूरा करें','Finish parcel')+'</button>');
+    $('#pc-cont').onclick=()=>{closeModal();openModal('<div class="sub">…</div>');stage='rec';paint();startRec();feed(T('रिकॉर्डिंग फिर चालू','Recording resumed'))};
+    $('#pc-fin').onclick=async()=>{closeModal();openModal('<div class="sub">…</div>');await finish(path)};
+  };
+
+  const finish=async videoPath=>{
+    clearInterval(tmr);tmr=null;
+    await opts.onDone(cur,{sku:sku,photo:photo,video:videoPath});
+    n++;beep(true);
+    const d=cur;cur='';sku='';photo='';secs=0;stage='idle';paint();
+    feed('<b style="color:var(--green)">✓ '+esc(d)+T(' पूरा','  complete')+'</b><div class="sub">'+n+T(' पार्सल','  parcels')+(videoPath?' · 🎬':'')+'</div>');
+  };
 
   const onScan=async code=>{
-    code=String(code||'').trim();if(!code||busy)return;
-    busy=true;
+    code=String(code||'').trim();if(!code||busy)return;busy=true;
     try{
       if(stage==='idle'){
         const v=await opts.validate(code);
         if(!v||!v.ok){err(code,(v&&v.msg)||'skipped');return}
-        cur=code;photo='';stage='count';paint();
-        const vid=$('#pc-v');if(vid&&cam){vid.srcObject=cam;vid.play().catch(()=>{})}
-        await runCountdown();
-        if(cam){const el=$('#pc-v');if(el)photo=pcShot(el)}
-        beep(true);stage='armed';paint();
-        return;
+        cur=code;sku='';photo='';stage='sku';paint();return;
       }
-      if(stage==='armed'){
-        if(code!==cur){err(code,T('पहले '+cur+' पूरा करें','Finish '+cur+' first'));return}
-        if(cam&&pcRecStart()){stage='rec';paint();
-          const vid=$('#pc-v');if(vid){vid.srcObject=cam;vid.play().catch(()=>{})}
-          clearTimeout(_pcIdle);_pcIdle=setTimeout(async()=>{if(stage==='rec'){const p=await pcRecStop(cur,opts.intl);await finish(p);toast(T('रिकॉर्डिंग अपने आप बंद','Recording auto-stopped'),'warn')}},PC_IDLE_MS);
-        } else {await finish('')}
+      if(stage==='sku'){                      // any code that isn't the AWB = the SKU
+        if(code===cur){stage=cam?'photo':'video';paint();feed(T('SKU छोड़ा','SKU skipped'));return}
+        sku=code;beep(true);stage=cam?'photo':'video';paint();feed('SKU: <b>'+esc(sku)+'</b>');return;
+      }
+      if(stage==='photo'){
+        if(code!==cur){err(code,T('वही AWB स्कैन करें','Scan the same AWB'));return}
+        const el=$('#pc-v');if(el&&cam)photo=pcShot(el);
+        beep(true);stage='video';paint();return;
+      }
+      if(stage==='video'){
+        if(code!==cur){err(code,T('वही AWB स्कैन करें','Scan the same AWB'));return}
+        if(startRec()){stage='rec';paint()} else {await finish('')}
         return;
       }
       if(stage==='rec'){
-        if(code!==cur){err(code,T('पहले '+cur+' पूरा करें','Finish '+cur+' first'));return}
+        if(code!==cur){err(code,T('वही AWB स्कैन करें','Scan the same AWB'));return}
         const p=await pcRecStop(cur,opts.intl);
-        await finish(p);
-        return;
+        await finish(p);return;
       }
-    } finally { busy=false; }
-  };
-  const finish=async videoPath=>{
-    await opts.onDone(cur,{photo:photo,video:videoPath});
-    n++;beep(true);
-    const done=cur;cur='';photo='';stage='idle';paint();
-    feed('<b style="color:var(--green)">✓ '+esc(done)+'</b><div class="sub">'+n+T(' पूरे','done')+(videoPath?' · 🎬':'')+'</div>');
+    } finally { busy=false }
   };
 
   function wire(){
     const fb=$('#pc-fold');if(fb)fb.onclick=async()=>{await pcDirPick();paint()};
+    const sk=$('#pc-skip');if(sk)sk.onclick=()=>{stage=cam?'photo':'video';paint();feed(T('SKU छोड़ा','SKU skipped'))};
     const I=$('#pc-in');
     if(I){
       I.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();const v=I.value.trim();I.value='';if(v)onScan(v)}};
@@ -4963,12 +5001,12 @@ async function parcelCamFlow(opts){
       try{I.focus()}catch(e){}
     }
     const dn=$('#pc-done');
-    if(dn)dn.onclick=async()=>{dn.disabled=true;if(stage==='rec'){const p=await pcRecStop(cur,opts.intl);await finish(p)}pcCamStop();closeModal();if(opts.onClose)opts.onClose()};
+    if(dn)dn.onclick=async()=>{dn.disabled=true;clearInterval(tmr);if(stage==='rec'){const p=await pcRecStop(cur,opts.intl);await finish(p)}pcCamStop();closeModal();if(opts.onClose)opts.onClose()};
   }
   openModal('<div class="sub">…</div>');paint();
   const foc=setInterval(()=>{const I=$('#pc-in');if(!I){clearInterval(foc);return}if(document.activeElement!==I){try{I.focus()}catch(e){}}},600);
   const ov=$('#ovl');
-  const obs=new MutationObserver(async()=>{if(!ov.classList.contains('show')){obs.disconnect();clearInterval(foc);if(_pcRec){const p=await pcRecStop(cur,opts.intl);if(cur)await opts.onDone(cur,{photo:photo,video:p})}pcCamStop()}});
+  const obs=new MutationObserver(async()=>{if(!ov.classList.contains('show')&&!$('#pc-in')){obs.disconnect();clearInterval(foc);clearInterval(tmr);if(_pcRec&&cur){const p=await pcRecStop(cur,opts.intl);await opts.onDone(cur,{sku:sku,photo:photo,video:p})}pcCamStop()}});
   obs.observe(ov,{attributes:true,attributeFilter:['class']});
 }
 
@@ -4986,7 +5024,7 @@ async function awbOutwardFlow(){
       if(a.status!=='accepted')return {ok:false,msg:langHi()?'ऑफिस वापस जा चुका':'Was returned to office'};
       return {ok:true};
     },
-    onDone:async(code,med)=>{await dispatchAwbByNo(code,{photo:med.photo,video:med.video})},
+    onDone:async(code,med)=>{await dispatchAwbByNo(code,{sku:med.sku,photo:med.photo,video:med.video})},
     onClose:()=>vAwb()
   });
 }
