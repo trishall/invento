@@ -861,7 +861,7 @@ async function initCloud(cfg){
   const timeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error('Timed out connecting to Firestore — check internet, project setup and security rules.')),15000));
   await Promise.race([Promise.all(first),timeout]);
   cloudReady=true;
-  if(isAdminU())purgeOldTxns();
+  if(isAdminU()){purgeOldTxns();purgeOldAwbs();}
   return 'cloud';
 }
 async function purgeOldTxns(){
@@ -1084,7 +1084,7 @@ Object.assign(HI,{
 'Change my password':'पासवर्ड बदलें','Confirm new password':'नया पासवर्ड दोबारा','New password (min 6 characters)':'नया पासवर्ड (कम से कम 6 अक्षर)','New password must be 6+ characters':'नया पासवर्ड 6+ अक्षर का हो','New passwords do not match':'दोनों पासवर्ड मेल नहीं खाते','Password updated':'पासवर्ड बदल गया','Password must be 6+ characters':'पासवर्ड 6+ अक्षर का हो','Password must be at least 6 characters':'पासवर्ड कम से कम 6 अक्षर का हो','Password (min 6)':'पासवर्ड (कम से कम 6)','Enter your password':'अपना पासवर्ड भरें','Enter your current password':'अभी का पासवर्ड भरें','Enter your email/ID and password':'ईमेल/ID और पासवर्ड भरें','Enter your user ID':'अपना यूज़र ID भरें','Your email':'आपका ईमेल','Your password':'आपका पासवर्ड','Your user ID':'आपका यूज़र ID','Forgot password':'पासवर्ड भूल गए','Request sent — the admin will set a new password':'रिक्वेस्ट भेज दी — एडमिन नया पासवर्ड सेट करेंगे','Add email & password':'ईमेल और पासवर्ड जोड़ें','My account has no email (old account)':'मेरे अकाउंट में ईमेल नहीं है (पुराना अकाउंट)','Enter a valid email':'सही ईमेल भरें','Enter a real email address':'सही ईमेल पता भरें','Enter a valid phone number':'सही फोन नंबर भरें','Link phone number':'फोन नंबर जोड़ें','Phone linked — you can now sign in by SMS too':'फोन जुड़ गया — अब SMS से भी लॉग इन कर सकते हैं','SMS code':'SMS कोड','Enter the code':'कोड भरें','Enter the 6-digit code':'6 अंकों का कोड भरें','Code sent again':'कोड दोबारा भेजा','Check your inbox':'अपना इनबॉक्स देखें','Verification email sent — check inbox/spam':'वेरिफ़िकेशन ईमेल भेजा — इनबॉक्स/स्पैम देखें','At least 6 characters':'कम से कम 6 अक्षर','Pick a user ID (letters/numbers)':'यूज़र ID चुनें (अक्षर/नंबर)','Delete my account':'मेरा अकाउंट डिलीट करें','Delete account':'अकाउंट डिलीट करें','Sign out':'लॉग आउट',
 'Import items from CSV':'CSV से आइटम लाएँ','Choose a CSV file':'CSV फ़ाइल चुनें','or drop it here':'या यहाँ छोड़ें','Ready to import':'इम्पोर्ट के लिए तैयार','Valid rows':'सही लाइनें','Skipped rows':'छोड़ी गई लाइनें','Show skipped rows':'छोड़ी गई लाइनें दिखाएँ','Create as new item':'नया आइटम बनाएँ','Create as new items anyway':'फिर भी नए आइटम बनाएँ','Update existing items (qty &amp; details)':'पुराने आइटम अपडेट करें (मात्रा और जानकारी)','Could not read file':'फ़ाइल नहीं पढ़ पाए','Could not find Name and Quantity columns':'Name और Quantity कॉलम नहीं मिले','File needs a header row and at least one data row':'फ़ाइल में हेडर और कम से कम एक लाइन चाहिए','Not sure of the format?':'फॉर्मेट समझ नहीं आ रहा?','download this file':'यह फ़ाइल डाउनलोड करें','Template downloaded — fill it and import':'टेम्पलेट डाउनलोड हुआ — भरकर इम्पोर्ट करें','Minimum columns:':'कम से कम कॉलम:','CSV downloaded':'CSV डाउनलोड हो गई','No items to export':'एक्सपोर्ट के लिए कुछ नहीं','Sample data loaded':'सैंपल डेटा आ गया','Load sample leather-goods data':'लेदर सामान का सैंपल डेटा भरें','Imported —':'इम्पोर्ट हुआ —','Review import results':'इम्पोर्ट का नतीजा देखें',
 'Sales & reorder':'बिक्री और री-ऑर्डर','Best sellers':'सबसे ज़्यादा बिके','No sales data yet':'अभी बिक्री का डेटा नहीं','No activity in this period':'इस दौरान कोई एक्टिविटी नहीं','No movements in this period':'इस दौरान कोई मूवमेंट नहीं','No stock changes in that period':'उस दौरान स्टॉक में बदलाव नहीं','Nothing is low':'कुछ भी कम नहीं है','In &amp; out':'आया और गया','Total in':'कुल आया','Total out':'कुल गया','Stock in only':'सिर्फ आया','Stock out only':'सिर्फ गया','All actions':'सारे काम','Last 30 days (full history)':'पिछले 30 दिन (पूरी हिस्ट्री)','Adjustments, picks and receipts will show up here.':'एडजस्टमेंट, पिक और आवक यहाँ दिखेंगे।','Changes to items, folders and stock counts will show up here.':'आइटम, फ़ोल्डर और स्टॉक के बदलाव यहाँ दिखेंगे।',
-'Barcode &amp; QR labels':'बारकोड और QR लेबल','Restock labels':'रीस्टॉक लेबल','Allow pop-ups to print':'प्रिंट के लिए पॉप-अप चालू करें','Code library offline — labels show text only':'कोड लाइब्रेरी ऑफ़लाइन — लेबल पर सिर्फ टेक्स्ट दिखेगा','Barcode machine':'बारकोड मशीन','Content':'क्या छापें','Quick command':'झटपट कमांड','Cancelled':'रद्द','Cancel PO':'PO रद्द करें','Pending order nos. — e.g. #1043, #1051':'पेंडिंग ऑर्डर नं. — जैसे #1043, #1051','AI assistant':'AI असिस्टेंट','Ask anything about your stock — in Hindi or English':'स्टॉक के बारे में कुछ भी पूछें — हिंदी या English में','One line: item, quantity, rack. Add the word remove to take stock out.':'एक लाइन में: आइटम, मात्रा, रैक। स्टॉक घटाने के लिए remove या निकालो लिखें।','Which item?':'कौन सा आइटम?','Quick command':'झटपट कमांड','Code + text':'कोड + टेक्स्ट','Only barcode / QR':'सिर्फ बारकोड / QR','Only text':'सिर्फ टेक्स्ट','Border':'बॉर्डर',
+'Barcode &amp; QR labels':'बारकोड और QR लेबल','Restock labels':'रीस्टॉक लेबल','Allow pop-ups to print':'प्रिंट के लिए पॉप-अप चालू करें','Code library offline — labels show text only':'कोड लाइब्रेरी ऑफ़लाइन — लेबल पर सिर्फ टेक्स्ट दिखेगा','Barcode machine':'बारकोड मशीन','Content':'क्या छापें','Quick command':'झटपट कमांड','Overview':'कारोबार','Full dashboard':'पूरा डैशबोर्ड','Sold / out':'बिका / गया','Stocked in':'आया','Need to order':'ऑर्डर करना है','Top sellers':'सबसे ज़्यादा बिके','Pending':'बाकी','History':'हिस्ट्री','Cancelled':'रद्द','Cancel PO':'PO रद्द करें','Pending order nos. — e.g. #1043, #1051':'पेंडिंग ऑर्डर नं. — जैसे #1043, #1051','AI assistant':'AI असिस्टेंट','Ask anything about your stock — in Hindi or English':'स्टॉक के बारे में कुछ भी पूछें — हिंदी या English में','One line: item, quantity, rack. Add the word remove to take stock out.':'एक लाइन में: आइटम, मात्रा, रैक। स्टॉक घटाने के लिए remove या निकालो लिखें।','Which item?':'कौन सा आइटम?','Quick command':'झटपट कमांड','Code + text':'कोड + टेक्स्ट','Only barcode / QR':'सिर्फ बारकोड / QR','Only text':'सिर्फ टेक्स्ट','Border':'बॉर्डर',
 'Settings saved':'सेटिंग सेव हो गई','Recovery point saved':'बैकअप बन गया','Backup':'बैकअप','Backup downloaded':'बैकअप डाउनलोड हुआ','Backup restored':'बैकअप वापस आ गया','15-day recovery point saved automatically':'हर 15 दिन में बैकअप अपने आप बनता है','Not a valid backup file':'यह सही बैकअप फ़ाइल नहीं है','Could not read that recovery point':'वह बैकअप नहीं पढ़ पाए','All data erased':'सारा डेटा मिट गया','This device only':'सिर्फ इस फोन पर','Use on this device only (no sync)':'सिर्फ इस फोन पर (बिना सिंक)','Describe the problem first':'पहले दिक्कत लिखें','Describe what went wrong. A screenshot helps a lot.':'क्या गड़बड़ हुई, लिखें। स्क्रीनशॉट से बहुत मदद मिलती है।','Sent — the admin will see it in Help':'भेज दिया — एडमिन को मदद में दिखेगा','Could not send — tell the admin directly':'नहीं भेज पाए — एडमिन को सीधे बताएँ','Word for a place (singular)':'जगह के लिए शब्द (एकवचन)','…plural':'…बहुवचन','Which market?':'कौन सा मार्केट?','Choose market':'मार्केट चुनें','Switch market':'मार्केट बदलें',
 'Could not sync — retrying':'सिंक नहीं हुआ — दोबारा कोशिश','Could not save — storage error':'सेव नहीं हुआ — स्टोरेज की दिक्कत','Check internet on this device':'इस फोन का इंटरनेट देखें','Could not run action':'यह काम नहीं हो पाया'
 });
@@ -1307,6 +1307,56 @@ function route(){
 /* ============================================================
    HOME / DASHBOARD
    ============================================================ */
+
+/* ---------------- tiny inline SVG charts (no library, works offline) ---------------- */
+const CH_COL=['#C9884B','#8FA98F','#B4645A','#7C93B0','#C2A25A','#9A7BA8','#6FA3A0','#A88C6E'];
+function chartBars(rows,opts){
+  opts=opts||{};
+  const w=opts.w||320,h=opts.h||96,n=rows.length||1;
+  const max=Math.max(1,...rows.map(r=>r.v));
+  const bw=w/n, pad=Math.min(4,bw*0.22);
+  let s='<svg viewBox="0 0 '+w+' '+h+'" style="width:100%;height:96px;display:block" preserveAspectRatio="none">';
+  rows.forEach((r,i)=>{
+    const bh=Math.max(r.v>0?2:0,Math.round(r.v/max*h));
+    s+='<rect x="'+(i*bw+pad).toFixed(1)+'" y="'+(h-bh)+'" width="'+(bw-pad*2).toFixed(1)+'" height="'+bh+'" rx="2" fill="'+(opts.color||'#C9884B')+'" opacity="'+(r.hi?1:.8)+'"><title>'+esc(r.k)+': '+fmtQty(r.v)+'</title></rect>';
+  });
+  s+='</svg>';
+  const lbl='<div class="row" style="justify-content:space-between;font-size:10.5px;opacity:.6;margin-top:3px"><span>'+esc(rows[0]?rows[0].k:'')+'</span><span>'+esc(rows[n-1]?rows[n-1].k:'')+'</span></div>';
+  return '<div>'+s+lbl+'</div>';
+}
+function chartDonut(slices){
+  const tot=slices.reduce((a,x)=>a+x.v,0);
+  if(!(tot>0))return '<div class="sub">'+(langHi()?'दिखाने को कुछ नहीं':'Nothing to show')+'</div>';
+  const R=54,C=2*Math.PI*R;let off=0;
+  let s='<svg viewBox="0 0 140 140" style="width:130px;height:130px;flex:0 0 auto"><g transform="translate(70,70) rotate(-90)">';
+  slices.forEach((x,i)=>{
+    const len=C*(x.v/tot);
+    s+='<circle r="'+R+'" fill="none" stroke="'+CH_COL[i%CH_COL.length]+'" stroke-width="22" stroke-dasharray="'+len.toFixed(2)+' '+(C-len).toFixed(2)+'" stroke-dashoffset="'+(-off).toFixed(2)+'"><title>'+esc(x.k)+'</title></circle>';
+    off+=len;
+  });
+  s+='</g></svg>';
+  const leg='<div class="grow" style="min-width:130px">'+slices.map((x,i)=>'<div class="row" style="gap:7px;align-items:center;padding:2.5px 0;font-size:12.5px"><span style="width:10px;height:10px;border-radius:3px;background:'+CH_COL[i%CH_COL.length]+';flex:0 0 auto"></span><span class="grow ellip">'+esc(x.k)+'</span><b class="num">'+Math.round(x.v/tot*100)+'%</b></div>').join('')+'</div>';
+  return '<div class="row" style="gap:14px;align-items:center;flex-wrap:wrap">'+s+leg+'</div>';
+}
+function homeMetrics(days){
+  const since=Date.now()-days*86400000;
+  const OUT=['out','dispatch','pick'];
+  const t=(S.txns||[]).filter(x=>x.ts>=since);
+  const soldU=t.filter(x=>OUT.indexOf(x.act)>=0).reduce((a,x)=>a+(+x.qty||0),0);
+  const inU=t.filter(x=>x.act==='in'||x.act==='received').reduce((a,x)=>a+(+x.qty||0),0);
+  const disp=t.filter(x=>x.act==='dispatch').length;
+  const soldV=t.filter(x=>OUT.indexOf(x.act)>=0).reduce((a,x)=>{const i=iById(x.itemId);return a+((+x.qty||0)*(i?+i.price||0:0))},0);
+  const day=[],map={};
+  for(let d=days-1;d>=0;d--){const dt=new Date(Date.now()-d*86400000);const k=dt.toISOString().slice(0,10);map[k]=0;day.push({key:k,lbl:dt.getDate()+'/'+(dt.getMonth()+1)})}
+  t.forEach(x=>{if(OUT.indexOf(x.act)<0)return;const k=new Date(x.ts).toISOString().slice(0,10);if(map[k]!==undefined)map[k]+=(+x.qty||0)});
+  const series=day.map((d,ix)=>({k:d.lbl,v:map[d.key]||0,hi:ix===day.length-1}));
+  const per={};t.forEach(x=>{if(OUT.indexOf(x.act)>=0&&x.itemId)per[x.itemId]=(per[x.itemId]||0)+(+x.qty||0)});
+  const best=Object.entries(per).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id,q])=>({i:iById(id),q})).filter(x=>x.i);
+  const reord=S.items.filter(i=>(+i.min>0)&&((+i.qty||0)<=(+i.min))).map(i=>({i,short:Math.max(1,round4((+i.min)-(+i.qty||0))),onPO:itemOnOpenPO(i.id)}));
+  const orderVal=reord.reduce((a,x)=>a+x.short*(+x.i.cost||0),0);
+  return {soldU,inU,disp,soldV,series,best,reord,orderVal};
+}
+
 function vHome(){
   topbar('<div class="brand"><span class="bx">'+LOGO+'</span><span style="font-size:15px">INVENTO<small>'+esc(S.meta.company||'by Trishal')+'</small></span></div>'+acctButtonHTML());
   const st=deepStats(null);const low=lowItems();
@@ -1320,6 +1370,34 @@ function vHome(){
     '<a href="#folders" class="stat" style="text-decoration:none;color:inherit"><div class="eyebrow">Folders</div><div class="v num">'+S.folders.length+'</div></a>'+
     '<div class="stat"><div class="eyebrow">Stock value</div><div class="v num">'+fmtMoney(st.value,0)+'</div></div>'+
     '<a href="#reports/low" class="stat'+(low.length?' alert':'')+'" style="text-decoration:none;color:inherit"><div class="eyebrow">Low stock</div><div class="v num">'+low.length+'</div></a></div>';
+  if(!fresh){
+    let days=30;try{days=+localStorage.getItem('invento_homedays')||30}catch(e){}
+    const m=homeMetrics(days);
+    h+='<div class="section-h"><h2>'+(langHi()?'कारोबार':'Overview')+'</h2>'+(isAdminU()?'<a href="#dash">'+(langHi()?'पूरा डैशबोर्ड':'Full dashboard')+'</a>':'')+'</div>';
+    h+='<div class="seg mb" id="hm-p">'+[7,30,90].map(d=>'<button data-hd="'+d+'" class="'+(d===days?'on':'')+'">'+d+(langHi()?' दिन':' days')+'</button>').join('')+'</div>';
+    h+='<div class="row wrap mb" style="gap:9px">'+
+      '<div class="card pad" style="flex:1 1 44%"><div class="eyebrow">'+(langHi()?'बिका / गया':'Sold / out')+'</div><div class="num" style="font-weight:800;font-size:21px">'+fmtQty(m.soldU)+'</div><div class="small muted">'+fmtMoney(m.soldV,0)+' · '+m.disp+(langHi()?' डिस्पैच':' dispatches')+'</div></div>'+
+      '<div class="card pad" style="flex:1 1 44%"><div class="eyebrow">'+(langHi()?'आया':'Stocked in')+'</div><div class="num" style="font-weight:800;font-size:21px">'+fmtQty(m.inU)+'</div><div class="small muted">'+(langHi()?'पिछले ':'last ')+days+(langHi()?' दिन':' days')+'</div></div>'+
+      '<a href="#reports/low" class="card pad" style="flex:1 1 44%;text-decoration:none;color:inherit'+(m.reord.length?';border-color:var(--amber)':'')+'"><div class="eyebrow"'+(m.reord.length?' style="color:var(--amber)"':'')+'>'+(langHi()?'ऑर्डर करना है':'Need to order')+'</div><div class="num" style="font-weight:800;font-size:21px">'+m.reord.length+'</div><div class="small muted">'+(langHi()?'लगभग ':'approx ')+fmtMoney(m.orderVal,0)+'</div></a>'+
+      '<div class="card pad" style="flex:1 1 44%"><div class="eyebrow">'+(langHi()?'स्टॉक की कीमत':'Stock value')+'</div><div class="num" style="font-weight:800;font-size:21px">'+fmtMoney(st.value,0)+'</div><div class="small muted">'+fmtQty(st.qty)+(langHi()?' यूनिट':' units')+'</div></div>'+
+      '</div>';
+    h+='<div class="card pad mb"><div class="eyebrow mb">'+(langHi()?'रोज़ बाहर गया':'Units going out')+' · '+days+(langHi()?' दिन':'d')+'</div>'+chartBars(m.series,{color:'#C9884B'})+'</div>';
+    const whs=S.folders.filter(f=>!f.parent);
+    let slices=whs.map(f=>{const ids=descFolderIds(f.id);return {k:f.name,v:S.items.filter(i=>ids.indexOf(i.folder)>=0).reduce((a,i)=>a+((+i.qty||0)*(+i.price||0)),0)}}).filter(x=>x.v>0).sort((a,b)=>b.v-a.v);
+    if(slices.length>7){const rest=slices.slice(6).reduce((a,x)=>a+x.v,0);slices=slices.slice(0,6).concat([{k:langHi()?'बाकी':'Others',v:rest}])}
+    if(slices.length)h+='<div class="card pad mb"><div class="eyebrow mb">'+(langHi()?'स्टॉक की कीमत — जगह के हिसाब से':'Stock value by location')+'</div>'+chartDonut(slices)+'</div>';
+    if(m.best.length){
+      const mx=m.best[0].q||1;
+      h+='<div class="card pad mb"><div class="eyebrow mb">'+(langHi()?'सबसे ज़्यादा बिके':'Top sellers')+' · '+days+(langHi()?' दिन':'d')+'</div>'+
+        m.best.map((x,n)=>'<div style="padding:5px 0"><div class="row" style="gap:8px"><span class="grow ellip" style="font-weight:600;font-size:13px">'+esc(x.i.name)+'</span><b class="num">'+fmtQty(x.q)+'</b></div><div style="height:6px;border-radius:4px;background:var(--line2);margin-top:4px;overflow:hidden"><i style="display:block;height:100%;width:'+Math.max(4,Math.round(x.q/mx*100))+'%;background:'+CH_COL[n%CH_COL.length]+'"></i></div></div>').join('')+'</div>';
+    }
+    if(m.reord.length){
+      const top=m.reord.slice().sort((a,b)=>b.short*(+b.i.cost||0)-a.short*(+a.i.cost||0)).slice(0,5);
+      h+='<div class="card pad mb" style="border-left:4px solid var(--amber)"><div class="row mb" style="align-items:center"><b class="grow" style="color:var(--amber)">'+(langHi()?'ऑर्डर करना है':'Need to order')+'</b><span class="small muted num">'+fmtMoney(m.orderVal,0)+'</span></div>'+
+        top.map(x=>'<div class="row" style="padding:5px 0;border-bottom:1px solid var(--line2);gap:8px"><span class="grow ellip" style="font-weight:600;font-size:13px">'+esc(x.i.name)+'</span>'+(x.onPO?'<span class="pill info" style="font-size:10px">'+(langHi()?'PO में':'on PO')+'</span>':'')+'<b class="num">'+fmtQty(x.short)+'</b></div>').join('')+
+        (m.reord.length>5?'<div class="hint mt">+'+(m.reord.length-5)+(langHi()?' और':' more')+'</div>':'')+'</div>';
+    }
+  }
   // email recovery: legacy accounts get a migration nudge; unverified real emails get a verify nudge
   if(MODE==='cloud'&&fbUser){
     const legacy=(fbUser.email||'').indexOf('@invento.app')>=0;
@@ -1351,6 +1429,7 @@ function vHome(){
   const ver=$('#ver-email');if(ver)ver.onclick=async()=>{const g=emailCool('ver');if(g){toast(g,'err');return}try{await fbUser.sendEmailVerification();toast('Verification email sent — check inbox/spam','ok');ver.disabled=true}catch(e){toast(authErrMsg(e),'err')}};
 
   const ls=$('#loadSample');if(ls)ls.onclick=async()=>{ls.disabled=true;await loadSample();toast('Sample data loaded','ok');route()};
+  $$('#hm-p [data-hd]').forEach(b=>b.onclick=()=>{try{localStorage.setItem('invento_homedays',b.dataset.hd)}catch(e){}vHome()});
 }
 function txHTML(t){
   let d=ACT_LABEL[t.act]||t.act;
@@ -4546,6 +4625,18 @@ function vReturnView(id){
    AWB / SHIPMENTS — accountability for shipping labels
    ============================================================ */
 const AWB_OVERDUE_DAYS=7;
+const AWB_KEEP_DAYS=60;   // dispatched/returned docs are remembered this long, then aged out
+async function purgeOldAwbs(){
+  try{
+    const cut=Date.now()-AWB_KEEP_DAYS*86400000;
+    const old=(S.awbs||[]).filter(a=>(a.status==='dispatched'||a.status==='returned')&&(a.resolvedAt||0)<cut);
+    if(!old.length)return;
+    const gone=new Set(old.map(a=>a.id));
+    S.awbs=S.awbs.filter(a=>!gone.has(a.id));
+    if(MODE==='cloud'){for(const a of old){try{await db.collection('awbs').doc(a.id).delete()}catch(e){}}}
+    else await saveNow('awbs');
+  }catch(e){}
+}
 function awbPending(){return (S.awbs||[]).filter(a=>a.status==='accepted')}
 function awbOverdue(){const cut=Date.now()-AWB_OVERDUE_DAYS*86400000;return awbPending().filter(a=>(a.acceptedAt||0)<cut)}
 // overdue AWBs held specifically by the current user (governs the accept-block)
@@ -4558,27 +4649,27 @@ async function acceptAwb(no){
   no=String(no||'').trim();
   if(!no)return {ok:false,msg:'Empty'};
   const ex=awbByNo(no);
-  if(ex&&ex.status==='accepted')return {ok:false,msg:'Already in list ('+(ex.acceptedBy||'someone')+')'};
-  if(ex&&ex.status==='dispatched')return {ok:false,msg:'Already dispatched'};
+  if(ex&&ex.status==='accepted')return {ok:false,msg:(langHi()?'पहले से लिस्ट में है':'Already scanned inward')+' ('+(ex.acceptedBy||'someone')+')'};
+  if(ex&&ex.status==='dispatched')return {ok:false,msg:(langHi()?'यह पहले ही डिस्पैच हो चुका है · ':'Already dispatched · ')+ago(ex.resolvedAt)};
+  if(ex&&ex.status==='returned')return {ok:false,msg:(langHi()?'यह ऑफिस वापस जा चुका है · ':'Already returned to office · ')+ago(ex.resolvedAt)};
   const rec={id:uid('awb'),awb:no,status:'accepted',acceptedBy:userName(),acceptedAt:Date.now()};
   S.awbs.unshift(rec);
   await saveNow('awbs');
   logTx('list',{detail:'AWB accepted · '+no});
   return {ok:true,rec};
 }
-async function dispatchAwbByNo(no){
+async function dispatchAwbByNo(no,extra){
   no=String(no||'').trim();
   if(!no)return {ok:false,msg:'Empty'};
   let a=awbByNo(no);
-  if(a&&a.status==='dispatched')return {ok:false,msg:'Already dispatched'};
-  if(a&&a.status==='returned')return {ok:false,msg:'Was returned to office'};
-  if(!a){ // scanned outward without being accepted first — create then dispatch
-    a={id:uid('awb'),awb:no,status:'accepted',acceptedBy:userName(),acceptedAt:Date.now()};
-    S.awbs.unshift(a);
-  }
+  if(a&&a.status==='dispatched')return {ok:false,msg:(langHi()?'यह पहले ही डिस्पैच हो चुका है · ':'Already dispatched · ')+ago(a.resolvedAt)+' · '+(a.resolvedBy||'')};
+  if(a&&a.status==='returned')return {ok:false,msg:(langHi()?'यह ऑफिस वापस जा चुका है · ':'Was returned to office · ')+ago(a.resolvedAt)};
+  if(!a)return {ok:false,msg:(langHi()?'पहले Inward स्कैन करें':'Scan it inward first')};
   a.status='dispatched';a.resolvedBy=userName();a.resolvedAt=Date.now();
+  if(extra&&extra.sku)a.sku=String(extra.sku).trim();
+  if(extra&&extra.photo)a.photo=extra.photo;
   await saveNow('awbs');
-  logTx('dispatch',{detail:'AWB dispatched · '+no});
+  logTx('dispatch',{detail:'AWB dispatched · '+no+(a.sku?' · '+a.sku:'')});
   return {ok:true,rec:a};
 }
 async function returnAwbRec(a){
@@ -4609,14 +4700,41 @@ function vAwb(sub,arg){
     '</div>';
   // three columns
   h+='<div class="awbcols">';
-  h+=awbColHTML('Accept',pend,'accept');
-  h+=awbColHTML('Dispatch',disp.slice(0,40),'dispatch');
-  h+=awbColHTML('Return',ret.slice(0,40),'return');
+  h+=awbColHTML(langHi()?'बाकी':'Pending',pend,'accept');
   h+='</div>';
+  const hist=(S.awbs||[]).filter(a=>a.status==='dispatched'||a.status==='returned').sort((a,b)=>(b.resolvedAt||0)-(a.resolvedAt||0));
+  h+='<div class="card pad mt"><div class="row" style="align-items:center;gap:8px">'+
+     '<b class="grow">'+(langHi()?'हिस्ट्री':'History')+' <span class="muted num" style="font-weight:600">'+disp.length+(langHi()?' डिस्पैच · ':' dispatched · ')+ret.length+(langHi()?' वापस':' returned')+'</span></b>'+
+     '<button class="btn sm" id="aw-hist">'+(langHi()?'देखें':'View')+'</button><button class="btn sm" id="aw-csv">'+ico('csv')+'CSV</button></div>'+
+     '<div class="hint" style="margin-top:6px">'+(langHi()?'डिस्पैच हो चुके नंबर यहाँ रहते हैं — '+AWB_KEEP_DAYS+' दिन तक दोबारा स्कैन नहीं होगा।':'Dispatched numbers live here — duplicate scans stay blocked for '+AWB_KEEP_DAYS+' days.')+'</div>'+
+     '<div id="aw-histbox" style="display:none;margin-top:10px"></div></div>';
   $('#main').innerHTML=h;
   wireModeSlider();
   $('#aw-in').onclick=()=>startInward();
   $('#aw-out').onclick=()=>{ if(!can('awbDispatch')){toast('No permission to dispatch AWBs','err');return} go('#awb/out'); };
+  const hb=$('#aw-hist');
+  if(hb)hb.onclick=()=>{
+    const box=$('#aw-histbox');
+    if(box.style.display!=='none'){box.style.display='none';hb.textContent=langHi()?'देखें':'View';return}
+    box.style.display='block';hb.textContent=langHi()?'छिपाएँ':'Hide';
+    box.innerHTML='<div class="searchbar mb">'+ico('search')+'<input id="aw-hq" placeholder="'+(langHi()?'नंबर या SKU खोजें…':'Search number or SKU…')+'" autocomplete="off"></div><div id="aw-hlist"></div>';
+    const paint=()=>{
+      const el=$('#aw-hq');const q=((el&&el.value)||'').trim().toLowerCase();
+      const rows=hist.filter(a=>!q||String(a.awb||'').toLowerCase().indexOf(q)>=0||String(a.sku||'').toLowerCase().indexOf(q)>=0).slice(0,120);
+      $('#aw-hlist').innerHTML=rows.length?rows.map(a=>'<div class="awbmini"><div class="awb-no">'+esc(a.awb)+'</div><div class="awb-meta">'+
+        (a.status==='dispatched'?(langHi()?'डिस्पैच':'dispatched'):(langHi()?'वापस':'returned'))+' · '+ago(a.resolvedAt)+' · '+esc(a.resolvedBy||'—')+
+        (a.sku?' · <b>'+esc(a.sku)+'</b>':'')+'</div>'+
+        (a.photo?'<img src="'+esc(a.photo)+'" alt="" style="margin-top:6px;max-width:90px;border-radius:8px">':'')+'</div>').join('')
+        :'<div class="sub" style="padding:8px 2px">'+(langHi()?'कुछ नहीं मिला':'Nothing found')+'</div>';
+    };
+    paint();const hq=$('#aw-hq');if(hq)hq.oninput=paint;
+  };
+  const cb=$('#aw-csv');
+  if(cb)cb.onclick=()=>{
+    if(!hist.length){toast(langHi()?'कुछ नहीं है':'Nothing to export','err');return}
+    const rows=[['AWB','Status','Date','By','SKU']].concat(hist.map(a=>[a.awb,a.status,new Date(a.resolvedAt||0).toLocaleString('en-IN'),a.resolvedBy||'',a.sku||'']));
+    download('awb-history-'+new Date().toISOString().slice(0,10)+'.csv',buildCSV(rows),'text/csv');
+  };
   wireAwbColActions();
 }
 function startInward(){
@@ -4681,8 +4799,9 @@ function awbScanFlow(mode){
   const accept=mode==='in';
   if(accept && !can('awbAccept')){toast('No permission','err');go('#awb');return}
   if(!accept && !can('awbDispatch')){toast('No permission','err');go('#awb');return}
-  awbScanModal(accept?'Inward — accept AWBs':'Outward — dispatch AWBs', accept?'Scan each label taken from office.':'Scan each AWB you are sending out.',
-    async(code)=>accept?acceptAwb(code):dispatchAwbByNo(code), ()=>vAwb());
+  awbScanModal(accept?'Inward — accept AWBs':'Outward — dispatch AWBs',
+    accept?'Scan each label taken from office.':'Scan each AWB you are sending out. SKU or photo optional.',
+    async(code)=>accept?acceptAwb(code):dispatchAwbByNo(code,awbExtra()), ()=>vAwb(), !accept);
 }
 function awbReturnScanFlow(prefill){
   if(!can('awbReturn')){toast('No permission','err');go('#awb');return}
@@ -4692,22 +4811,42 @@ function awbReturnScanFlow(prefill){
 }
 
 // Generic AWB scan modal: hardware-scanner field OR camera; onCode(code)->{ok,msg}; loops.
-function awbScanModal(title,subtitle,onCode,onDone){
+let _awExtra={sku:'',photo:''};
+function awbExtra(){const e={sku:_awExtra.sku,photo:_awExtra.photo};_awExtra={sku:'',photo:''};
+  const s=$('#aw-sku');if(s)s.value='';const pv=$('#aw-pv');if(pv)pv.innerHTML='';return e}
+function awbScanModal(title,subtitle,onCode,onDone,withExtra){
   const hw=hwScanner();
   let h='<h3>'+esc(title)+(hw?' <span class="pill ok" style="font-size:10px">Machine</span>':'')+'</h3>';
   h+='<p class="sub mb">'+esc(subtitle)+'</p>';
   if(!hw)h+='<div class="scanwrap mb" id="awsw" style="max-height:40dvh"><div class="scanbox"><div class="laser"></div></div><video id="awsv" playsinline muted></video></div>';
   h+='<div class="searchbar mb" style="border-color:var(--saddle)">'+ico('ticket')+'<input id="aw-in2" placeholder="'+(hw?'Waiting for scan…':'or type the number')+'" autocomplete="off" autocapitalize="characters"></div>';
+  if(withExtra){
+    h+='<div class="row mb" style="gap:8px;align-items:center">'+
+       '<input class="in grow" id="aw-sku" placeholder="'+(langHi()?'SKU / नोट (ज़रूरी नहीं)':'SKU / note (optional)')+'" autocomplete="off">'+
+       '<button class="btn" id="aw-cam" style="flex:0 0 auto">'+ico('camera')+'</button></div>'+
+       '<input type="file" id="aw-pf" accept="image/*" capture="environment" style="display:none"><div id="aw-pv" class="mb"></div>';
+  }
   h+='<div id="aw-feed2" class="sub" style="min-height:40px;margin-bottom:8px"></div>';
   h+='<button class="btn pri block" id="aw-done2">'+ico('check')+'Done</button>';
   openModal(h);
   const inp=$('#aw-in2'),feed=$('#aw-feed2');
+  if(withExtra){
+    _awExtra={sku:'',photo:''};
+    const sk=$('#aw-sku');if(sk)sk.oninput=()=>{_awExtra.sku=sk.value};
+    const cam=$('#aw-cam'),pf=$('#aw-pf');
+    if(cam&&pf){cam.onclick=e=>{e.preventDefault();pf.click()};
+      pf.onchange=()=>{const f=pf.files&&pf.files[0];if(!f)return;
+        const r=new FileReader();
+        r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');const s=Math.min(1,640/Math.max(im.width,im.height));c.width=im.width*s;c.height=im.height*s;c.getContext('2d').drawImage(im,0,0,c.width,c.height);_awExtra.photo=c.toDataURL('image/jpeg',.6);const pv=$('#aw-pv');if(pv)pv.innerHTML='<img src="'+_awExtra.photo+'" alt="" style="max-width:110px;border-radius:9px">'};im.src=r.result};
+        r.readAsDataURL(f);pf.value='';};
+    }
+  }
   let n=0;
   const handle=async(code)=>{
     code=String(code||'').trim();if(!code)return;
     const r=await onCode(code);
     if(r&&r.ok){n++;feed.innerHTML='<b style="color:var(--green)">✓ '+esc(code)+'</b><div class="sub">'+n+' done</div>';beep(true);}
-    else{feed.innerHTML='<b style="color:var(--red)">'+esc(code)+' — '+esc((r&&r.msg)||'skipped')+'</b>';beep(false);}
+    else{feed.innerHTML='<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:10px;padding:9px 11px"><b style="color:var(--red)">'+esc(code)+'</b><div style="color:var(--red);font-weight:600;font-size:13px">'+esc((r&&r.msg)||'skipped')+'</div></div>';beep(false);}
     inp.value='';
   };
   inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();const v=inp.value.trim();if(v)handle(v)}};
