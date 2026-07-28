@@ -4019,12 +4019,27 @@ function vDispatchNew(){
   topTitle('Dispatch · '+dDraft.orderId,'#dispatch');
   let h='<div class="row mb wrap"><h1 class="page" style="margin:0">'+esc(dDraft.orderId)+'</h1><span class="pill '+(dDraft.dest==='intl'?'info':'gray')+'">'+(dDraft.dest==='intl'?'International':'Domestic')+'</span></div>';
   h+='<div class="dcapture"><button class="dcapbtn scan" id="d-scan">'+ico('scan')+'Scan SKU</button><button class="dcapbtn photo" id="d-photo">'+ico('camera')+'Take photo</button></div>';
+  h+='<button class="btn block mb" id="d-cam">'+ico('camera')+(langHi()?'कैमरा पैकिंग मोड (स्कैनर)':'Camera packing mode (scanner)')+'</button>';
   h+='<input type="file" id="d-file" accept="image/*" capture="environment" style="display:none">';
   h+='<div class="section-h"><h2>Items in this dispatch</h2><span class="num" style="font-weight:800">'+sum(dDraft.lines,l=>+l.qty||0)+'</span></div>';
   h+='<div id="d-lines">'+dispatchLinesHTML()+'</div>';
   h+='<div class="row wrap mt" style="gap:9px"><button class="btn grow" id="d-cancel">Cancel</button><button class="btn pri grow" id="d-save" '+(dDraft.lines.length?'':'disabled')+'>'+ico('check')+'Save dispatch'+(dDraft.lines.length?' ('+dDraft.lines.length+')':'')+'</button></div>';
   $('#main').innerHTML=h;
   $('#d-scan').onclick=()=>dispatchScan();
+  $('#d-cam').onclick=()=>parcelCamFlow({
+    title:(langHi()?'पैकिंग · ':'Packing · ')+dDraft.orderId,
+    intl:dDraft.dest==='intl',
+    validate:async code=>{const a=awbByNo(code);
+      if(a&&a.status==='dispatched')return {ok:false,msg:(langHi()?'पहले ही डिस्पैच · ':'Already dispatched · ')+ago(a.resolvedAt)};
+      return {ok:true}},
+    onDone:async(code,med)=>{
+      dDraft.parcels=dDraft.parcels||[];
+      dDraft.parcels.push({code:code,photo:med.photo||'',video:med.video||'',at:Date.now()});
+      const a=awbByNo(code);
+      if(a&&a.status==='accepted'){await dispatchAwbByNo(code,{photo:med.photo,video:med.video})}
+    },
+    onClose:()=>route()
+  });
   $('#d-photo').onclick=()=>$('#d-file').click();
   $('#d-file').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(f)await dispatchAddPhoto(f);};
   wireDispatchLineEvents();
@@ -4668,6 +4683,7 @@ async function dispatchAwbByNo(no,extra){
   a.status='dispatched';a.resolvedBy=userName();a.resolvedAt=Date.now();
   if(extra&&extra.sku)a.sku=String(extra.sku).trim();
   if(extra&&extra.photo)a.photo=extra.photo;
+  if(extra&&extra.video)a.video=extra.video;
   await saveNow('awbs');
   logTx('dispatch',{detail:'AWB dispatched · '+no+(a.sku?' · '+a.sku:'')});
   return {ok:true,rec:a};
@@ -4796,171 +4812,183 @@ async function awbReturnOne(awbId){
 /* scanner flow shared by inward / outward / return */
 
 /* ============================================================
-   OUTWARD DISPATCH FLOW — per parcel:
-   scan AWB -> scan SKU (or skip) -> photo -> video rolls till next AWB
-   photo => Firebase (with the AWB record) | video => this PC, by date + INTL/DOM
+   PARCEL CAMERA FLOW  (scanner-driven, used by AWB Outward + Dispatch)
+   scan #1 -> 3s countdown -> auto photo | scan #2 -> record | scan #3 -> save & next
+   photo => Firebase | video => this PC: <folder>/YYYY-MM-DD/INTL|DOM/<code>.webm
    ============================================================ */
-let _dispCam=null, _dispRec=null, _dispChunks=[], _dispCur=null, _dispDir=null, _dispIdle=null;
-const DISP_IDLE_MS=5*60000;
+let _pcCam=null,_pcRec=null,_pcChunks=[],_pcDir=null,_pcIdle=null;
+const PC_IDLE_MS=6*60000;
 
-async function dispCam(){
-  if(_dispCam&&_dispCam.active)return _dispCam;
-  _dispCam=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720}},audio:false});
-  return _dispCam;
+/* remember the chosen folder forever (IndexedDB) so it is asked only once */
+function pcIDB(){return new Promise(res=>{const r=indexedDB.open('invento-fs',1);
+  r.onupgradeneeded=()=>{try{r.result.createObjectStore('h')}catch(e){}};
+  r.onsuccess=()=>res(r.result);r.onerror=()=>res(null)})}
+async function pcDirGet(){
+  if(_pcDir)return _pcDir;
+  try{const db2=await pcIDB();if(!db2)return null;
+    const h=await new Promise(res=>{const t=db2.transaction('h','readonly').objectStore('h').get('dir');t.onsuccess=()=>res(t.result);t.onerror=()=>res(null)});
+    if(h){const p=await h.queryPermission({mode:'readwrite'});
+      if(p==='granted'){_pcDir=h;return h}
+      if(p==='prompt'){const q=await h.requestPermission({mode:'readwrite'});if(q==='granted'){_pcDir=h;return h}}}
+  }catch(e){}
+  return null;
 }
-function dispCamStop(){try{if(_dispCam)_dispCam.getTracks().forEach(t=>t.stop())}catch(e){}_dispCam=null}
-async function dispPickFolder(){
-  if(!window.showDirectoryPicker)return null;
-  try{_dispDir=await window.showDirectoryPicker({mode:'readwrite'});return _dispDir}catch(e){return null}
+async function pcDirPick(){
+  if(!window.showDirectoryPicker){toast(langHi()?'यह ब्राउज़र फ़ोल्डर सेव नहीं कर सकता — फ़ाइल डाउनलोड होगी':'This browser cannot save to a folder — files will download','warn');return null}
+  try{const d=await window.showDirectoryPicker({mode:'readwrite',startIn:'desktop'});
+    _pcDir=d;const db2=await pcIDB();
+    if(db2)db2.transaction('h','readwrite').objectStore('h').put(d,'dir');
+    return d;
+  }catch(e){return null}
 }
-async function dispSaveVideo(blob,awb,intl){
-  const d=new Date(),date=d.toISOString().slice(0,10);
-  const name=(awb||'parcel').replace(/[^A-Za-z0-9_-]/g,'')+'.webm';
-  const sub=intl?'INTL':'DOM';
-  if(_dispDir){
-    try{
-      const dd=await _dispDir.getDirectoryHandle(date,{create:true});
-      const sd=await dd.getDirectoryHandle(sub,{create:true});
-      const fh=await sd.getFileHandle(name,{create:true});
-      const w=await fh.createWritable();await w.write(blob);await w.close();
-      return date+'/'+sub+'/'+name;
-    }catch(e){}
-  }
-  download(date+'_'+sub+'_'+name,blob,'video/webm');   // fallback: browser download
+async function pcCam(){
+  if(_pcCam&&_pcCam.active)return _pcCam;
+  _pcCam=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720}},audio:false});
+  return _pcCam;
+}
+function pcCamStop(){try{if(_pcCam)_pcCam.getTracks().forEach(t=>t.stop())}catch(e){}_pcCam=null}
+function pcShot(v){const c=document.createElement('canvas');const w=v.videoWidth||1280,hh=v.videoHeight||720,s=Math.min(1,900/Math.max(w,hh));
+  c.width=Math.round(w*s);c.height=Math.round(hh*s);c.getContext('2d').drawImage(v,0,0,c.width,c.height);return c.toDataURL('image/jpeg',.72)}
+async function pcSave(blob,code,intl){
+  const date=new Date().toISOString().slice(0,10),sub=intl?'INTL':'DOM';
+  const name=String(code||'parcel').replace(/[^A-Za-z0-9_-]/g,'')+'.webm';
+  const dir=await pcDirGet();
+  if(dir){try{
+    const dd=await dir.getDirectoryHandle(date,{create:true});
+    const sd=await dd.getDirectoryHandle(sub,{create:true});
+    const fh=await sd.getFileHandle(name,{create:true});
+    const w=await fh.createWritable();await w.write(blob);await w.close();
+    return date+'/'+sub+'/'+name;
+  }catch(e){}}
+  download(date+'_'+sub+'_'+name,blob,'video/webm');
   return date+'/'+sub+'/'+name;
 }
-function dispStartRec(awb,intl){
-  try{
-    if(!_dispCam)return;
-    _dispChunks=[];
-    let mt='video/webm;codecs=vp8';
-    if(window.MediaRecorder&&!MediaRecorder.isTypeSupported(mt))mt='video/webm';
-    _dispRec=new MediaRecorder(_dispCam,{mimeType:mt,videoBitsPerSecond:900000});
-    _dispCur={awb:awb,intl:intl,at:Date.now()};
-    _dispRec.ondataavailable=e=>{if(e.data&&e.data.size)_dispChunks.push(e.data)};
-    _dispRec.start(4000);   // 4s chunks — a crash keeps everything up to that point
-    clearTimeout(_dispIdle);_dispIdle=setTimeout(()=>{dispStopRec();toast(langHi()?'रिकॉर्डिंग अपने आप बंद':'Recording auto-stopped (idle)','warn')},DISP_IDLE_MS);
-  }catch(e){}
-}
-async function dispStopRec(){
-  clearTimeout(_dispIdle);
-  if(!_dispRec||_dispRec.state==='inactive'){_dispRec=null;return}
-  const cur=_dispCur,rec=_dispRec;_dispRec=null;_dispCur=null;
+function pcRecStart(){try{
+  if(!_pcCam)return false;
+  _pcChunks=[];let mt='video/webm;codecs=vp8';
+  if(window.MediaRecorder&&!MediaRecorder.isTypeSupported(mt))mt='video/webm';
+  _pcRec=new MediaRecorder(_pcCam,{mimeType:mt,videoBitsPerSecond:900000});
+  _pcRec.ondataavailable=e=>{if(e.data&&e.data.size)_pcChunks.push(e.data)};
+  _pcRec.start(4000);return true;
+}catch(e){return false}}
+async function pcRecStop(code,intl){
+  clearTimeout(_pcIdle);
+  if(!_pcRec||_pcRec.state==='inactive'){_pcRec=null;return ''}
+  const rec=_pcRec;_pcRec=null;
   await new Promise(res=>{rec.onstop=res;try{rec.stop()}catch(e){res()}});
-  if(!_dispChunks.length)return;
-  const blob=new Blob(_dispChunks,{type:'video/webm'});_dispChunks=[];
-  const path=await dispSaveVideo(blob,cur&&cur.awb,cur&&cur.intl);
-  const a=awbByNo(cur&&cur.awb);
-  if(a){a.video=path;a.videoSize=blob.size;try{await saveNow('awbs')}catch(e){}}
-}
-function dispShot(video){
-  const c=document.createElement('canvas');
-  const w=video.videoWidth||1280,hh=video.videoHeight||720,s=Math.min(1,900/Math.max(w,hh));
-  c.width=Math.round(w*s);c.height=Math.round(hh*s);
-  c.getContext('2d').drawImage(video,0,0,c.width,c.height);
-  return c.toDataURL('image/jpeg',.72);
+  if(!_pcChunks.length)return '';
+  const blob=new Blob(_pcChunks,{type:'video/webm'});_pcChunks=[];
+  return await pcSave(blob,code,intl);
 }
 
-async function awbOutwardFlow(){
-  if(!can('awbDispatch')){toast('No permission to dispatch AWBs','err');go('#awb');return}
-  let intl=(localStorage.getItem('invento_dispintl')==='1');
-  let cam=null;try{cam=await dispCam()}catch(e){cam=null}
-  if(cam&&window.showDirectoryPicker&&!_dispDir){
-    // ask once per session where videos go
-  }
-  const hw=hwScanner();
-  let stage='awb', curAwb='', n=0;
+/* opts: {title, intl, validate(code)->{ok,msg}, onDone(code,{photo,video}), onClose()} */
+async function parcelCamFlow(opts){
+  let cam=null;try{cam=await pcCam()}catch(e){cam=null}
+  await pcDirGet();
+  let stage='idle',cur='',photo='',n=0,busy=false;
+  const T=(hi,en)=>langHi()?hi:en;
 
   const paint=()=>{
-    let h='<h3>'+(langHi()?'Outward — डिस्पैच':'Outward — dispatch')+(hw?' <span class="pill ok" style="font-size:10px">Machine</span>':'')+'</h3>';
-    // session toggles
+    let h='<h3>'+esc(opts.title||T('डिस्पैच','Dispatch'))+'</h3>';
     h+='<div class="row mb" style="gap:8px;align-items:center">'+
-       '<div class="seg grow" id="dp-mode"><button data-intl="0" class="'+(intl?'':'on')+'">'+(langHi()?'घरेलू':'Domestic')+'</button><button data-intl="1" class="'+(intl?'on':'')+'">'+(langHi()?'इंटरनेशनल':'International')+'</button></div>'+
-       (cam?'<button class="btn sm" id="dp-fold" style="flex:0 0 auto">'+ico('folder')+(_dispDir?(langHi()?'फ़ोल्डर ✓':'Folder ✓'):(langHi()?'वीडियो फ़ोल्डर':'Video folder'))+'</button>':'')+
-       '</div>';
-    if(!cam)h+='<div class="hint mb" style="color:var(--amber)">'+(langHi()?'कैमरा नहीं मिला — फोटो/वीडियो बंद रहेगा, स्कैन चलेगा।':'No camera — scanning works, photo/video off.')+'</div>';
+       '<span class="pill '+(opts.intl?'info':'gray')+'">'+(opts.intl?T('इंटरनेशनल','International'):T('घरेलू','Domestic'))+'</span>'+
+       '<span class="grow"></span>'+
+       (cam?'<button class="btn sm" id="pc-fold">'+ico('folder')+(_pcDir?T('फ़ोल्डर ✓','Folder ✓'):T('वीडियो फ़ोल्डर चुनें','Set video folder'))+'</button>':'')+'</div>';
+    if(!cam)h+='<div class="hint mb" style="color:var(--amber)">'+T('कैमरा नहीं मिला — सिर्फ स्कैन चलेगा।','No camera — scanning only.')+'</div>';
+    if(!_pcDir&&cam)h+='<div class="hint mb" style="color:var(--amber)">'+T('वीडियो फ़ोल्डर चुनें — एक ही बार पूछेगा (Desktop चुनें)।','Set the video folder once — pick Desktop. It is remembered after that.')+'</div>';
 
-    if(stage==='awb'){
-      h+='<p class="sub mb">'+(langHi()?'हर पार्सल का AWB स्कैन करें।':'Scan the AWB of each parcel.')+(_dispRec?' <b style="color:var(--red)">● '+(langHi()?'रिकॉर्डिंग चल रही है':'recording')+'</b>':'')+'</p>';
-      h+='<div class="searchbar mb" style="border-color:var(--saddle)">'+ico('ticket')+'<input id="dp-awb" placeholder="'+(hw?(langHi()?'स्कैन का इंतज़ार…':'Waiting for scan…'):(langHi()?'या नंबर टाइप करें':'or type the number'))+'" autocomplete="off" autocapitalize="characters"></div>';
-    }
-    if(stage==='sku'){
-      h+='<div class="card pad mb" style="border:2px solid var(--saddle)"><div class="eyebrow">'+(langHi()?'पार्सल':'Parcel')+'</div><div class="mono" style="font-weight:800;font-size:16px">'+esc(curAwb)+'</div></div>';
-      h+='<p class="sub mb">'+(langHi()?'आइटम का SKU स्कैन करें — या छोड़कर फोटो लें।':'Scan the item SKU — or skip and take a photo.')+'</p>';
-      h+='<div class="searchbar mb" style="border-color:var(--saddle)">'+ico('scan')+'<input id="dp-sku" placeholder="'+(langHi()?'SKU स्कैन करें':'Scan SKU')+'" autocomplete="off" autocapitalize="characters"></div>';
-      h+='<button class="btn block" id="dp-skip">'+ico('camera')+(cam?(langHi()?'छोड़ें — फोटो लें':'Skip — take photo'):(langHi()?'छोड़ें':'Skip'))+'</button>';
-    }
-    if(stage==='photo'){
-      h+='<div class="card pad mb" style="border:2px solid var(--saddle)"><div class="mono" style="font-weight:800">'+esc(curAwb)+'</div></div>';
-      h+='<p class="sub mb">'+(langHi()?'आइटम कैमरे के सामने रखें और फोटो लें।':'Hold the item in front of the camera and capture.')+'</p>';
-      h+='<div class="scanwrap mb" style="max-height:44dvh"><video id="dp-v" playsinline muted autoplay></video></div>';
-      h+='<button class="btn pri block mb" id="dp-shot">'+ico('camera')+(langHi()?'फोटो लें':'Capture photo')+'</button>';
-      h+='<button class="btn block" id="dp-nophoto">'+(langHi()?'बिना फोटो आगे बढ़ें':'Continue without photo')+'</button>';
-    }
-    h+='<div id="dp-feed" class="sub" style="min-height:38px;margin:8px 0"></div>';
-    h+='<button class="btn pri block" id="dp-done">'+ico('check')+(langHi()?'खत्म':'Done')+' '+(n?'· '+n:'')+'</button>';
-    $('#modal').innerHTML=h;
-    wire();
+    if(stage==='idle')  h+='<div class="card pad mb" style="text-align:center;border:2px dashed var(--line2)"><div style="font-size:30px">'+ico('scan')+'</div><b>'+T('AWB स्कैन करें','Scan the AWB')+'</b><div class="sub">'+T('नया पार्सल शुरू करने के लिए','to start the next parcel')+'</div></div>';
+    if(stage==='count') h+='<div class="card pad mb" style="text-align:center;border:2px solid var(--saddle)"><div class="mono" style="font-weight:800">'+esc(cur)+'</div><div id="pc-cd" style="font-size:52px;font-weight:800;color:var(--saddle);line-height:1.1">3</div><div class="sub">'+T('आइटम कैमरे के सामने रखें','hold the item in front of the camera')+'</div></div>';
+    if(stage==='armed') h+='<div class="card pad mb" style="text-align:center;border:2px solid var(--green)"><div class="mono" style="font-weight:800">'+esc(cur)+'</div>'+(photo?'<img src="'+photo+'" style="max-width:150px;border-radius:10px;margin:8px auto;display:block">':'')+'<b style="color:var(--green)">'+T('फोटो हो गई','Photo taken')+'</b><div class="sub">'+T('रिकॉर्डिंग शुरू करने के लिए वही AWB दोबारा स्कैन करें','scan the same AWB again to start recording')+'</div></div>';
+    if(stage==='rec')   h+='<div class="card pad mb" style="text-align:center;border:2px solid var(--red)"><div class="mono" style="font-weight:800">'+esc(cur)+'</div><div style="font-size:34px;color:var(--red)">●</div><b style="color:var(--red)">'+T('रिकॉर्डिंग चल रही है','Recording')+'</b><div class="sub">'+T('पैक करें — फिर वही AWB स्कैन करके पूरा करें','pack it — then scan the same AWB to finish')+'</div></div>';
+    if(cam&&(stage==='count'||stage==='rec'))h+='<div class="scanwrap mb" style="max-height:34dvh"><video id="pc-v" playsinline muted autoplay></video></div>';
+    h+='<div class="searchbar mb" style="border-color:var(--saddle)">'+ico('ticket')+'<input id="pc-in" placeholder="'+T('स्कैन का इंतज़ार…','Waiting for scan…')+'" autocomplete="off" autocapitalize="characters"></div>';
+    h+='<div id="pc-feed" class="sub" style="min-height:36px;margin-bottom:8px"></div>';
+    h+='<button class="btn pri block" id="pc-done">'+ico('check')+T('खत्म','Done')+(n?' · '+n:'')+'</button>';
+    $('#modal').innerHTML=h;wire();
   };
+  const feed=html=>{const f=$('#pc-feed');if(f)f.innerHTML=html};
+  const err=(code,msg)=>{beep(false);feed('<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:10px;padding:9px 11px"><b style="color:var(--red)">'+esc(code)+'</b><div style="color:var(--red);font-weight:600;font-size:13px">'+esc(msg)+'</div></div>')};
 
-  const feed=(html)=>{const f=$('#dp-feed');if(f)f.innerHTML=html};
+  const runCountdown=()=>new Promise(res=>{
+    let k=3;const tick=()=>{const el=$('#pc-cd');if(el)el.textContent=k;
+      if(k<=0){res();return}
+      k--;setTimeout(tick,1000)};
+    tick();
+  });
 
-  const commit=async(extra)=>{
-    const r=await dispatchAwbByNo(curAwb,extra||{});
-    if(r&&r.ok){
-      n++;beep(true);
-      if(cam)dispStartRec(curAwb,intl);            // video rolls until next AWB
-      stage='awb';paint();
-      feed('<b style="color:var(--green)">✓ '+esc(curAwb)+'</b><div class="sub">'+n+(langHi()?' डिस्पैच':' dispatched')+(cam?' · '+(langHi()?'रिकॉर्डिंग…':'recording…'):'')+'</div>');
-    } else {
-      beep(false);stage='awb';paint();
-      feed('<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:10px;padding:9px 11px"><b style="color:var(--red)">'+esc(curAwb)+'</b><div style="color:var(--red);font-weight:600;font-size:13px">'+esc((r&&r.msg)||'skipped')+'</div></div>');
-    }
-    curAwb='';
+  const onScan=async code=>{
+    code=String(code||'').trim();if(!code||busy)return;
+    busy=true;
+    try{
+      if(stage==='idle'){
+        const v=await opts.validate(code);
+        if(!v||!v.ok){err(code,(v&&v.msg)||'skipped');return}
+        cur=code;photo='';stage='count';paint();
+        const vid=$('#pc-v');if(vid&&cam){vid.srcObject=cam;vid.play().catch(()=>{})}
+        await runCountdown();
+        if(cam){const el=$('#pc-v');if(el)photo=pcShot(el)}
+        beep(true);stage='armed';paint();
+        return;
+      }
+      if(stage==='armed'){
+        if(code!==cur){err(code,T('पहले '+cur+' पूरा करें','Finish '+cur+' first'));return}
+        if(cam&&pcRecStart()){stage='rec';paint();
+          const vid=$('#pc-v');if(vid){vid.srcObject=cam;vid.play().catch(()=>{})}
+          clearTimeout(_pcIdle);_pcIdle=setTimeout(async()=>{if(stage==='rec'){const p=await pcRecStop(cur,opts.intl);await finish(p);toast(T('रिकॉर्डिंग अपने आप बंद','Recording auto-stopped'),'warn')}},PC_IDLE_MS);
+        } else {await finish('')}
+        return;
+      }
+      if(stage==='rec'){
+        if(code!==cur){err(code,T('पहले '+cur+' पूरा करें','Finish '+cur+' first'));return}
+        const p=await pcRecStop(cur,opts.intl);
+        await finish(p);
+        return;
+      }
+    } finally { busy=false; }
   };
-
-  const onAwb=async(code)=>{
-    code=String(code||'').trim();if(!code)return;
-    const a=awbByNo(code);
-    if(!a){beep(false);feed('<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:10px;padding:9px 11px"><b style="color:var(--red)">'+esc(code)+'</b><div style="color:var(--red);font-weight:600;font-size:13px">'+(langHi()?'पहले Inward स्कैन करें':'Scan it inward first')+'</div></div>');return}
-    if(a.status!=='accepted'){beep(false);feed('<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:10px;padding:9px 11px"><b style="color:var(--red)">'+esc(code)+'</b><div style="color:var(--red);font-weight:600;font-size:13px">'+(a.status==='dispatched'?(langHi()?'पहले ही डिस्पैच · ':'Already dispatched · ')+ago(a.resolvedAt):(langHi()?'ऑफिस वापस जा चुका':'Was returned to office'))+'</div></div>');return}
-    await dispStopRec();                            // close previous parcel's video
-    curAwb=code;stage='sku';paint();
+  const finish=async videoPath=>{
+    await opts.onDone(cur,{photo:photo,video:videoPath});
+    n++;beep(true);
+    const done=cur;cur='';photo='';stage='idle';paint();
+    feed('<b style="color:var(--green)">✓ '+esc(done)+'</b><div class="sub">'+n+T(' पूरे','done')+(videoPath?' · 🎬':'')+'</div>');
   };
 
   function wire(){
-    $$('#modal #dp-mode [data-intl]').forEach(b=>b.onclick=()=>{intl=b.dataset.intl==='1';try{localStorage.setItem('invento_dispintl',intl?'1':'0')}catch(e){}paint()});
-    const fb=$('#dp-fold');if(fb)fb.onclick=async()=>{await dispPickFolder();paint()};
-    const A=$('#dp-awb');
-    if(A){
-      A.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();const v=A.value.trim();A.value='';if(v)onAwb(v)}};
-      if(hw){let t=null;A.oninput=()=>{clearTimeout(t);t=setTimeout(()=>{const v=A.value.trim();if(v.length>=4){A.value='';onAwb(v)}},150)}}
-      try{A.focus()}catch(e){}
+    const fb=$('#pc-fold');if(fb)fb.onclick=async()=>{await pcDirPick();paint()};
+    const I=$('#pc-in');
+    if(I){
+      I.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();const v=I.value.trim();I.value='';if(v)onScan(v)}};
+      let t=null;I.oninput=()=>{clearTimeout(t);t=setTimeout(()=>{const v=I.value.trim();if(v.length>=4){I.value='';onScan(v)}},160)};
+      try{I.focus()}catch(e){}
     }
-    const K=$('#dp-sku');
-    if(K){
-      const go2=async()=>{const v=K.value.trim();if(!v)return;K.value='';await commit({sku:v})};
-      K.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();go2()}};
-      if(hw){let t=null;K.oninput=()=>{clearTimeout(t);t=setTimeout(()=>{if(K.value.trim().length>=4)go2()},150)}}
-      try{K.focus()}catch(e){}
-    }
-    const sk=$('#dp-skip');
-    if(sk)sk.onclick=async()=>{ if(!cam){await commit({});return} stage='photo';paint(); };
-    const V=$('#dp-v');
-    if(V&&cam){V.srcObject=cam;V.play().catch(()=>{})}
-    const sh=$('#dp-shot');
-    if(sh)sh.onclick=async()=>{const v=$('#dp-v');if(!v)return;const p=dispShot(v);await commit({photo:p})};
-    const np=$('#dp-nophoto');
-    if(np)np.onclick=async()=>{await commit({})};
-    const dn=$('#dp-done');
-    if(dn)dn.onclick=async()=>{dn.disabled=true;await dispStopRec();dispCamStop();closeModal();vAwb()};
+    const dn=$('#pc-done');
+    if(dn)dn.onclick=async()=>{dn.disabled=true;if(stage==='rec'){const p=await pcRecStop(cur,opts.intl);await finish(p)}pcCamStop();closeModal();if(opts.onClose)opts.onClose()};
   }
-
-  openModal('<div class="sub">…</div>');
-  paint();
+  openModal('<div class="sub">…</div>');paint();
+  const foc=setInterval(()=>{const I=$('#pc-in');if(!I){clearInterval(foc);return}if(document.activeElement!==I){try{I.focus()}catch(e){}}},600);
   const ov=$('#ovl');
-  const obs=new MutationObserver(async()=>{if(!ov.classList.contains('show')){obs.disconnect();await dispStopRec();dispCamStop();}});
+  const obs=new MutationObserver(async()=>{if(!ov.classList.contains('show')){obs.disconnect();clearInterval(foc);if(_pcRec){const p=await pcRecStop(cur,opts.intl);if(cur)await opts.onDone(cur,{photo:photo,video:p})}pcCamStop()}});
   obs.observe(ov,{attributes:true,attributeFilter:['class']});
+}
+
+/* ---- AWB Outward uses it ---- */
+async function awbOutwardFlow(){
+  if(!can('awbDispatch')){toast('No permission to dispatch AWBs','err');go('#awb');return}
+  let intl=(localStorage.getItem('invento_dispintl')==='1');
+  await parcelCamFlow({
+    title:langHi()?'Outward — डिस्पैच':'Outward — dispatch',
+    intl:intl,
+    validate:async code=>{
+      const a=awbByNo(code);
+      if(!a)return {ok:false,msg:langHi()?'पहले Inward स्कैन करें':'Scan it inward first'};
+      if(a.status==='dispatched')return {ok:false,msg:(langHi()?'पहले ही डिस्पैच · ':'Already dispatched · ')+ago(a.resolvedAt)};
+      if(a.status!=='accepted')return {ok:false,msg:langHi()?'ऑफिस वापस जा चुका':'Was returned to office'};
+      return {ok:true};
+    },
+    onDone:async(code,med)=>{await dispatchAwbByNo(code,{photo:med.photo,video:med.video})},
+    onClose:()=>vAwb()
+  });
 }
 
 function awbScanFlow(mode){
