@@ -4051,9 +4051,9 @@ function vDispatchNew(){
       return {ok:true}},
     onDone:async(code,med)=>{
       dDraft.parcels=dDraft.parcels||[];
-      dDraft.parcels.push({code:code,photo:med.photo||'',video:med.video||'',at:Date.now()});
+      dDraft.parcels.push({code:code,sku:med.sku||'',photo:med.photo||'',video:med.video||'',at:Date.now()});
       const a=awbByNo(code);
-      if(a&&a.status==='accepted'){await dispatchAwbByNo(code,{photo:med.photo,video:med.video})}
+      if(a&&a.status==='accepted'){await dispatchAwbByNo(code,{sku:med.sku,photo:med.photo,video:med.video})}
     },
     onClose:()=>route()
   });
@@ -4225,12 +4225,15 @@ async function saveDispatch(){
   }
   // store photos separately (keyed) to keep dispatch doc small
   const rec={id:uid('d'),number:no,orderId:dDraft.orderId,dest:dDraft.dest,ts:Date.now(),by:userName(),dupApproved:!!dDraft.dupApproved,
-    lines:dDraft.lines.map(l=>({itemId:l.itemId||null,name:l.name||'',code:l.code||'',qty:+l.qty||0,thumb:l.thumb||'',hasPhoto:!!l.photo}))};
+    lines:dDraft.lines.map(l=>({itemId:l.itemId||null,name:l.name||'',code:l.code||'',qty:+l.qty||0,thumb:l.thumb||'',hasPhoto:!!l.photo})),
+    parcels:(dDraft.parcels||[]).map(p=>({code:p.code||'',sku:p.sku||'',video:p.video||'',at:p.at||Date.now()}))};
   // save full photos under d:<id> (array aligned to lines that hasPhoto)
   const photos=dDraft.lines.filter(l=>l.photo).map(l=>l.photo);
+  const parcelPhotos=(dDraft.parcels||[]).map(p=>p.photo||'');
   S.dispatches.unshift(rec);
   await Promise.all([saveNow('items'),saveNow('dispatches')]);
   if(photos.length){try{await store.set('p:dsp_'+rec.id,photos)}catch(e){}}
+  if(parcelPhotos.some(Boolean)){try{await store.set('p:par_'+rec.id,parcelPhotos)}catch(e){}}
   logTx('dispatch',{detail:dDraft.orderId+' · '+dDraft.lines.length+' items'+(dDraft.dest==='intl'?' · Intl':' · Dom')});
   dDraft=null;
   updateBadges();
@@ -4244,6 +4247,14 @@ async function vDispatchView(id){
   topTitle(d.orderId||d.number,'#dispatch');
   let h='<div class="row mb wrap"><h1 class="page" style="margin:0">'+esc(d.orderId||d.number)+'</h1><span class="pill '+(d.dest==='intl'?'info':'gray')+'">'+(d.dest==='intl'?'International':'Domestic')+'</span></div>';
   h+='<div class="sub mb">'+esc(d.number)+' · '+fmtDT(d.ts)+(d.by?' · by '+esc(d.by):'')+'</div>';
+  if((d.parcels||[]).length){
+    h+='<div class="section-h"><h2>'+(langHi()?'पैकिंग (फोटो / वीडियो)':'Packing (photo / video)')+'</h2><span class="num" style="font-weight:800">'+d.parcels.length+'</span></div>';
+    h+='<div class="ilist mb">'+d.parcels.map((p,ix)=>'<div class="dline" style="align-items:flex-start"><span class="ph" id="dvpar-'+ix+'">'+ico('camera')+'</span>'+
+      '<div class="grow"><div class="mono" style="font-weight:700">'+esc(p.code||'')+'</div>'+
+      '<div class="sub">'+(p.sku?'SKU: <b>'+esc(p.sku)+'</b> · ':'')+fmtDT(p.at)+'</div>'+
+      (p.video?'<div class="sub" style="color:var(--saddle);font-weight:600">🎬 '+esc(p.video)+'</div>':'<div class="sub" style="opacity:.6">'+(langHi()?'वीडियो नहीं':'no video')+'</div>')+
+      '</div></div>').join('')+'</div>';
+  }
   h+='<div class="section-h"><h2>Items sent</h2><span class="num" style="font-weight:800">'+fmtQty(sum(d.lines||[],l=>+l.qty||0))+'</span></div>';
   h+='<div id="dv-lines"><div class="ilist">';
   (d.lines||[]).forEach((ln,ix)=>{
@@ -4266,6 +4277,9 @@ async function vDispatchView(id){
   const del=$('#dv-del');if(del)del.onclick=async()=>{if(!isAdminU()){toast(langHi()?'सिर्फ एडमिन डिस्पैच रिकॉर्ड डिलीट कर सकते हैं':'Only admins can delete dispatch records','err');return}const ok=await confirmDlg('Delete dispatch record?','This removes the record only — it does not add stock back.','Delete',true);if(!ok)return;S.dispatches=S.dispatches.filter(x=>x.id!==d.id);await saveNow('dispatches');try{await store.del('p:dsp_'+d.id)}catch(e){}go('#dispatch')};
   // lazy-load full photos only when the order is open; tap to view full-size
   const anyPhoto=(d.lines||[]).some(l=>l.hasPhoto);
+  if((d.parcels||[]).length){store.get('p:par_'+d.id).then(arr=>{if(!arr)return;
+    d.parcels.forEach((p,ix)=>{const full=arr[ix];const el=$('#dvpar-'+ix);
+      if(el&&full){el.innerHTML='<img src="'+full+'" alt="" style="width:46px;height:46px;border-radius:9px;object-fit:cover;cursor:zoom-in">';el.onclick=()=>showPhoto(full)}})}).catch(()=>{})}
   if(anyPhoto){store.get('p:dsp_'+d.id).then(arr=>{if(!arr)return;let pi=0;(d.lines||[]).forEach((l,ix)=>{if(l.hasPhoto){const full=arr[pi];const el=$('#dvph-'+ix);if(el&&full){el.innerHTML='<img src="'+full+'" alt="" style="width:46px;height:46px;border-radius:9px;object-fit:cover;cursor:zoom-in">';el.style.cursor='zoom-in';el.onclick=()=>showPhoto(full)}pi++}})}).catch(()=>{})}
 }
 
@@ -4739,6 +4753,7 @@ function vAwb(sub,arg){
   h+='<div class="card pad mt"><div class="row" style="align-items:center;gap:8px">'+
      '<b class="grow">'+(langHi()?'हिस्ट्री':'History')+' <span class="muted num" style="font-weight:600">'+disp.length+(langHi()?' डिस्पैच · ':' dispatched · ')+ret.length+(langHi()?' वापस':' returned')+'</span></b>'+
      '<button class="btn sm" id="aw-hist">'+(langHi()?'देखें':'View')+'</button><button class="btn sm" id="aw-csv">'+ico('csv')+'CSV</button></div>'+
+     (isAdminU()&&pend.length?'<button class="btn sm block mt" id="aw-clear" style="color:var(--red);border-color:var(--red-bg)">'+ico('trash')+(langHi()?'सारे बाकी AWB हटाएँ ('+pend.length+')':'Clear all pending inward ('+pend.length+')')+'</button>':'')+
      '<div class="hint" style="margin-top:6px">'+(langHi()?'डिस्पैच हो चुके नंबर यहाँ रहते हैं — '+AWB_KEEP_DAYS+' दिन तक दोबारा स्कैन नहीं होगा।':'Dispatched numbers live here — duplicate scans stay blocked for '+AWB_KEEP_DAYS+' days.')+'</div>'+
      '<div id="aw-histbox" style="display:none;margin-top:10px"></div></div>';
   $('#main').innerHTML=h;
@@ -4761,6 +4776,24 @@ function vAwb(sub,arg){
         :'<div class="sub" style="padding:8px 2px">'+(langHi()?'कुछ नहीं मिला':'Nothing found')+'</div>';
     };
     paint();const hq=$('#aw-hq');if(hq)hq.oninput=paint;
+  };
+  const clr=$('#aw-clear');
+  if(clr)clr.onclick=async()=>{
+    if(!isAdminU()){toast(langHi()?'सिर्फ एडमिन':'Admins only','err');return}
+    const list=(S.awbs||[]).filter(a=>a.status==='accepted');
+    if(!list.length){toast(langHi()?'कुछ बाकी नहीं':'Nothing pending','err');return}
+    const ok=await confirmDlg(
+      (langHi()?'सारे बाकी AWB हटाएँ?':'Delete all pending inward AWBs?'),
+      list.length+(langHi()?' AWB हमेशा के लिए हट जाएँगे। डिस्पैच और वापसी वाले रिकॉर्ड नहीं छुएँगे।':' records will be permanently removed. Dispatched and returned history is not touched.'),
+      (langHi()?'हटाएँ':'Delete all'),true);
+    if(!ok)return;
+    const ids=new Set(list.map(a=>a.id));
+    S.awbs=S.awbs.filter(a=>!ids.has(a.id));
+    if(MODE==='cloud'){for(const a of list){try{await db.collection('awbs').doc(a.id).delete()}catch(e){}}}
+    else await saveNow('awbs');
+    logTx('awb',{detail:'Cleared '+list.length+' pending inward AWBs'});
+    toast(list.length+(langHi()?' AWB हटाए':' pending AWBs cleared'),'ok');
+    updateBadges();vAwb();
   };
   const cb=$('#aw-csv');
   if(cb)cb.onclick=()=>{
@@ -5010,23 +5043,12 @@ async function parcelCamFlow(opts){
   obs.observe(ov,{attributes:true,attributeFilter:['class']});
 }
 
-/* ---- AWB Outward uses it ---- */
+/* ---- AWB Outward: ONE scan per parcel, no packing, no camera ---- */
 async function awbOutwardFlow(){
   if(!can('awbDispatch')){toast('No permission to dispatch AWBs','err');go('#awb');return}
-  let intl=(localStorage.getItem('invento_dispintl')==='1');
-  await parcelCamFlow({
-    title:langHi()?'Outward — डिस्पैच':'Outward — dispatch',
-    intl:intl,
-    validate:async code=>{
-      const a=awbByNo(code);
-      if(!a)return {ok:false,msg:langHi()?'पहले Inward स्कैन करें':'Scan it inward first'};
-      if(a.status==='dispatched')return {ok:false,msg:(langHi()?'पहले ही डिस्पैच · ':'Already dispatched · ')+ago(a.resolvedAt)};
-      if(a.status!=='accepted')return {ok:false,msg:langHi()?'ऑफिस वापस जा चुका':'Was returned to office'};
-      return {ok:true};
-    },
-    onDone:async(code,med)=>{await dispatchAwbByNo(code,{sku:med.sku,photo:med.photo,video:med.video})},
-    onClose:()=>vAwb()
-  });
+  awbScanModal(langHi()?'Outward — गोदाम से बाहर':'Outward — send out of warehouse',
+    langHi()?'हर AWB एक बार स्कैन करें। स्कैन करते ही वो बाहर भेजा हुआ मान लिया जाएगा।':'Scan each AWB once. That scan marks it sent out of the warehouse.',
+    async(code)=>await dispatchAwbByNo(code), ()=>vAwb(), false);
 }
 
 function awbScanFlow(mode){
