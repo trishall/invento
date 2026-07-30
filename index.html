@@ -3,9 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'nonce-invento-inline' https://www.gstatic.com https://www.google.com https://cdnjs.cloudflare.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com wss://*.firebaseio.com; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; media-src 'self' blob: data:; frame-src https://www.google.com https://*.firebaseapp.com; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'self'; upgrade-insecure-requests">
-<meta name="referrer" content="strict-origin-when-cross-origin">
-<meta name="theme-color" content="#0F6B63">
+<meta name="theme-color" content="#221C15">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Invento — Inventory</title>
@@ -15,29 +13,32 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="application-name" content="Invento">
 <meta name="apple-mobile-web-app-title" content="Invento">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#F4F7F3; --bg-top:#F8FAF6; --card:#FFFFFF; --ink:#17221F; --muted:#66746F; --faint:#97A39E;
-  --line:#DDE6E1; --line2:#C7D4CE;
-  --saddle:#0F6B63; --saddle-dk:#0A4F49; --saddle-bg:#E4F4F1;
-  --brass:#6E5CC2; --kraft:#EEF1FF;
-  --green:#287B55; --green-bg:#E4F2EA;
-  --red:#B6423B; --red-bg:#F8E5E2;
-  --amber:#AA741C; --amber-bg:#F7EEDB;
-  --r:8px; --r-sm:7px;
-  --dark-surface:#17221F;
-  --shadow:0 1px 2px rgba(23,34,31,.06),0 6px 18px rgba(23,34,31,.07);
-  --shadow-lg:0 14px 42px rgba(23,34,31,.22);
-  --nav-h:64px; --top-h:60px;
+  --bg:#EFECE6; --card:#FFFFFF; --ink:#221C15; --muted:#71685B; --faint:#9B9285;
+  --line:#E0DBD1; --line2:#CFC8BB;
+  --saddle:#8A5226; --saddle-dk:#6F411E; --saddle-bg:#F3E7DA;
+  --brass:#A8893B; --kraft:#F4E9D8;
+  --green:#2F7A4D; --green-bg:#E4F0E8;
+  --red:#B23B2A; --red-bg:#F6E4E0;
+  --amber:#B07012; --amber-bg:#F6ECDA;
+  --r:14px; --r-sm:10px;
+  --dark-surface:#221C15;
+  --shadow:0 1px 2px rgba(34,28,21,.06),0 4px 14px rgba(34,28,21,.05);
+  --shadow-lg:0 8px 30px rgba(34,28,21,.18);
+  --nav-h:62px; --top-h:56px;
 }
 :root[data-theme="dark"]{
-  --bg:#111614; --bg-top:#151D1A; --card:#1A2421; --ink:#EEF6F2; --muted:#A5B5AF; --faint:#77857F;
-  --line:#293631; --line2:#354640;
-  --saddle:#65D1C7; --saddle-dk:#95E5DE; --saddle-bg:#15312D;
-  --brass:#A99AF7; --kraft:#252A45;
-  --green:#69C78E; --green-bg:#173326;
-  --red:#EC7B70; --red-bg:#3B211F;
-  --amber:#E0AE58; --amber-bg:#34291A;
+  --bg:#17130F; --card:#221C16; --ink:#F2EBE0; --muted:#A89D8C; --faint:#7C7264;
+  --line:#322A22; --line2:#42382D;
+  --saddle:#C68A4E; --saddle-dk:#A87238; --saddle-bg:#352519;
+  --brass:#CBA85A; --kraft:#3A2D1E;
+  --green:#5BB07E; --green-bg:#1E3328;
+  --red:#D9715F; --red-bg:#3A211C;
+  --amber:#D29A3F; --amber-bg:#34281A;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.35);
   --shadow-lg:0 8px 30px rgba(0,0,0,.6);
   --dark-surface:#3A2E22;
@@ -46,8 +47,7 @@
 svg[viewBox='0 0 24 24']{width:18px;height:18px}
 .irow>svg,.listcard>svg{width:20px;height:20px;flex:0 0 auto;color:var(--faint)}
 html{-webkit-text-size-adjust:100%}
-body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;background:linear-gradient(180deg,var(--bg-top) 0%,var(--bg) 42%);color:var(--ink);font-size:15px;line-height:1.45;min-height:100dvh}
-button,a,input,select,textarea{-webkit-tap-highlight-color:transparent}
+body{font-family:'Archivo',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.45;min-height:100dvh}
 button,input,select,textarea{font:inherit;color:inherit}
 img{display:block;max-width:100%}
 a{color:var(--saddle)}
@@ -60,8 +60,8 @@ a{color:var(--saddle)}
 /* ---------- shell ---------- */
 #app{display:flex;min-height:100dvh}
 #side{display:none}
-#main{flex:1;min-width:0;padding:calc(var(--top-h) + 16px) 14px calc(var(--nav-h) + 24px);max-width:1160px;margin:0 auto;width:100%}
-#topbar{position:fixed;top:0;left:0;right:0;height:var(--top-h);background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:0 14px;z-index:40;box-shadow:0 8px 22px rgba(23,34,31,.05)}
+#main{flex:1;min-width:0;padding:calc(var(--top-h) + 14px) 14px calc(var(--nav-h) + 24px);max-width:1060px;margin:0 auto;width:100%}
+#topbar{position:fixed;top:0;left:0;right:0;height:var(--top-h);background:var(--bg);background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:0 14px;z-index:40}
 #topbar .tb-title{font-weight:700;font-size:17px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .brand{display:flex;align-items:center;gap:9px;font-weight:800;letter-spacing:.04em}
 .brand .bx{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;overflow:hidden}.brand .bx svg{width:100%;height:100%;display:block}
@@ -78,16 +78,16 @@ a{color:var(--saddle)}
 
 @media(min-width:920px){
   #bottomnav{display:none}
-  #side{display:flex;flex-direction:column;width:236px;border-right:1px solid var(--line);background:color-mix(in srgb,var(--card) 96%,var(--saddle-bg));position:sticky;top:0;height:100dvh;padding:18px 12px;gap:4px;box-shadow:8px 0 28px rgba(23,34,31,.04)}
+  #side{display:flex;flex-direction:column;width:228px;border-right:1px solid var(--line);background:var(--card);position:sticky;top:0;height:100dvh;padding:18px 12px;gap:4px}
   #side .brand{padding:4px 10px 16px}
   #side a{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;text-decoration:none;color:var(--ink);font-weight:600;font-size:14px;position:relative}
   #side a svg{width:19px;height:19px;color:var(--muted)}
   #side a.on{background:var(--saddle-bg);color:var(--saddle-dk)}
   #side a.on svg{color:var(--saddle)}
-  #side a:hover:not(.on){background:color-mix(in srgb,var(--saddle-bg) 48%,var(--card))}
+  #side a:hover:not(.on){background:var(--bg)}
   #side .navbadge{position:static;margin-left:auto}
   #main{padding:calc(var(--top-h) + 18px) 26px 60px}
-  #topbar{left:236px}
+  #topbar{left:228px}
 }
 
 /* ---------- type & misc ---------- */
@@ -105,8 +105,7 @@ h1.page{font-size:24px;font-weight:800;letter-spacing:-.01em;margin:2px 0 14px}
 hr.sep{border:none;border-top:1px solid var(--line);margin:14px 0}
 
 /* ---------- buttons ---------- */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--line2);background:var(--card);border-radius:8px;padding:10px 15px;font-weight:700;font-size:14px;cursor:pointer;min-height:42px;text-decoration:none;color:var(--ink);transition:filter .12s,background .12s,box-shadow .12s,transform .12s;white-space:normal;text-align:center}
-.btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:var(--shadow)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--line2);background:var(--card);border-radius:11px;padding:10px 15px;font-weight:600;font-size:14px;cursor:pointer;min-height:42px;text-decoration:none;color:var(--ink);transition:filter .12s, background .12s}
 .btn:active{filter:brightness(.95)}
 .btn svg{width:17px;height:17px}
 .btn.pri{background:var(--saddle);border-color:var(--saddle);color:#fff}
@@ -118,7 +117,7 @@ hr.sep{border:none;border-top:1px solid var(--line);margin:14px 0}
 .btn.sm svg{width:15px;height:15px}
 .btn.block{width:100%}
 .btn:disabled{opacity:.45;cursor:not-allowed}
-.icobtn{width:40px;height:40px;display:grid;place-items:center;border-radius:8px;border:1px solid var(--line2);background:var(--card);cursor:pointer;color:var(--ink)}
+.icobtn{width:40px;height:40px;display:grid;place-items:center;border-radius:10px;border:1px solid var(--line2);background:var(--card);cursor:pointer;color:var(--ink)}
 .icobtn svg{width:18px;height:18px}
 .icobtn.ghost{border-color:transparent;background:transparent;color:var(--muted)}
 
@@ -138,8 +137,7 @@ hr.sep{border:none;border-top:1px solid var(--line);margin:14px 0}
 .bigbtns{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:6px 0 14px}
 .bigbtns.three{grid-template-columns:repeat(3,1fr)}
 @media(max-width:640px){.bigbtns.three{grid-template-columns:1fr 1fr}.bigbtns.three>button:last-child{grid-column:1/-1}}
-.bigbtn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:26px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);cursor:pointer;font-size:18px;font-weight:800;color:var(--ink);box-shadow:var(--shadow);min-height:132px;text-align:center;transition:transform .12s,box-shadow .12s,border-color .12s}
-.bigbtn:hover{transform:translateY(-1px);border-color:var(--saddle);box-shadow:var(--shadow-lg)}
+.bigbtn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:30px 14px;border-radius:18px;border:2px solid var(--line);background:var(--card);cursor:pointer;font-size:18px;font-weight:800;color:var(--ink);box-shadow:var(--shadow);min-height:140px;text-align:center}
 .bigbtn svg{width:42px;height:42px;color:var(--saddle)}
 .bigbtn.sel{border-color:var(--saddle);background:var(--saddle-bg)}
 .bigbtn .sub{font-size:12px;font-weight:600;color:var(--muted)}
@@ -159,7 +157,7 @@ hr.sep{border:none;border-top:1px solid var(--line);margin:14px 0}
 .modeslider button{flex:1;border:none;background:transparent;padding:11px 8px;border-radius:10px;font-size:14px;font-weight:700;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:background .15s,color .15s}
 .modeslider button svg{width:17px;height:17px}
 .modeslider button.on{background:var(--saddle);color:#fff}
-.modeslider button.on svg{color:#fff}
+\.modeslider button.on svg{color:#fff}
 .modeslider4 button{padding:9px 4px;font-size:12.5px;gap:5px;position:relative}
 .modeslider4 button svg{width:15px;height:15px}
 .navdot{position:absolute;top:2px;right:4px;min-width:15px;height:15px;padding:0 4px;border-radius:8px;background:var(--red);color:#fff;font-size:9px;font-weight:800;display:grid;place-items:center;line-height:1}
@@ -192,7 +190,7 @@ hr.sep{border:none;border-top:1px solid var(--line);margin:14px 0}
 .marketbar .mk{font-weight:800;color:var(--saddle-dk);flex:1;display:flex;align-items:center;gap:8px}
 .marketbar .mk svg{width:19px;height:19px;color:var(--saddle)}
 .marketbar button{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:7px 12px;font-size:12.5px;font-weight:700;color:var(--saddle-dk);cursor:pointer}
-.dbig{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:38px 16px;border-radius:8px;border:none;background:var(--saddle);color:#fff;cursor:pointer;font-size:22px;font-weight:800;width:100%;box-shadow:0 12px 26px rgba(15,107,99,.24);min-height:166px}
+.dbig{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:40px 16px;border-radius:20px;border:none;background:var(--saddle);color:#fff;cursor:pointer;font-size:22px;font-weight:800;width:100%;box-shadow:0 6px 20px rgba(111,65,30,.35);min-height:170px}
 .dbig svg{width:52px;height:52px}
 .dbig.ret{background:var(--brass)}
 .dbig .sub{font-size:13px;font-weight:600;opacity:.92;color:#fff!important}
@@ -220,26 +218,26 @@ hr.sep{border:none;border-top:1px solid var(--line);margin:14px 0}
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:0 0 auto;border:1px solid var(--line2);background:var(--card);border-radius:999px;padding:6px 13px;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted)}
 .chip.on{background:var(--dark-surface);border-color:var(--dark-surface);color:#fff}
-.tag{display:inline-flex;align-items:center;gap:5px;background:var(--kraft);border:1px dashed color-mix(in srgb,var(--brass) 40%,var(--line));color:var(--brass);border-radius:7px;padding:2px 8px 2px 6px;font-size:11.5px;font-weight:700}
+.tag{display:inline-flex;align-items:center;gap:5px;background:var(--kraft);border:1px dashed #D8C29A;color:#6E5526;border-radius:7px;padding:2px 8px 2px 6px;font-size:11.5px;font-weight:600}
 .tag::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--card);border:1px solid var(--brass)}
-.skutag{display:inline-block;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;background:var(--kraft);border:1px dashed color-mix(in srgb,var(--brass) 40%,var(--line));border-radius:6px;padding:1px 7px;color:var(--brass)}
+.skutag{display:inline-block;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;background:var(--kraft);border:1px dashed #D8C29A;border-radius:6px;padding:1px 7px;color:#6E5526}
 
 /* ---------- pills / badges ---------- */
 .pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:700}
 .pill.low{background:var(--red-bg);color:var(--red)}
 .pill.ok{background:var(--green-bg);color:var(--green)}
-.pill.zero{background:color-mix(in srgb,var(--ink) 7%,var(--card));color:var(--muted)}
+.pill.zero{background:#EEEAE2;color:var(--muted)}
 .pill.warn{background:var(--amber-bg);color:var(--amber)}
 .pill.info{background:var(--saddle-bg);color:var(--saddle-dk)}
-.pill.gray{background:color-mix(in srgb,var(--ink) 7%,var(--card));color:var(--muted)}
+.pill.gray{background:#EEEAE2;color:var(--muted)}
 
 /* ---------- search / inputs ---------- */
-.searchbar{display:flex;align-items:center;gap:9px;background:var(--card);border:1px solid var(--line2);border-radius:8px;padding:0 12px;min-height:44px}
+.searchbar{display:flex;align-items:center;gap:9px;background:var(--card);border:1px solid var(--line2);border-radius:12px;padding:0 12px;height:44px}
 .searchbar svg{width:18px;height:18px;color:var(--faint);flex:0 0 auto}
 .searchbar input{border:none;outline:none;background:transparent;flex:1;min-width:0;font-size:15px}
 .field{margin-bottom:13px}
 .field label{display:block;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
-.in, select.in, textarea.in{width:100%;border:1px solid var(--line2);border-radius:8px;padding:10px 12px;background:var(--card);font-size:15px;min-height:42px}
+.in, select.in, textarea.in{width:100%;border:1px solid var(--line2);border-radius:10px;padding:10px 12px;background:var(--card);font-size:15px;min-height:42px}
 textarea.in{resize:vertical;min-height:70px}
 .in:focus,select.in:focus,textarea.in:focus{outline:2px solid var(--saddle);outline-offset:-1px}
 .f2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
@@ -248,14 +246,13 @@ textarea.in{resize:vertical;min-height:70px}
 
 /* ---------- folder & item grids ---------- */
 .fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
-.fcard{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:12px;cursor:pointer;box-shadow:var(--shadow);text-align:left;transition:border-color .12s,transform .12s,box-shadow .12s}
-.fcard:hover{border-color:var(--saddle);transform:translateY(-1px);box-shadow:var(--shadow-lg)}
+.fcard{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:12px;cursor:pointer;box-shadow:var(--shadow);text-align:left}
 .fcard svg{width:22px;height:22px;color:var(--brass);flex:0 0 auto}
 .fcard .fn{font-weight:700;font-size:13.5px;line-height:1.25}
 .fcard .fm{font-size:11px;color:var(--muted)}
 .igrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:10px}
 .icard{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;cursor:pointer;box-shadow:var(--shadow);position:relative;text-align:left;display:flex;flex-direction:column}
-.icard .ph{aspect-ratio:4/3;background:linear-gradient(135deg,#EAF3F0,#EEF1FF);display:grid;place-items:center;color:var(--faint);position:relative}
+.icard .ph{aspect-ratio:4/3;background:linear-gradient(135deg,#F0EBE2,#E5DECF);display:grid;place-items:center;color:#C9BFA9;position:relative}
 .icard .ph img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
 .icard .ph svg{width:30px;height:30px}
 .icard .bd{padding:9px 11px 11px}
@@ -265,7 +262,7 @@ textarea.in{resize:vertical;min-height:70px}
 .icard .q small{font-weight:600;color:var(--muted);font-size:10.5px}
 .icard .pr{font-size:12px;color:var(--muted);font-weight:600}
 .icard .lowdot{position:absolute;top:8px;left:8px}
-.selbox{position:absolute;top:8px;right:8px;width:24px;height:24px;border-radius:7px;border:2px solid #fff;background:rgba(23,34,31,.42);display:grid;place-items:center;color:#fff;z-index:2}
+.selbox{position:absolute;top:8px;right:8px;width:24px;height:24px;border-radius:7px;border:2px solid #fff;background:rgba(34,28,21,.35);display:grid;place-items:center;color:#fff;z-index:2}
 .selbox svg{width:14px;height:14px;opacity:0}
 .icard.sel{outline:3px solid var(--saddle)}
 .icard.sel .selbox{background:var(--saddle);border-color:var(--saddle)}
@@ -273,7 +270,7 @@ textarea.in{resize:vertical;min-height:70px}
 /* list view */
 .ilist{display:flex;flex-direction:column;gap:8px}
 .irow{display:flex;align-items:center;gap:11px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:9px 11px;cursor:pointer;box-shadow:var(--shadow);position:relative}
-.irow .th{width:46px;height:46px;border-radius:8px;background:linear-gradient(135deg,#EAF3F0,#EEF1FF);overflow:hidden;flex:0 0 auto;display:grid;place-items:center;color:var(--faint)}
+.irow .th{width:46px;height:46px;border-radius:9px;background:linear-gradient(135deg,#F0EBE2,#E5DECF);overflow:hidden;flex:0 0 auto;display:grid;place-items:center;color:#C9BFA9}
 .irow .th img{width:100%;height:100%;object-fit:cover}
 .irow .th svg{width:20px;height:20px}
 .irow .nm{font-weight:700;font-size:14px}
@@ -282,13 +279,13 @@ textarea.in{resize:vertical;min-height:70px}
 .irow .qcol .q{font-weight:800;font-size:15px}
 .irow .qcol .v{font-size:11.5px;color:var(--muted)}
 .irow.sel{outline:3px solid var(--saddle)}
-.irow .selbox{position:static;background:color-mix(in srgb,var(--ink) 7%,var(--card));border-color:var(--line2);color:transparent;flex:0 0 auto}
+.irow .selbox{position:static;background:#EEEAE2;border-color:var(--line2);color:transparent;flex:0 0 auto}
 .irow.sel .selbox{background:var(--saddle);border-color:var(--saddle);color:#fff}
 .irow.sel .selbox svg{opacity:1}
 /* account menu */
 .tb-acct{position:relative;flex:0 0 auto}
-.tb-acct .av{width:34px;height:34px;border-radius:50%;background:var(--saddle);color:#fff;border:none;display:grid;place-items:center;font-weight:800;font-size:14px;cursor:pointer;box-shadow:0 8px 18px rgba(15,107,99,.22)}
-.acctmenu{position:absolute;top:42px;right:0;width:250px;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow-lg);padding:7px;z-index:60;display:none}
+.tb-acct .av{width:34px;height:34px;border-radius:50%;background:var(--saddle);color:#fff;border:none;display:grid;place-items:center;font-weight:800;font-size:14px;cursor:pointer}
+.acctmenu{position:absolute;top:42px;right:0;width:240px;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-lg);padding:7px;z-index:60;display:none}
 .acctmenu.show{display:block}
 .acctmenu .who{padding:10px 11px 9px;border-bottom:1px solid var(--line);margin-bottom:6px}
 .acctmenu .who .n{font-weight:800;font-size:14.5px;color:var(--ink)}
@@ -308,7 +305,7 @@ textarea.in{resize:vertical;min-height:70px}
 .crumbs svg{width:13px;height:13px;color:var(--faint);flex:0 0 auto}
 
 /* bulk bar */
-#bulkbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 12px);background:var(--dark-surface);color:#fff;border:1px solid rgba(255,255,255,.08);border-radius:8px;display:none;align-items:center;gap:4px;padding:8px 10px;z-index:45;box-shadow:var(--shadow-lg);max-width:96vw;overflow-x:auto}
+#bulkbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 12px);background:#2A2118;color:#fff;border:1px solid rgba(255,255,255,.08);border-radius:14px;display:none;align-items:center;gap:4px;padding:8px 10px;z-index:45;box-shadow:var(--shadow-lg);max-width:96vw;overflow-x:auto}
 @media(min-width:920px){#bulkbar{bottom:18px}}
 #bulkbar.show{display:flex}
 #bulkbar .cnt{font-weight:800;font-size:13px;padding:0 8px;white-space:nowrap}
@@ -319,7 +316,7 @@ textarea.in{resize:vertical;min-height:70px}
 /* ---------- item detail ---------- */
 .gallery{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
 .gallery::-webkit-scrollbar{display:none}
-.gallery .g{flex:0 0 78%;max-width:340px;aspect-ratio:4/3;border-radius:var(--r);overflow:hidden;background:linear-gradient(135deg,#EAF3F0,#EEF1FF);border:1px solid var(--line);display:grid;place-items:center;color:var(--faint);position:relative}
+.gallery .g{flex:0 0 78%;max-width:340px;aspect-ratio:4/3;border-radius:var(--r);overflow:hidden;background:linear-gradient(135deg,#F0EBE2,#E5DECF);border:1px solid var(--line);display:grid;place-items:center;color:#C9BFA9;position:relative}
 .gallery .g img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
 .gallery .g svg{width:34px;height:34px}
 .kv{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
@@ -348,11 +345,11 @@ table.t td.r,table.t th.r{text-align:right}
 table.t tfoot td{font-weight:800;background:color-mix(in srgb,var(--ink) 4%,var(--card))}
 
 /* ---------- modal / sheet ---------- */
-#ovl{position:fixed;inset:0;background:rgba(17,22,20,.58);z-index:60;display:none;align-items:flex-end;justify-content:center}
+#ovl{position:fixed;inset:0;background:rgba(28,22,16,.45);z-index:60;display:none;align-items:flex-end;justify-content:center}
 #ovl.show{display:flex}
 @media(min-width:680px){#ovl{align-items:center;padding:20px}}
-#modal{background:var(--card);width:100%;max-width:560px;max-height:88dvh;overflow-y:auto;border-radius:12px 12px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));animation:up .18s ease;box-shadow:var(--shadow-lg)}
-@media(min-width:680px){#modal{border-radius:8px;animation:pop .15s ease}}
+#modal{background:var(--card);width:100%;max-width:560px;max-height:88dvh;overflow-y:auto;border-radius:20px 20px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));animation:up .18s ease}
+@media(min-width:680px){#modal{border-radius:18px;animation:pop .15s ease}}
 @keyframes up{from{transform:translateY(40px);opacity:.6}to{transform:none;opacity:1}}
 @keyframes pop{from{transform:scale(.97);opacity:.6}to{transform:none;opacity:1}}
 #modal h3{font-size:17px;font-weight:800;margin-bottom:13px}
@@ -393,6 +390,15 @@ table.t tfoot td{font-weight:800;background:color-mix(in srgb,var(--ink) 4%,var(
 .lbl.s-m{width:62mm;height:30mm;font-size:9.5pt}
 .lbl.s-l{width:96mm;height:46mm;font-size:13pt}
 .lbl.s-x{width:100mm;height:60mm;font-size:16pt}
+.lbl.s-c{font-size:10pt}
+.lbl.stack{flex-direction:column;align-items:stretch;gap:0.6mm;padding:0.8mm;justify-content:flex-start}
+.lbl.stack .code{flex:1 1 auto;width:100%;min-height:0;display:grid;place-items:center;overflow:hidden}
+.lbl.stack .code svg,.lbl.stack .code img,.lbl.stack .code canvas{width:100%!important;height:100%!important;max-height:100%;object-fit:contain;display:block}
+.lbl.stack.qr .code svg,.lbl.stack.qr .code img,.lbl.stack.qr .code canvas{width:auto!important;height:100%!important;max-width:100%}
+.lbl.stack .tx{flex:0 0 auto;width:100%;text-align:center;line-height:1.1}
+.lbl.stack .tn{-webkit-line-clamp:2;font-size:.92em}
+.lbl.stack .ts{font-size:.9em;font-weight:700}
+.lbl.stack.codeonly{padding:0.5mm}.lbl.stack.codeonly .code{height:100%}
 #printArea{display:none}
 body.printing #app,body.printing #ovl,body.printing #toasts,body.printing #bulkbar{display:none!important}
 body.printing #printArea{display:block;padding:8mm}
@@ -415,12 +421,12 @@ body.printing #printArea{display:block;padding:8mm}
 .empty svg{width:42px;height:42px;color:var(--line2);margin:0 auto 10px}
 .empty .t{font-weight:700;color:var(--ink);font-size:15px;margin-bottom:4px}
 .empty .s{font-size:13px;max-width:340px;margin:0 auto 16px}
-.welcome{background:linear-gradient(135deg,var(--dark-surface),#203E40 56%,#322C61);color:#F4FAF7;border-radius:8px;padding:24px 20px;margin-bottom:18px;position:relative;overflow:hidden;box-shadow:var(--shadow-lg)}
-.welcome::after{content:none}
+.welcome{background:linear-gradient(135deg,#2A2118,#4A331F);color:#F4E9D8;border-radius:18px;padding:22px 20px;margin-bottom:18px;position:relative;overflow:hidden}
+.welcome::after{content:'';position:absolute;right:-30px;top:-30px;width:160px;height:160px;border:2px dashed rgba(244,233,216,.25);border-radius:50%}
 .welcome h2{font-size:20px;font-weight:800;letter-spacing:.01em}
-.welcome p{font-size:13.5px;opacity:.9;margin:7px 0 15px;max-width:520px}
+.welcome p{font-size:13.5px;opacity:.85;margin:7px 0 15px;max-width:420px}
 .listcard{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:13px 14px;cursor:pointer;box-shadow:var(--shadow)}
-.listcard .ic{width:40px;height:40px;border-radius:8px;display:grid;place-items:center;flex:0 0 auto;background:var(--saddle-bg);color:var(--saddle)}
+.listcard .ic{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;flex:0 0 auto;background:var(--saddle-bg);color:var(--saddle)}
 .listcard .ic svg{width:19px;height:19px}
 .listcard .t1{font-weight:700;font-size:14.5px}
 .listcard .t2{font-size:12px;color:var(--muted);margin-top:1px}
@@ -430,18 +436,6 @@ body.printing #printArea{display:block;padding:8mm}
 .prog{height:7px;background:color-mix(in srgb,var(--ink) 8%,var(--card));border-radius:4px;overflow:hidden}
 .prog i{display:block;height:100%;background:var(--green);border-radius:4px;transition:width .2s}
 .dz{border:2px dashed var(--line2);border-radius:var(--r);padding:26px 16px;text-align:center;color:var(--muted);font-size:13.5px;background:var(--card)}
-@media(max-width:560px){
-  #main{padding-left:12px;padding-right:12px}
-  .stats,.f2,.f3{grid-template-columns:1fr}
-  .bigbtns,.destbtns,.condbtns,.dcapture{grid-template-columns:1fr}
-  .quick{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .row:not(.wrap){min-width:0}
-  .qcol{max-width:42%}
-  .kv{grid-template-columns:1fr}
-  .actgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .modeslider{overflow-x:auto}
-  .modeslider button{min-width:max-content}
-}
 </style>
 </head>
 <body>
@@ -473,7 +467,11 @@ body.printing #printArea{display:block;padding:8mm}
 <div id="toasts"></div>
 <div id="printArea"></div>
 
-<script nonce="invento-inline">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+
+<script>
 /* ============================================================
    GODOWN — single-file inventory app
    Storage: window.storage (Claude artifact) -> localStorage fallback
@@ -538,55 +536,6 @@ function ico(n,cls){return '<svg class="'+(cls||'')+'" viewBox="0 0 24 24" fill=
 const $=(s,r)=> (r||document).querySelector(s);
 const $$=(s,r)=> Array.from((r||document).querySelectorAll(s));
 const esc=s=> String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const MAX_DATA_URL=1100000;
-const TRUSTED_SCRIPTS=new Set([
-  'https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js',
-  'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js',
-  'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js'
-]);
-function safeURL(v,kind){
-  const s=String(v||'').trim();
-  if(!s)return '';
-  if(s[0]==='#')return s;
-  if(/^data:/i.test(s))return kind==='image'&&/^data:image\/(png|jpe?g|webp|gif);base64,/i.test(s)&&s.length<=MAX_DATA_URL?s:'';
-  if(/^blob:/i.test(s))return s;
-  try{
-    const u=new URL(s,location.href);
-    if(u.protocol==='https:')return u.href;
-    if(u.protocol==='http:'&&/^(localhost|127\.0\.0\.1|\[::1\])$/.test(u.hostname))return u.href;
-  }catch(e){}
-  return '';
-}
-function safeImgSrc(v){return safeURL(v,'image')}
-const HTML_DESC=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML');
-function sanitizeHTML(html){
-  if(!HTML_DESC||!HTML_DESC.set)return String(html==null?'':html);
-  const tpl=document.createElement('template');
-  HTML_DESC.set.call(tpl,String(html==null?'':html));
-  tpl.content.querySelectorAll('script,iframe,object,embed,link,meta,base').forEach(n=>n.remove());
-  const walker=document.createTreeWalker(tpl.content,NodeFilter.SHOW_ELEMENT);
-  let el=walker.nextNode();
-  while(el){
-    Array.from(el.attributes).forEach(a=>{
-      const n=a.name.toLowerCase(),v=String(a.value||'').trim();
-      if(n.startsWith('on')||n==='srcdoc'){el.removeAttribute(a.name);return}
-      if(n==='style'&&/(javascript:|expression\s*\()/i.test(v)){el.removeAttribute(a.name);return}
-      if(['href','src','xlink:href','action','formaction','poster'].includes(n)){
-        const safe=safeURL(v,(el.tagName||'').toLowerCase()==='img'?'image':'');
-        if(safe)el.setAttribute(a.name,safe);else el.removeAttribute(a.name);
-      }
-    });
-    el=walker.nextNode();
-  }
-  return HTML_DESC.get.call(tpl);
-}
-try{
-  if(HTML_DESC&&HTML_DESC.set){
-    Object.defineProperty(Element.prototype,'innerHTML',{get:HTML_DESC.get,set:function(v){HTML_DESC.set.call(this,sanitizeHTML(v))}});
-  }
-}catch(e){}
 const uid=p=> (p||'x')+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const clamp=(n,a,b)=>Math.min(b,Math.max(a,n));
 const round4=n=>Math.round((+n||0)*10000)/10000;
@@ -606,40 +555,19 @@ function fmtDate(ts){const d=new Date(ts);return d.toLocaleDateString(locale(),{
 function fmtDT(ts){const d=new Date(ts);return fmtDate(ts)+', '+d.toLocaleTimeString(locale(),{hour:'numeric',minute:'2-digit'})}
 function ago(ts){const s=(Date.now()-ts)/1000;if(s<60)return 'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';if(s<86400*7)return Math.floor(s/86400)+'d ago';return fmtDate(ts)}
 function download(name,content,mime){const b=content instanceof Blob?content:new Blob([content],{type:mime||'text/plain'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(u);a.remove()},400)}
-function imageFileOK(file,maxMB){return !!file&&/^image\/(png|jpe?g|webp|gif)$/i.test(file.type||'')&&file.size<=((maxMB||8)*1048576)}
 function beep(ok){try{const ctx=beep.ctx||(beep.ctx=new (window.AudioContext||window.webkitAudioContext)());const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=ok?1180:220;g.gain.value=.12;o.start();o.stop(ctx.currentTime+(ok?.09:.22))}catch(e){}
  if(navigator.vibrate)navigator.vibrate(ok?35:[60,40,60])}
 function toast(msg,kind){const t=document.createElement('div');t.className='toast'+(kind?' '+kind:'');t.textContent=msg;$('#toasts').appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .3s'},2400);setTimeout(()=>t.remove(),2800)}
-function lazyScript(src){
-  if(!TRUSTED_SCRIPTS.has(src))return Promise.reject(new Error('Blocked untrusted script'));
-  lazyScript.c=lazyScript.c||{};
-  if(lazyScript.c[src])return lazyScript.c[src];
-  lazyScript.c[src]=new Promise((res,rej)=>{
-    const s=document.createElement('script');
-    s.src=src;s.nonce='invento-inline';s.crossOrigin='anonymous';s.referrerPolicy='no-referrer';
-    s.onload=res;s.onerror=()=>rej(new Error('load failed'));
-    document.head.appendChild(s)
-  });
-  return lazyScript.c[src]
-}
-async function loadFirebaseCompat(){
-  if(window.firebase)return;
-  await lazyScript('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');
-  await Promise.all([
-    lazyScript('https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js'),
-    lazyScript('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js')
-  ]);
-}
+function lazyScript(src){lazyScript.c=lazyScript.c||{};if(lazyScript.c[src])return lazyScript.c[src];lazyScript.c[src]=new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('load failed'));document.head.appendChild(s)});return lazyScript.c[src]}
 
 /* ---------- modal ---------- */
 let modalHist=false,ignorePop=false;
 function openModal(html){$('#modal').innerHTML=html;$('#ovl').classList.add('show');document.body.style.overflow='hidden';
   if(!modalHist){modalHist=true;try{history.pushState({m:1},'')}catch(e){}}}
 function showPhoto(dataUrl){
-  const src=safeImgSrc(dataUrl);if(!src){toast('Image blocked for safety','err');return}
   let lb=$('#lightbox');
   if(!lb){lb=document.createElement('div');lb.id='lightbox';lb.className='lightbox';document.body.appendChild(lb)}
-  lb.innerHTML='<button class="lbx-close" aria-label="Close">'+ico('x')+'</button><img src="'+src+'" alt="">';
+  lb.innerHTML='<button class="lbx-close" aria-label="Close">'+ico('x')+'</button><img src="'+dataUrl+'" alt="">';
   lb.classList.add('show');
   lb.onclick=e=>{if(e.target===lb||e.target.closest('.lbx-close')){lb.classList.remove('show');lb.innerHTML=''}};
 }
@@ -672,6 +600,7 @@ const CLOUD_ENABLED = true;
 
 let MODE='local';
 let db=null, fbApp=null, fbUser=null, cloudReady=false, authErr='', activeCfg=null, bootDone=false;
+const MAINFRAME_ID='trishal';
 let myProfile=null;
 const isAdminU=()=>MODE!=='cloud'||(myProfile&&(myProfile.role==='admin'||myProfile.role==='mainframe'));
 const isMF=()=>MODE==='cloud'&&myProfile&&myProfile.role==='mainframe';
@@ -691,28 +620,15 @@ const dirty={};
 const SYNC_COLS=['items','folders','lists','pos','trash','dispatches','approvals','awbs'];
 
 function getSavedCfg(){
-  const baked=sanitizeFirebaseConfig(FB_CONFIG);
-  if(baked) return baked;
+  if(FB_CONFIG && FB_CONFIG.projectId) return FB_CONFIG;
   try{
     if(location.hash.indexOf('#cfg=')===0){
-      const c=sanitizeFirebaseConfig(JSON.parse(atob(decodeURIComponent(location.hash.slice(5)))));
+      const c=JSON.parse(atob(decodeURIComponent(location.hash.slice(5))));
       if(c&&c.projectId){localStorage.setItem('gdwn:fbconfig',JSON.stringify(c));history.replaceState(null,'','#home');return c}
     }
   }catch(e){}
-  try{const v=localStorage.getItem('gdwn:fbconfig');if(v)return sanitizeFirebaseConfig(JSON.parse(v))}catch(e){}
+  try{const v=localStorage.getItem('gdwn:fbconfig');if(v)return JSON.parse(v)}catch(e){}
   return null;
-}
-function sanitizeFirebaseConfig(c){
-  if(!c||typeof c!=='object')return null;
-  const out={},keys=['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId','measurementId'];
-  keys.forEach(k=>{if(typeof c[k]==='string')out[k]=c[k].trim()});
-  if(!out.apiKey||!out.projectId||!/^[a-z0-9-]{3,40}$/i.test(out.projectId))return null;
-  if(out.authDomain&&!/^[a-z0-9-]+\.firebaseapp\.com$/i.test(out.authDomain))return null;
-  if(out.storageBucket&&!/^[a-z0-9.-]+\.(appspot\.com|firebasestorage\.app)$/i.test(out.storageBucket))return null;
-  if(out.messagingSenderId&&!/^\d{5,20}$/.test(out.messagingSenderId))return null;
-  if(out.appId&&!/^[\w:.-]{10,120}$/.test(out.appId))return null;
-  if(out.measurementId&&!/^[A-Z0-9-]{4,40}$/.test(out.measurementId))delete out.measurementId;
-  return out;
 }
 function parseCfgText(t){
   t=String(t||'');
@@ -726,7 +642,7 @@ function parseCfgText(t){
     .replace(/'/g,'"')
     .replace(/([{,]\s*)([A-Za-z_$][\w$]*)\s*:/g,'$1"$2":')
     .replace(/,\s*([}\]])/g,'$1');
-  try{return sanitizeFirebaseConfig(JSON.parse(s))}catch(e){return null}
+  try{const c=JSON.parse(s);return (c&&c.apiKey&&c.projectId)?c:null}catch(e){return null}
 }
 
 /* key/value store: photos in cloud mode map p:<id> -> photos collection;
@@ -777,7 +693,7 @@ function save(col){
   saveTimers[col]=setTimeout(()=>{saveNow(col)},250);
 }
 /* Safety limiter: per-device rolling write budget. Generous for real work
-   (3000 writes/hour, far beyond a busy shift) but stops runaway loops,
+   (900 writes/hour ≈ far beyond a busy shift) but stops runaway loops,
    hijacked devices, or app-level abuse from burning the database. */
 const WLIM_MAX=3000,WLIM_WIN=3600000;
 function writeOK(n){
@@ -906,9 +822,10 @@ async function initCloud(cfg){
   if(!us.exists){
     const em=String(fbUser.email||'');
     const uidName=em?em.split('@')[0].toLowerCase():('ph'+String(fbUser.phoneNumber||'').replace(/\D/g,'').slice(-4));
+    const isMF0=em===(MAINFRAME_ID+'@invento.app');
     const prof={id:fbUser.uid,userid:uidName,name:fbUser.displayName||cap1(uidName),
-      role:'user',
-      status:'pending',createdAt:Date.now()};
+      role:isMF0?'mainframe':'user',
+      status:isMF0?'active':'pending',createdAt:Date.now()};
     if(fbUser.phoneNumber)prof.phone=fbUser.phoneNumber;
     await uref.set(prof);
     myProfile=prof;
@@ -977,13 +894,12 @@ async function loadLocal(){
 }
 async function loadAll(){
   if(!CLOUD_ENABLED){await loadLocal();return 'local'}
-  if(localStorage.getItem('gdwn:mode')==='local'){await loadLocal();return 'local'}
   const cfg=getSavedCfg();
   if(cfg){
-    if(!window.firebase){try{await loadFirebaseCompat()}catch(e){throw new Error('Firebase SDK did not load. Check your internet connection and reload.')}}
     if(!window.firebase)throw new Error('Firebase SDK did not load. Check your internet connection and reload.');
     return await initCloud(cfg);
   }
+  if(localStorage.getItem('gdwn:mode')==='local'){await loadLocal();return 'local'}
   return 'setup';
 }
 
@@ -1179,7 +1095,7 @@ Object.assign(HI,{
 'Change my password':'पासवर्ड बदलें','Confirm new password':'नया पासवर्ड दोबारा','New password (min 6 characters)':'नया पासवर्ड (कम से कम 6 अक्षर)','New password must be 6+ characters':'नया पासवर्ड 6+ अक्षर का हो','New passwords do not match':'दोनों पासवर्ड मेल नहीं खाते','Password updated':'पासवर्ड बदल गया','Password must be 6+ characters':'पासवर्ड 6+ अक्षर का हो','Password must be at least 6 characters':'पासवर्ड कम से कम 6 अक्षर का हो','Password (min 6)':'पासवर्ड (कम से कम 6)','Enter your password':'अपना पासवर्ड भरें','Enter your current password':'अभी का पासवर्ड भरें','Enter your email/ID and password':'ईमेल/ID और पासवर्ड भरें','Enter your user ID':'अपना यूज़र ID भरें','Your email':'आपका ईमेल','Your password':'आपका पासवर्ड','Your user ID':'आपका यूज़र ID','Forgot password':'पासवर्ड भूल गए','Request sent — the admin will set a new password':'रिक्वेस्ट भेज दी — एडमिन नया पासवर्ड सेट करेंगे','Add email & password':'ईमेल और पासवर्ड जोड़ें','My account has no email (old account)':'मेरे अकाउंट में ईमेल नहीं है (पुराना अकाउंट)','Enter a valid email':'सही ईमेल भरें','Enter a real email address':'सही ईमेल पता भरें','Enter a valid phone number':'सही फोन नंबर भरें','Link phone number':'फोन नंबर जोड़ें','Phone linked — you can now sign in by SMS too':'फोन जुड़ गया — अब SMS से भी लॉग इन कर सकते हैं','SMS code':'SMS कोड','Enter the code':'कोड भरें','Enter the 6-digit code':'6 अंकों का कोड भरें','Code sent again':'कोड दोबारा भेजा','Check your inbox':'अपना इनबॉक्स देखें','Verification email sent — check inbox/spam':'वेरिफ़िकेशन ईमेल भेजा — इनबॉक्स/स्पैम देखें','At least 6 characters':'कम से कम 6 अक्षर','Pick a user ID (letters/numbers)':'यूज़र ID चुनें (अक्षर/नंबर)','Delete my account':'मेरा अकाउंट डिलीट करें','Delete account':'अकाउंट डिलीट करें','Sign out':'लॉग आउट',
 'Import items from CSV':'CSV से आइटम लाएँ','Choose a CSV file':'CSV फ़ाइल चुनें','or drop it here':'या यहाँ छोड़ें','Ready to import':'इम्पोर्ट के लिए तैयार','Valid rows':'सही लाइनें','Skipped rows':'छोड़ी गई लाइनें','Show skipped rows':'छोड़ी गई लाइनें दिखाएँ','Create as new item':'नया आइटम बनाएँ','Create as new items anyway':'फिर भी नए आइटम बनाएँ','Update existing items (qty &amp; details)':'पुराने आइटम अपडेट करें (मात्रा और जानकारी)','Could not read file':'फ़ाइल नहीं पढ़ पाए','Could not find Name and Quantity columns':'Name और Quantity कॉलम नहीं मिले','File needs a header row and at least one data row':'फ़ाइल में हेडर और कम से कम एक लाइन चाहिए','Not sure of the format?':'फॉर्मेट समझ नहीं आ रहा?','download this file':'यह फ़ाइल डाउनलोड करें','Template downloaded — fill it and import':'टेम्पलेट डाउनलोड हुआ — भरकर इम्पोर्ट करें','Minimum columns:':'कम से कम कॉलम:','CSV downloaded':'CSV डाउनलोड हो गई','No items to export':'एक्सपोर्ट के लिए कुछ नहीं','Sample data loaded':'सैंपल डेटा आ गया','Load sample leather-goods data':'लेदर सामान का सैंपल डेटा भरें','Imported —':'इम्पोर्ट हुआ —','Review import results':'इम्पोर्ट का नतीजा देखें',
 'Sales & reorder':'बिक्री और री-ऑर्डर','Best sellers':'सबसे ज़्यादा बिके','No sales data yet':'अभी बिक्री का डेटा नहीं','No activity in this period':'इस दौरान कोई एक्टिविटी नहीं','No movements in this period':'इस दौरान कोई मूवमेंट नहीं','No stock changes in that period':'उस दौरान स्टॉक में बदलाव नहीं','Nothing is low':'कुछ भी कम नहीं है','In &amp; out':'आया और गया','Total in':'कुल आया','Total out':'कुल गया','Stock in only':'सिर्फ आया','Stock out only':'सिर्फ गया','All actions':'सारे काम','Last 30 days (full history)':'पिछले 30 दिन (पूरी हिस्ट्री)','Adjustments, picks and receipts will show up here.':'एडजस्टमेंट, पिक और आवक यहाँ दिखेंगे।','Changes to items, folders and stock counts will show up here.':'आइटम, फ़ोल्डर और स्टॉक के बदलाव यहाँ दिखेंगे।',
-'Barcode &amp; QR labels':'बारकोड और QR लेबल','Restock labels':'रीस्टॉक लेबल','Allow pop-ups to print':'प्रिंट के लिए पॉप-अप चालू करें','Code library offline — labels show text only':'कोड लाइब्रेरी ऑफ़लाइन — लेबल पर सिर्फ टेक्स्ट दिखेगा','Barcode machine':'बारकोड मशीन','Content':'क्या छापें','Quick command':'झटपट कमांड','Return to office':'ऑफिस वापस','Overview':'कारोबार','Full dashboard':'पूरा डैशबोर्ड','Sold / out':'बिका / गया','Stocked in':'आया','Need to order':'ऑर्डर करना है','Top sellers':'सबसे ज़्यादा बिके','Pending':'बाकी','History':'हिस्ट्री','Cancelled':'रद्द','Cancel PO':'PO रद्द करें','Pending order nos. — e.g. #1043, #1051':'पेंडिंग ऑर्डर नं. — जैसे #1043, #1051','AI assistant':'AI असिस्टेंट','Ask anything about your stock — in Hindi or English':'स्टॉक के बारे में कुछ भी पूछें — हिंदी या English में','One line: item, quantity, rack. Add the word remove to take stock out.':'एक लाइन में: आइटम, मात्रा, रैक। स्टॉक घटाने के लिए remove या निकालो लिखें।','Which item?':'कौन सा आइटम?','Quick command':'झटपट कमांड','Code + text':'कोड + टेक्स्ट','Only barcode / QR':'सिर्फ बारकोड / QR','Only text':'सिर्फ टेक्स्ट','Border':'बॉर्डर',
+'Barcode &amp; QR labels':'बारकोड और QR लेबल','Restock labels':'रीस्टॉक लेबल','Allow pop-ups to print':'प्रिंट के लिए पॉप-अप चालू करें','Code library offline — labels show text only':'कोड लाइब्रेरी ऑफ़लाइन — लेबल पर सिर्फ टेक्स्ट दिखेगा','Barcode machine':'बारकोड मशीन','Content':'क्या छापें','Quick command':'झटपट कमांड','Layout':'लेआउट','Code on top (fills label)':'कोड ऊपर (पूरा लेबल भरे)','Side by side':'साथ-साथ','Custom…':'अपना साइज़…','Return to office':'ऑफिस वापस','Overview':'कारोबार','Full dashboard':'पूरा डैशबोर्ड','Sold / out':'बिका / गया','Stocked in':'आया','Need to order':'ऑर्डर करना है','Top sellers':'सबसे ज़्यादा बिके','Pending':'बाकी','History':'हिस्ट्री','Cancelled':'रद्द','Cancel PO':'PO रद्द करें','Pending order nos. — e.g. #1043, #1051':'पेंडिंग ऑर्डर नं. — जैसे #1043, #1051','AI assistant':'AI असिस्टेंट','Ask anything about your stock — in Hindi or English':'स्टॉक के बारे में कुछ भी पूछें — हिंदी या English में','One line: item, quantity, rack. Add the word remove to take stock out.':'एक लाइन में: आइटम, मात्रा, रैक। स्टॉक घटाने के लिए remove या निकालो लिखें।','Which item?':'कौन सा आइटम?','Quick command':'झटपट कमांड','Code + text':'कोड + टेक्स्ट','Only barcode / QR':'सिर्फ बारकोड / QR','Only text':'सिर्फ टेक्स्ट','Border':'बॉर्डर',
 'Settings saved':'सेटिंग सेव हो गई','Recovery point saved':'बैकअप बन गया','Backup':'बैकअप','Backup downloaded':'बैकअप डाउनलोड हुआ','Backup restored':'बैकअप वापस आ गया','15-day recovery point saved automatically':'हर 15 दिन में बैकअप अपने आप बनता है','Not a valid backup file':'यह सही बैकअप फ़ाइल नहीं है','Could not read that recovery point':'वह बैकअप नहीं पढ़ पाए','All data erased':'सारा डेटा मिट गया','This device only':'सिर्फ इस फोन पर','Use on this device only (no sync)':'सिर्फ इस फोन पर (बिना सिंक)','Describe the problem first':'पहले दिक्कत लिखें','Describe what went wrong. A screenshot helps a lot.':'क्या गड़बड़ हुई, लिखें। स्क्रीनशॉट से बहुत मदद मिलती है।','Sent — the admin will see it in Help':'भेज दिया — एडमिन को मदद में दिखेगा','Could not send — tell the admin directly':'नहीं भेज पाए — एडमिन को सीधे बताएँ','Word for a place (singular)':'जगह के लिए शब्द (एकवचन)','…plural':'…बहुवचन','Which market?':'कौन सा मार्केट?','Choose market':'मार्केट चुनें','Switch market':'मार्केट बदलें',
 'Could not sync — retrying':'सिंक नहीं हुआ — दोबारा कोशिश','Could not save — storage error':'सेव नहीं हुआ — स्टोरेज की दिक्कत','Check internet on this device':'इस फोन का इंटरनेट देखें','Could not run action':'यह काम नहीं हो पाया'
 });
@@ -1295,7 +1211,7 @@ function setActiveNav(key){$$('#side a,#bottomnav a').forEach(a=>a.classList.tog
 function getTheme(){try{return localStorage.getItem('invento_theme')||'light'}catch(e){return 'light'}}
 function applyTheme(t){
   document.documentElement.setAttribute('data-theme',t==='dark'?'dark':'light');
-  const m=document.querySelector('meta[name=theme-color]');if(m)m.setAttribute('content',t==='dark'?'#111614':'#0F6B63');
+  const m=document.querySelector('meta[name=theme-color]');if(m)m.setAttribute('content',t==='dark'?'#17130F':'#221C15');
   try{localStorage.setItem('invento_theme',t)}catch(e){}
 }
 function toggleTheme(){applyTheme(getTheme()==='dark'?'light':'dark');refreshAcctMenu()}
@@ -1504,11 +1420,11 @@ function vHome(){
   h+='<div class="section-h"><h2>Quick actions</h2></div><div class="quick">'+
     (can('additem')?'<button data-act="newitem">'+ico('plus')+'Add item</button>':'')+
     (can('editloc')?'<button data-act="newfolder">'+ico('folder')+'Add '+locL()+'</button>':'')+
-    '<button data-open="scan">'+ico('scan')+'Scan</button>'+
-    (can('dispatch')?'<button data-open="awb">'+ico('ticket')+'AWB</button>':'')+
-    (can('export')?'<button data-open="import">'+ico('up')+'Import</button>':'')+
+    '<button onclick="location.hash=\'#scan\'">'+ico('scan')+'Scan</button>'+
+    (can('dispatch')?'<button onclick="location.hash=\'#awb\'">'+ico('ticket')+'AWB</button>':'')+
+    (can('export')?'<button onclick="location.hash=\'#import\'">'+ico('up')+'Import</button>':'')+
     '<button data-act="newlist">'+ico('pick')+'Pick list</button>'+
-    '<button data-open="labels">'+ico('label')+'Labels</button></div>';
+    '<button onclick="location.hash=\'#labels\'">'+ico('label')+'Labels</button></div>';
   if(low.length){
     h+='<div class="section-h"><h2>Low stock</h2><a href="#reports/low">View all</a></div><div class="ilist">';
     low.slice(0,5).forEach(i=>{h+=rowHTML(i,{low:true})});
@@ -1520,6 +1436,7 @@ function vHome(){
   else h+='<div class="empty">'+ico('report')+'<div class="t">No activity yet</div><div class="s">Changes to items, folders and stock counts will show up here.</div></div>';
   $('#main').innerHTML=h;
   maybePoOverduePopup();
+  startAwbNag();
   const mig=$('#mig-email');if(mig)mig.onclick=()=>attachEmailFlow();
   const ver=$('#ver-email');if(ver)ver.onclick=async()=>{const g=emailCool('ver');if(g){toast(g,'err');return}try{await fbUser.sendEmailVerification();toast('Verification email sent — check inbox/spam','ok');ver.disabled=true}catch(e){toast(authErrMsg(e),'err')}};
 
@@ -1862,7 +1779,7 @@ function vEdit(id,folderArg){
   wireLocPicker('f');
   paintPhotoRow(i);
   $('#f-photo').onchange=async e=>{const file=e.target.files[0];e.target.value='';if(!file)return;
-    try{const [full,thumb]=await compressImage(file);editPhotos.push(full);editPhotosDirty=true;i._thumbCand=editPhotos.length===1?thumb:i._thumbCand;paintPhotoRow(i)}catch(err){toast('Use a PNG, JPG, WebP or GIF under 8 MB','err')}};
+    try{const [full,thumb]=await compressImage(file);editPhotos.push(full);editPhotosDirty=true;i._thumbCand=editPhotos.length===1?thumb:i._thumbCand;paintPhotoRow(i)}catch(err){toast('Could not read photo','err')}};
   $('#f-scan').onclick=()=>{saveDraft();sessionStorage.setItem('scanret',isNew?'edit/new/'+(i.folder||''):'edit/'+i.id);go('#scan/tocode')};
   function saveDraft(){/* keep typed values when hopping to scanner */
     sessionStorage.setItem('draft',JSON.stringify(readForm()));
@@ -1909,16 +1826,15 @@ function paintPhotoRow(i){
 }
 function compressImage(file){
   return new Promise((res,rej)=>{
-    if(!imageFileOK(file,8)){rej(new Error('Unsupported image'));return}
     const r=new FileReader();
     r.onload=()=>{const img=new Image();img.onload=()=>{
       const make=(max,q)=>{const sc=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.max(1,Math.round(img.width*sc));c.height=Math.max(1,Math.round(img.height*sc));c.getContext('2d').drawImage(img,0,0,c.width,c.height);return c.toDataURL('image/jpeg',q)};
       res([make(800,.62),make(80,.5)]);
-    };img.onerror=rej;const src=safeImgSrc(r.result);if(!src){rej(new Error('Unsafe image'));return}img.src=src};
+    };img.onerror=rej;img.src=r.result};
     r.onerror=rej;r.readAsDataURL(file);
   });
 }
-function makeThumbFromDataURL(durl){return new Promise(res=>{const src=safeImgSrc(durl);if(!src){res('');return}const img=new Image();img.onload=()=>{const max=80,sc=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);c.getContext('2d').drawImage(img,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.6))};img.onerror=()=>res('');img.src=src})}
+function makeThumbFromDataURL(durl){return new Promise(res=>{const img=new Image();img.onload=()=>{const max=80,sc=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);c.getContext('2d').drawImage(img,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.6))};img.onerror=()=>res('');img.src=durl})}
 
 /* ============================================================
    MOVE / CLONE / DELETE / ADJUST
@@ -2295,10 +2211,15 @@ function vLabels(){
   let h='<h1 class="page">Barcode &amp; QR labels</h1>';
   h+='<div class="card pad mb">'+
     '<div class="f3"><div class="field"><label>Content</label><select class="in" id="lb-mode"><option value="both" selected>Code + text</option><option value="code">Only barcode / QR</option><option value="text">Only text</option></select></div>'+
+    '<div class="field"><label>Layout</label><select class="in" id="lb-lay"><option value="stack" selected>Code on top (fills label)</option><option value="side">Side by side</option></select></div>'+
     '<div class="field"><label>Code type</label><select class="in" id="lb-type"><option value="qr">QR code</option><option value="bar">Barcode (Code 128)</option></select></div>'+
-    '<div class="field"><label>Size</label><select class="in" id="lb-size"><option value="s">Small · 48×24 mm</option><option value="m" selected>Medium · 62×30 mm</option><option value="l">Large · 96×46 mm</option><option value="x">XL · 100×60 mm</option></select></div>'+
+    '<div class="field"><label>Size</label><select class="in" id="lb-size"><option value="s">Small · 48×24 mm</option><option value="m" selected>Medium · 62×30 mm</option><option value="l">Large · 96×46 mm</option><option value="x">XL · 100×60 mm</option><option value="c">Custom…</option></select></div>'+
     '<div class="field"><label>Copies each</label><input class="in num" id="lb-n" inputmode="numeric" value="1"></div></div>'+
     '<div class="row wrap" style="gap:14px">'+
+      '<div class="row mb" id="lb-cwrap" style="gap:9px;display:none">'+
+        '<div class="field grow"><label>'+(langHi()?'चौड़ाई (mm)':'Width (mm)')+'</label><input class="in num" id="lb-cw" inputmode="decimal" value="50"></div>'+
+        '<div class="field grow"><label>'+(langHi()?'ऊँचाई (mm)':'Height (mm)')+'</label><input class="in num" id="lb-ch" inputmode="decimal" value="25"></div>'+
+      '</div>'+
       '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-border"> Border</label>'+
       '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-name" checked> Name</label>'+
       '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-sku" checked> SKU under code</label>'+
@@ -2328,6 +2249,10 @@ function vLabels(){
   async function buildSheet(target){
     const type=$('#lb-type').value,size=$('#lb-size').value,n=clamp(parseInt($('#lb-n').value)||1,1,100);
     const mode=$('#lb-mode').value,withBorder=$('#lb-border').checked;
+    const lay=(($('#lb-lay')||{}).value)||'stack';
+    const cw=Math.max(15,Math.min(200,parseFloat((($('#lb-cw')||{}).value))||50));
+    const ch=Math.max(10,Math.min(200,parseFloat((($('#lb-ch')||{}).value))||25));
+    const cstyle=(size==='c')?' style="width:'+cw+'mm;height:'+ch+'mm"':'';
     const showName=$('#lb-name').checked,showSku=$('#lb-sku').checked,showPrice=$('#lb-price').checked,showTags=$('#lb-tags').checked,showLoc=$('#lb-loc').checked;
     let libOK=true;
     if(mode!=='text')try{
@@ -2341,7 +2266,7 @@ function vLabels(){
       const codes=skusOf(i);const list=codes.length?codes:[''];
       list.forEach(code=>{ if(!code)return;
         for(let k=0;k<n;k++){ nLabels++;
-          const cls='lbl s-'+size+(withBorder?' bordered':'')+(mode==='code'?' codeonly':mode==='text'?' textonly':'');
+          const cls='lbl s-'+size+(withBorder?' bordered':'')+(lay==='stack'&&mode!=='text'?' stack':'')+(type==='qr'?' qr':'')+(mode==='code'?' codeonly':mode==='text'?' textonly':'');
           const codeHtml=(mode==='text')?'':'<div class="code" data-code="'+esc(code)+'" data-type="'+type+'"></div>';
           const txHtml=(mode==='code')?'':'<div class="tx">'+
             (showName?'<div class="tn">'+esc(i.name)+'</div>':'')+
@@ -2349,7 +2274,7 @@ function vLabels(){
             (showLoc?'<div class="ts" style="font-weight:600">'+esc(folderPath(i.folder))+'</div>':'')+
             (showTags&&(i.tags||[]).length?'<div class="ts" style="font-weight:600">'+esc((i.tags||[]).join(', '))+'</div>':'')+
             (showPrice&&+i.price?'<div class="tp num">'+fmtMoney(+i.price)+'</div>':'')+'</div>';
-          sheet+='<div class="'+cls+'">'+codeHtml+txHtml+'</div>';
+          sheet+='<div class="'+cls+'"'+cstyle+'>'+codeHtml+txHtml+'</div>';
         }
       });
     });
@@ -2358,13 +2283,18 @@ function vLabels(){
     $$('.lbl .code',target).forEach(el=>{
       const code=el.dataset.code;
       if(!libOK){el.innerHTML='<div class="mono" style="font-weight:700;font-size:1.1em;writing-mode:vertical-rl;transform:rotate(180deg)">'+esc(code)+'</div>';return}
-      const QD=(mode==='code')?QRDIM2:QRDIM, BH=(mode==='code')?BARH2:BARH;
+      let QD=(mode==='code')?QRDIM2:QRDIM, BH=(mode==='code')?BARH2:BARH;
+      if(lay==='stack'){QD={s:150,m:180,l:230,x:280,c:200};BH={s:70,m:80,l:100,x:120,c:90};}
+      if(!QD[size]){QD[size]=200}if(!BH[size]){BH[size]=90}
       if(type==='qr'){new QRCode(el,{text:code,width:QD[size],height:QD[size],correctLevel:QRCode.CorrectLevel.M})}
-      else{const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');el.appendChild(svg);try{JsBarcode(svg,code,{format:'CODE128',displayValue:mode!=='code'||showSku,fontSize:(size==='s'?9:size==='x'?14:11)+(mode==='code'?2:0),height:BH[size],width:(size==='l'||size==='x'?2:1.4)+(mode==='code'?0.6:0),margin:2,textMargin:1})}catch(e){el.innerHTML='<div class="mono small">'+esc(code)+'</div>'}}
+      else{const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');el.appendChild(svg);try{JsBarcode(svg,code,{format:'CODE128',displayValue:(mode!=='code'||showSku)&&lay!=='stack',fontSize:(size==='s'?9:size==='x'?14:11)+(mode==='code'?2:0),height:BH[size],width:(lay==='stack'?2.4:((size==='l'||size==='x'?2:1.4)+(mode==='code'?0.6:0))),margin:lay==='stack'?0:2,textMargin:1})}catch(e){el.innerHTML='<div class="mono small">'+esc(code)+'</div>'}}
     });
     if(!libOK)toast('Code library offline — labels show text only','err');
     logTx('label',{detail:nLabels+' label'+(nLabels===1?'':'s')+' for '+its.length+' item'+(its.length>1?'s':'')});
   }
+  const syncCustom=()=>{const w=$('#lb-cwrap');if(w)w.style.display=($('#lb-size').value==='c')?'flex':'none'};
+  syncCustom();
+  $('#lb-size').addEventListener('change',syncCustom);
   $('#lb-prev').onclick=()=>buildSheet($('#lb-stage'));
   $('#lb-print').onclick=async()=>{await buildSheet($('#printArea'));printNow()};
 }
@@ -2660,7 +2590,7 @@ function showStockoutPrompt(){
   openModal('<h3>'+(langHi()?'स्टॉक खत्म':'Out of stock')+'</h3><p class="sub mb">'+(langHi()?'ये आइटम अभी खत्म हुए हैं। परचेज़ ऑर्डर में जोड़ें?':'These items just ran out. Add them to a purchase order?')+'</p>'+
     fresh.map((i,ix)=>'<label class="row" style="gap:9px;margin-bottom:8px;align-items:center;cursor:pointer"><input type="checkbox" data-soc="'+ix+'" checked style="width:19px;height:19px;accent-color:var(--saddle)"><span class="grow ellip" style="font-weight:600">'+esc(i.name)+'</span></label>').join('')+
     (onpo.length?'<div class="hint mb">'+onpo.map(i=>{const p0=openPOFor(i.id);return esc(i.name)+(langHi()?' — पहले से ':' — already on ')+p0.number}).join('<br>')+'</div>':'')+
-    '<div class="row mt" style="gap:9px"><button class="btn grow" data-close-modal>'+(langHi()?'छोड़ें':'Skip')+'</button><button class="btn pri grow" id="so-add">'+(langHi()?'PO में जोड़ें':'Add to PO')+'</button></div>');
+    '<div class="row mt" style="gap:9px"><button class="btn grow" onclick="closeModal()">'+(langHi()?'छोड़ें':'Skip')+'</button><button class="btn pri grow" id="so-add">'+(langHi()?'PO में जोड़ें':'Add to PO')+'</button></div>');
   const sb=$('#so-add');if(sb)sb.onclick=async()=>{
     const chosen=fresh.filter((i,ix)=>{const c=$('#modal [data-soc="'+ix+'"]');return c&&c.checked});
     closeModal();if(!chosen.length)return;
@@ -2678,7 +2608,7 @@ function guardPOBeforeAdd(it,retry){
   openModal('<h3>'+(langHi()?'पहले PO निपटाएँ':'PO pending for this item')+'</h3><p class="sub mb">'+esc(it.name)+(langHi()?' पहले से ':' is already on ')+'<b>'+esc(p.number)+'</b> ('+(PO_STATUS[p.status]||['?'])[0]+'). '+(langHi()?'पहले उस PO को receive या cancel करें, तभी स्टॉक जोड़ें — ताकि PO का हिसाब बना रहे।':'Receive or cancel that PO first so it stays acknowledged, then add stock.')+'</p>'+
     '<button class="btn pri block mb" id="gpo-open">'+(langHi()?'खोलें ':'Open ')+esc(p.number)+'</button>'+
     (isAdminU()?'<button class="btn block mb" id="gpo-cancel">'+(langHi()?'इसकी PO लाइन cancel करके जोड़ें':'Cancel its PO line & add anyway')+'</button>':'')+
-    '<button class="btn block" data-close-modal>'+(langHi()?'वापस':'Back')+'</button>');
+    '<button class="btn block" onclick="closeModal()">'+(langHi()?'वापस':'Back')+'</button>');
   const go1=$('#gpo-open');if(go1)go1.onclick=()=>{closeModal();go('#po/'+p.id)};
   const gc=$('#gpo-cancel');if(gc)gc.onclick=()=>{closeModal();
     p.items=(p.items||[]).filter(x=>x.itemId!==it.id);
@@ -2706,7 +2636,7 @@ function maybePoOverduePopup(){
   openModal('<h3 style="color:var(--red)">'+ico('alert')+' Purchase order'+(od.length>1?'s':'')+' overdue</h3>'+
     '<p class="sub mb">'+od.length+' PO'+(od.length>1?'s are':' is')+' past the expected date and not fully received. Chase the vendor or update the date.</p>'+
     od.map(p=>'<button class="pocard late" data-gopo="'+p.id+'" style="margin-bottom:8px"><div class="po-t">'+esc(p.number)+(p.priority==='high'?'<span class="pill danger">HIGH</span>':'')+'</div><div class="po-m">'+(p.vendor?esc(p.vendor)+' · ':'')+'<span class="po-due over">was due '+poDaysLate(p)+' day'+(poDaysLate(p)>1?'s':'')+' ago</span></div></button>').join('')+
-    '<button class="btn block mt" data-close-modal>'+ico('check')+'Remind me in 2 days</button>');
+    '<button class="btn block mt" onclick="closeModal()">'+ico('check')+'Remind me in 2 days</button>');
   $$('#modal [data-gopo]').forEach(b=>b.onclick=()=>{closeModal();go('#po/'+b.dataset.gopo)});
 }
 let _apoT=null;
@@ -2823,10 +2753,7 @@ function reportProblemDlg(){
     const b=$('#rp-go');b.disabled=true;b.textContent='Sending…';
     let img='';
     const f=$('#rp-f').files[0];
-    if(f){
-      if(!imageFileOK(f,8)){toast('Use a PNG, JPG, WebP or GIF under 8 MB','err');b.disabled=false;b.innerHTML=ico('check')+'Send to admin';return}
-      img=await new Promise(res=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');const s=Math.min(1,700/Math.max(im.width,im.height));c.width=im.width*s;c.height=im.height*s;c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',0.65))};im.onerror=()=>res('');const src=safeImgSrc(r.result);if(!src){res('');return}im.src=src};r.onerror=()=>res('');r.readAsDataURL(f)});
-    }
+    if(f){img=await new Promise(res=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');const s=Math.min(1,700/Math.max(im.width,im.height));c.width=im.width*s;c.height=im.height*s;c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',0.65))};im.onerror=()=>res('');im.src=r.result};r.onerror=()=>res('');r.readAsDataURL(f)});}
     const rec={id:uid('sp'),ts:Date.now(),by:userName(),text:txt.slice(0,2000),img:img,status:'open'};
     try{
       if(MODE==='cloud')await db.collection('support').doc(rec.id).set(rec);
@@ -2981,7 +2908,7 @@ function vPO(id){
   $$('#main [data-pop]').forEach(inp=>inp.onchange=()=>{const x=p.items[+inp.dataset.pop];if(!x)return;x.pending=inp.value.trim();p.updatedAt=Date.now();save('pos')});
   const pc=$('#po-cancel');if(pc)pc.onclick=()=>{
     openModal('<h3 style="color:var(--red)">'+(langHi()?p.number+' रद्द करें?':'Cancel '+p.number+'?')+'</h3><p class="sub mb">'+(langHi()?'रद्द करने के बाद इसमें कुछ नहीं आएगा। आइटम फिर से नए PO या स्टॉक-इन के लिए खुल जाएँगे।':'Nothing can be received against a cancelled PO. Its items become free for new POs and manual stock-in.')+'</p>'+
-      '<div class="row" style="gap:9px"><button class="btn grow" data-close-modal>'+(langHi()?'वापस':'Back')+'</button><button class="btn grow" id="pc-yes" style="color:var(--red);border-color:var(--red-bg)">'+(langHi()?'हाँ, रद्द करें':'Yes, cancel it')+'</button></div>');
+      '<div class="row" style="gap:9px"><button class="btn grow" onclick="closeModal()">'+(langHi()?'वापस':'Back')+'</button><button class="btn grow" id="pc-yes" style="color:var(--red);border-color:var(--red-bg)">'+(langHi()?'हाँ, रद्द करें':'Yes, cancel it')+'</button></div>');
     $('#pc-yes').onclick=async()=>{closeModal();p.status='cancelled';p.updatedAt=Date.now();await saveNow('pos');logTx('po',{detail:p.number+' cancelled'});toast(p.number+(langHi()?' रद्द हो गया':' cancelled'),'ok');route()};
   };
 
@@ -3215,7 +3142,7 @@ function exportUnicommerce(){
     openModal('<h3>'+n+' rows exported '+ico('check')+'</h3><p class="sub mb">Saved <b>'+esc(fileName)+'</b> to your device.</p>'+
       uniUploadGuideHTML(fileName,adjNote)+
       (problems.length?'<details class="mt"><summary class="small muted">'+problems.length+' item'+(problems.length>1?'s were':' was')+' skipped (SKU issues) — show</summary><div class="card" style="padding:8px 12px;max-height:32dvh;overflow:auto;margin-top:6px"><div class="hist" style="font-size:13px">'+problems.map(p=>'<div style="padding:4px 0;border-bottom:1px solid var(--line2)">'+esc(p)+'</div>').join('')+'</div></div></details>':'')+
-      '<button class="btn pri block mt" data-close-modal>Done</button>');
+      '<button class="btn pri block mt" onclick="closeModal()">Done</button>');
   };
 }
 
@@ -3933,7 +3860,7 @@ function attachEmailFlow(){
       await fbUser.verifyBeforeUpdateEmail(em);
       try{await db.collection('users').doc(fbUser.uid).set({pendingEmail:em},{merge:true})}catch(e){}
       closeModal();
-      openModal('<h3>Check '+esc(em)+' '+ico('check')+'</h3><p class="sub mb">Open the verification link (check spam too). After that, sign in with <b>'+esc(em)+'</b> and your same password. Your user ID stays the same for the team.</p><button class="btn pri block" data-close-modal>Done</button>');
+      openModal('<h3>Check '+esc(em)+' '+ico('check')+'</h3><p class="sub mb">Open the verification link (check spam too). After that, sign in with <b>'+esc(em)+'</b> and your same password. Your user ID stays the same for the team.</p><button class="btn pri block" onclick="closeModal()">Done</button>');
     }catch(e){
       btn.disabled=false;btn.innerHTML=ico('check')+'Send verification link';
       const c=(e&&e.code)||'';
@@ -3949,7 +3876,7 @@ function deleteMyAccount(){
     '<p class="sub mb">This permanently removes your login and profile. Team records you created (dispatches, activity) stay for the business. This cannot be undone.</p>'+
     (fbUser.email?'<div class="field"><label>Your password</label><input class="in" id="da-p" type="password" autocomplete="current-password"></div>':'<p class="sub mb">We\'ll text a code to '+esc(fbUser.phoneNumber||'')+' to confirm.</p>')+
     '<button class="btn danger block" id="da-go">'+ico('trash')+'Delete my account forever</button>'+
-    '<button class="btn block mt" data-close-modal>Cancel</button>');
+    '<button class="btn block mt" onclick="closeModal()">Cancel</button>');
   $('#da-go').onclick=async()=>{
     const btn=$('#da-go');
     try{
@@ -4087,7 +4014,7 @@ function vDispatch(sub,arg){
   let h=modeSlider('dispatch')+marketBar();
   h+='<button class="dbig" id="d-go">'+ico('send')+'<div>Dispatch</div><div class="sub">Scan or photograph items going out</div></button>';
   h+='<button class="btn block mt" id="d-pack" style="border-color:var(--saddle);color:var(--saddle);font-weight:700">'+ico('camera')+(langHi()?'पैकिंग मोड — स्कैनर + कैमरा':'Packing mode — scanner + camera')+'</button>';
-  h+='<div class="row mt" style="gap:9px"><button class="btn grow" data-open="dispatch/sales">'+ico('trend')+'Sales & reorder</button></div>';
+  h+='<div class="row mt" style="gap:9px"><button class="btn grow" onclick="location.hash=\'#dispatch/sales\'">'+ico('trend')+'Sales & reorder</button></div>';
   $('#main').innerHTML=h;
   wireModeSlider();wireMarketBar();
   $('#d-go').onclick=()=>ensureMarketThen(()=>startDispatch());
@@ -4741,7 +4668,6 @@ function printReturnLabels(d){
   const items=(d.lines||[]).filter(l=>l.code||l.name);
   const w=window.open('','_blank');
   if(!w){toast('Allow pop-ups to print','err');return}
-  try{w.opener=null}catch(e){}
   let body='';
   items.forEach(l=>{const code=l.code||l.name;body+='<div class="lbl"><svg class="bc" data-code="'+escAttr(code)+'"></svg><div class="t"><div class="n">'+escHtml(l.name||code)+'</div><div class="c">'+escHtml(code)+'</div><div class="loc">'+escHtml(l.placedIn||'')+(l.cond==='bad'?' · DAMAGED':'')+'</div></div></div>'});
   w.document.write('<!doctype html><html><head><title>Restock labels — '+escHtml(d.number)+'</title>'+
@@ -4750,8 +4676,8 @@ function printReturnLabels(d){
     '<script>window.onload=function(){document.querySelectorAll(".bc").forEach(function(s){try{JsBarcode(s,s.getAttribute("data-code"),{format:"CODE128",displayValue:false,height:50,width:1.6,margin:2})}catch(e){}});setTimeout(function(){window.print()},350)};<\/script></body></html>');
   w.document.close();
 }
-function escAttr(s){return escHtml(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
-function escHtml(s){return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+function escAttr(s){return String(s).replace(/"/g,'&quot;')}
+function escHtml(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
 
 function vReturnView(id){
   const d=(S.dispatches||[]).find(x=>x.id===id);
@@ -4770,7 +4696,7 @@ function vReturnView(id){
 /* ============================================================
    AWB / SHIPMENTS — accountability for shipping labels
    ============================================================ */
-const AWB_OVERDUE_DAYS=7;
+const AWB_OVERDUE_DAYS=3;
 const AWB_KEEP_DAYS=60;   // dispatched/returned docs are remembered this long, then aged out
 async function purgeOldAwbs(){
   try{
@@ -4786,11 +4712,44 @@ async function purgeOldAwbs(){
 function awbPending(){return (S.awbs||[]).filter(a=>a.status==='accepted')}
 function awbOverdue(){const cut=Date.now()-AWB_OVERDUE_DAYS*86400000;return awbPending().filter(a=>(a.acceptedAt||0)<cut)}
 // overdue AWBs held specifically by the current user (governs the accept-block)
+
+/* ---- Overdue AWB reminder: repeats every 10 min until they go back to office ---- */
+let _awbNagT=null,_awbNagOn=false;
+function awbNagList(){return isAdminU()?awbOverdue():myOverdueAwbs()}
+function showAwbNag(){
+  if(_awbNagOn)return;
+  if(MODE==='cloud'&&!cloudReady)return;
+  const list=awbNagList();
+  if(!list.length)return;
+  const ov0=$('#ovl');
+  if(ov0&&ov0.classList.contains('show'))return;   // never interrupt a scan in progress
+  _awbNagOn=true;
+  const T=(hi,en)=>langHi()?hi:en;
+  const rows=list.slice(0,12).map(a=>'<div class="awbcard over"><div class="awb-no">'+esc(a.awb)+'</div><div class="awb-meta">'+awbAgeDays(a)+T(' दिन पुराना','d old')+' · '+esc(a.acceptedBy||'—')+'</div></div>').join('');
+  openModal('<h3 style="color:var(--red)">'+T(AWB_OVERDUE_DAYS+' दिन से पुराने AWB','AWBs older than '+AWB_OVERDUE_DAYS+' days')+'</h3>'+
+    '<p class="sub mb"><b>'+list.length+'</b> '+T('AWB अब तक डिस्पैच नहीं हुए। इन्हें तुरंत ऑफिस भेजें।','AWB'+(list.length>1?'s have':' has')+' still not been dispatched. Send '+(list.length>1?'them':'it')+' back to office right away.')+'</p>'+
+    '<div class="ilist mb" style="max-height:38dvh;overflow:auto">'+rows+(list.length>12?'<div class="hint">+'+(list.length-12)+T(' और','  more')+'</div>':'')+'</div>'+
+    (isAdminU()
+      ? '<button class="btn pri block mb" id="nag-ret">'+T('अभी ऑफिस वापस दर्ज करें','Return these to office now')+'</button>'
+      : '<div class="hint mb">'+T('ये AWB एडमिन ही वापस दर्ज कर सकते हैं — इन्हें ऑफिस भेजें और एडमिन से क्लियर कराएँ।','Only an admin can mark these returned — hand them to office and ask an admin to clear them.')+'</div>')+
+    '<button class="btn block" id="nag-ok">'+T('ठीक है','OK')+'</button>');
+  const r=$('#nag-ret');if(r)r.onclick=()=>{closeModal();_awbNagOn=false;go('#awb/return')};
+  const k=$('#nag-ok');if(k)k.onclick=()=>{closeModal();_awbNagOn=false};
+  const ov=$('#ovl');
+  const obs=new MutationObserver(()=>{if(!ov.classList.contains('show')){obs.disconnect();_awbNagOn=false}});
+  obs.observe(ov,{attributes:true,attributeFilter:['class']});
+}
+function startAwbNag(){
+  clearInterval(_awbNagT);
+  setTimeout(showAwbNag,4000);
+  _awbNagT=setInterval(showAwbNag,10*60000);
+}
+
 function myOverdueAwbs(){const me=userName();return awbOverdue().filter(a=>(a.acceptedBy||'')===me)}
 function awbByNo(no){const k=String(no||'').trim().toLowerCase();return (S.awbs||[]).find(a=>String(a.awb||'').trim().toLowerCase()===k)}
 function awbAgeDays(a){return Math.floor((Date.now()-(a.acceptedAt||Date.now()))/86400000)}
 // colour state by age: 'fresh' | 'aging' (5-6d) | 'over' (7d+)
-function awbAgeClass(a){const d=awbAgeDays(a);if(d>=AWB_OVERDUE_DAYS)return 'over';if(d>=AWB_OVERDUE_DAYS-2)return 'aging';return 'fresh'}
+function awbAgeClass(a){const d=awbAgeDays(a);if(d>=AWB_OVERDUE_DAYS)return 'over';if(d>=AWB_OVERDUE_DAYS-1)return 'aging';return 'fresh'}
 async function acceptAwb(no){
   no=String(no||'').trim();
   if(!no)return {ok:false,msg:'Empty'};
@@ -4839,7 +4798,7 @@ function vAwb(sub,arg){
   const ret=(S.awbs||[]).filter(a=>a.status==='returned').sort((a,b)=>(b.resolvedAt||0)-(a.resolvedAt||0));
   const myOver=myOverdueAwbs();
   let h=modeSlider('awb');
-  if(myOver.length)h+='<div class="splitbox mb" style="background:var(--red-bg);border:1px solid var(--red)"><div class="row" style="gap:8px;align-items:center"><span style="color:var(--red)">'+ico('alert')+'</span><div><b style="color:var(--red)">You must return '+myOver.length+' overdue AWB'+(myOver.length>1?'s':'')+'</b><div class="small muted">They are 7+ days old. Return them to office before accepting more.</div></div></div></div>';
+  if(myOver.length)h+='<div class="splitbox mb" style="background:var(--red-bg);border:1px solid var(--red)"><div class="row" style="gap:8px;align-items:center"><span style="color:var(--red)">'+ico('alert')+'</span><div><b style="color:var(--red)">Send to office: '+myOver.length+' overdue AWB'+(myOver.length>1?'s':'')+'</b><div class="small muted">They are '+AWB_OVERDUE_DAYS+'+ days old. Send them to office before accepting more.</div></div></div></div>';
   // two big buttons
   h+='<div class="bigbtns'+(isAdminU()?' three':'')+'" style="margin-bottom:14px">'+
     '<button class="bigbtn" id="aw-in">'+ico('download')+'<div>Inward</div><div class="sub">Scan AWBs taken from office</div></button>'+
@@ -5198,9 +5157,8 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra){
     const cam=$('#aw-cam'),pf=$('#aw-pf');
     if(cam&&pf){cam.onclick=e=>{e.preventDefault();pf.click()};
       pf.onchange=()=>{const f=pf.files&&pf.files[0];if(!f)return;
-        if(!imageFileOK(f,8)){toast('Use a PNG, JPG, WebP or GIF under 8 MB','err');pf.value='';return}
         const r=new FileReader();
-        r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');const s=Math.min(1,640/Math.max(im.width,im.height));c.width=im.width*s;c.height=im.height*s;c.getContext('2d').drawImage(im,0,0,c.width,c.height);_awExtra.photo=c.toDataURL('image/jpeg',.6);const pv=$('#aw-pv');if(pv)pv.innerHTML='<img src="'+_awExtra.photo+'" alt="" style="max-width:110px;border-radius:9px">'};const src=safeImgSrc(r.result);if(!src){toast('Image blocked for safety','err');return}im.src=src};
+        r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');const s=Math.min(1,640/Math.max(im.width,im.height));c.width=im.width*s;c.height=im.height*s;c.getContext('2d').drawImage(im,0,0,c.width,c.height);_awExtra.photo=c.toDataURL('image/jpeg',.6);const pv=$('#aw-pv');if(pv)pv.innerHTML='<img src="'+_awExtra.photo+'" alt="" style="max-width:110px;border-radius:9px">'};im.src=r.result};
         r.readAsDataURL(f);pf.value='';};
     }
   }
@@ -5239,10 +5197,6 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra){
    GLOBAL ACTIONS + INIT
    ============================================================ */
 document.addEventListener('click',e=>{
-  const closeBtn=e.target.closest('[data-close-modal]');
-  if(closeBtn){e.preventDefault();closeModal();return}
-  const reloadBtn=e.target.closest('[data-reload]');
-  if(reloadBtn){e.preventDefault();location.reload();return}
   const op=e.target.closest('[data-open]');
   if(op&&op.closest('#main')){const h='#'+op.dataset.open;if(location.hash===h)route();else go(h);return}
   const b=e.target.closest('[data-act]');if(!b)return;
@@ -5263,7 +5217,7 @@ document.addEventListener('click',e=>{
 /* ============================================================
    SETUP / CONNECT SCREENS
    ============================================================ */
-const FB_RULES="rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n\n    function uD() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }\n    function active() { return request.auth != null && uD().status == 'active'; }\n    function admin() { return active() && uD().role in ['admin','mainframe']; }\n    function mainframe() { return active() && uD().role == 'mainframe'; }\n    function perms() {\n      return exists(/databases/$(database)/documents/meta/app)\n        ? get(/databases/$(database)/documents/meta/app).data.get('perms', {})\n        : {};\n    }\n    function userCan(key) { return admin() || perms().get(key, true) == true; }\n\n    // Non-admins may only change numbering + view preferences in meta.\n    // perms, company, currency, tax settings and any FUTURE field are frozen by default.\n    function metaSafe() {\n      return request.resource.data.diff(resource.data).affectedKeys()\n             .hasOnly(['seq','view','sort','market','usdMig']);\n    }\n    // Defence-in-depth: cap top-level field count. (Firestore already caps each doc at 1MB.)\n    function okDoc() { return request.resource.data.size() <= 60; }\n    function itemStockOnly() {\n      return request.resource.data.diff(resource.data).affectedKeys()\n             .hasOnly(['qty','piles','folder','updatedAt']);\n    }\n\n    match /users/{uid} {\n      allow read: if request.auth != null && (request.auth.uid == uid || admin());\n      allow create: if request.auth != null && request.auth.uid == uid\n        && request.resource.data.role == 'user'\n        && request.resource.data.status == 'pending';\n      allow update: if mainframe()\n        || (admin() && resource.data.role == 'user' && request.resource.data.role == 'user')\n        || (request.auth != null && request.auth.uid == uid\n            && request.resource.data.role == resource.data.role\n            && request.resource.data.status == resource.data.status);\n      allow delete: if mainframe() || (request.auth != null && request.auth.uid == uid);\n    }\n\n    // \"Forgot password\" requests. The person is signed OUT, so create is public --\n    // but locked down hard: doc id MUST equal the userid (one request per user, no\n    // flooding), exactly two fields, tight types/length. Contains no private data.\n    // Only admins can read or clear them.\n    match /pwresets/{userid} {\n      allow read, update, delete: if admin();\n      allow create: if request.resource.data.keys().hasOnly(['userid','ts'])\n        && request.resource.data.userid is string\n        && request.resource.data.userid == userid\n        && request.resource.data.userid.size() >= 2\n        && request.resource.data.userid.size() <= 40\n        && request.resource.data.userid.matches('^[a-z0-9._-]+$')\n        && request.resource.data.ts is number;\n    }\n\n    match /support/{id}     { allow read, update, delete: if admin(); allow create: if active() && request.resource.data.keys().hasOnly(['id','ts','by','text','img','status']) && request.resource.data.text is string && request.resource.data.text.size() <= 2000 && (!request.resource.data.keys().hasAny(['img']) || (request.resource.data.img is string && request.resource.data.img.size() <= 800000)); }\n    match /txns/{id}        { allow read: if active(); allow create: if active() && okDoc(); allow update: if false; allow delete: if admin(); }\n    match /trash/{id}       { allow read: if active(); allow create, update: if (admin() || userCan('trash') || userCan('delitem')) && okDoc(); allow delete: if (admin() || userCan('trash') || userCan('delitem')); }\n    match /meta/{doc}       { allow read: if active(); allow create: if admin(); allow update: if admin() || (active() && metaSafe()); }\n    match /items/{id}       { allow read: if active(); allow create: if userCan('additem') && okDoc(); allow update: if okDoc() && (userCan('additem') || ((userCan('adjqty') || userCan('dispatch')) && itemStockOnly())); allow delete: if (admin() || userCan('delitem')); }\n    match /folders/{id}     { allow read: if active(); allow create, update: if userCan('editloc') && okDoc(); allow delete: if (admin() || userCan('editloc')); }\n    match /lists/{id}       { allow read: if active(); allow create, update: if active() && okDoc(); allow delete: if admin(); }\n    match /pos/{id}         { allow read: if active(); allow create, update: if active() && okDoc(); allow delete: if admin(); }\n    match /dispatches/{id}  { allow read: if active(); allow create, update: if (admin() || userCan('dispatch')) && okDoc(); allow delete: if admin(); }\n    match /awbs/{id}        { allow read: if active(); allow create, update: if (userCan('awbAccept') || userCan('awbDispatch')) && okDoc(); allow delete: if admin(); }\n    match /approvals/{id}   { allow read: if active(); allow create: if active() && okDoc(); allow update, delete: if admin(); }\n    match /backups/{id}     { allow read, create, delete: if admin(); allow update: if false; }\n    match /photos/{id}      { allow read: if active(); allow write: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')); }\n\n    // Deny anything not explicitly matched above.\n    match /{document=**} { allow read, write: if false; }\n  }\n}";
+const FB_RULES="rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n\n    function uD() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }\n    function active() { return request.auth != null && uD().status == 'active'; }\n    function admin() { return active() && uD().role in ['admin','mainframe']; }\n    function mainframe() { return active() && uD().role == 'mainframe'; }\n    function perms() {\n      return exists(/databases/$(database)/documents/meta/app)\n        ? get(/databases/$(database)/documents/meta/app).data.get('perms', {})\n        : {};\n    }\n    function userCan(key) { return admin() || perms().get(key, true) == true; }\n\n    // Non-admins may only change numbering + view preferences in meta.\n    // perms, company, currency, tax settings and any FUTURE field are frozen by default.\n    function metaSafe() {\n      return request.resource.data.diff(resource.data).affectedKeys()\n             .hasOnly(['seq','view','sort','market','usdMig']);\n    }\n    // Defence-in-depth: cap top-level field count. (Firestore already caps each doc at 1MB.)\n    function okDoc() { return request.resource.data.size() <= 60; }\n\n    match /users/{uid} {\n      allow read: if request.auth != null && (request.auth.uid == uid || admin());\n      allow create: if request.auth != null && request.auth.uid == uid && (\n        (request.resource.data.role == 'user' && request.resource.data.status == 'pending') ||\n        (request.auth.token.email == 'trishal@invento.app' && request.resource.data.role == 'mainframe')\n      );\n      allow update: if mainframe()\n        || (admin() && resource.data.role == 'user' && request.resource.data.role == 'user')\n        || (request.auth != null && request.auth.uid == uid\n            && request.resource.data.role == resource.data.role\n            && request.resource.data.status == resource.data.status);\n      allow delete: if mainframe() || (request.auth != null && request.auth.uid == uid);\n    }\n\n    // \"Forgot password\" requests. The person is signed OUT, so create is public --\n    // but locked down hard: doc id MUST equal the userid (one request per user, no\n    // flooding), exactly two fields, tight types/length. Contains no private data.\n    // Only admins can read or clear them.\n    match /pwresets/{userid} {\n      allow read, update, delete: if admin();\n      allow create: if request.resource.data.keys().hasOnly(['userid','ts'])\n        && request.resource.data.userid is string\n        && request.resource.data.userid == userid\n        && request.resource.data.userid.size() >= 2\n        && request.resource.data.userid.size() <= 40\n        && request.resource.data.userid.matches('^[a-z0-9._-]+$')\n        && request.resource.data.ts is number;\n    }\n\n    match /support/{id}     { allow read, update, delete: if admin(); allow create: if active() && request.resource.data.keys().hasOnly(['id','ts','by','text','img','status']) && request.resource.data.text is string && request.resource.data.text.size() <= 2000; }\n    match /txns/{id}        { allow read: if active(); allow create: if active() && okDoc(); allow update: if false; allow delete: if admin(); }\n    match /trash/{id}       { allow read: if active(); allow create, update: if (admin() || userCan('trash') || userCan('delitem')) && okDoc(); allow delete: if (admin() || userCan('trash') || userCan('delitem')); }\n    match /meta/{doc}       { allow read: if active(); allow create: if admin(); allow update: if admin() || (active() && metaSafe()); }\n    match /items/{id}       { allow read: if active(); allow create, update: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')) && okDoc(); allow delete: if (admin() || userCan('delitem')); }\n    match /folders/{id}     { allow read: if active(); allow create, update: if userCan('editloc') && okDoc(); allow delete: if (admin() || userCan('editloc')); }\n    match /lists/{id}       { allow read: if active(); allow create, update: if active() && okDoc(); allow delete: if admin(); }\n    match /pos/{id}         { allow read: if active(); allow create, update: if active() && okDoc(); allow delete: if admin(); }\n    match /dispatches/{id}  { allow read: if active(); allow create, update: if (admin() || userCan('dispatch')) && okDoc(); allow delete: if admin(); }\n    match /awbs/{id}        { allow read: if active(); allow create, update: if (userCan('awbAccept') || userCan('awbDispatch')) && okDoc(); allow delete: if admin(); }\n    match /approvals/{id}   { allow read: if active(); allow create: if active() && okDoc(); allow update, delete: if admin(); }\n    match /backups/{id}     { allow read, create, delete: if admin(); allow update: if false; }\n    match /photos/{id}      { allow read: if active(); allow write: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')); }\n\n    // Deny anything not explicitly matched above.\n    match /{document=**} { allow read, write: if false; }\n  }\n}";
 function authEmail(u){u=String(u||'').trim().toLowerCase();return u.indexOf('@')>0?u:u.replace(/[^a-z0-9._-]/g,'')+'@invento.app'}
 function authErrMsg(e){
   const c=(e&&e.code)||'';
@@ -5303,11 +5257,11 @@ function forgotPasswordDlg(prefill){
       const _g=emailCool('reset');if(_g){toast(_g,'err');return}
       await firebase.auth().sendPasswordResetEmail(em);
       closeModal();
-      openModal('<h3>Check your inbox '+ico('check')+'</h3><p class="sub mb">If <b>'+esc(em)+'</b> has an Invento account, a reset link is on its way (check spam too). Open it, set a new password, then sign in here.</p><button class="btn pri block" data-close-modal>Done</button>');
+      openModal('<h3>Check your inbox '+ico('check')+'</h3><p class="sub mb">If <b>'+esc(em)+'</b> has an Invento account, a reset link is on its way (check spam too). Open it, set a new password, then sign in here.</p><button class="btn pri block" onclick="closeModal()">Done</button>');
     }catch(e){
       const c=(e&&e.code)||'';
       btn.disabled=false;btn.innerHTML=ico('check')+'Send reset link';
-      if(c==='auth/user-not-found'){closeModal();openModal('<h3>Check your inbox</h3><p class="sub mb">If <b>'+esc(em)+'</b> has an Invento account, a reset link is on its way. No email? Old accounts without one can use the button below on the previous screen.</p><button class="btn pri block" data-close-modal>Done</button>');}
+      if(c==='auth/user-not-found'){closeModal();openModal('<h3>Check your inbox</h3><p class="sub mb">If <b>'+esc(em)+'</b> has an Invento account, a reset link is on its way. No email? Old accounts without one can use the button below on the previous screen.</p><button class="btn pri block" onclick="closeModal()">Done</button>');}
       else toast(authErrMsg(e),'err');
     }
   };
@@ -5530,7 +5484,7 @@ function vLogin(err,tab,m){
 function vPending(){
   topTitle('Awaiting approval','');
   $('#main').innerHTML='<div class="empty" style="margin-top:46px">'+ico('check')+'<div class="t">Account created — waiting for approval</div><div class="s">Signed in as <b>'+esc(userName())+'</b>. An admin needs to approve you in More → Team members before you can see stock. Ask them, then tap below.</div>'+
-    '<div class="row" style="justify-content:center;gap:9px"><button class="btn pri" data-reload>'+ico('undo')+'Check again</button><button class="btn" id="pd-out">Sign out</button></div></div>';
+    '<div class="row" style="justify-content:center;gap:9px"><button class="btn pri" onclick="location.reload()">'+ico('undo')+'Check again</button><button class="btn" id="pd-out">Sign out</button></div></div>';
   $('#pd-out').onclick=async()=>{try{await firebase.auth().signOut()}catch(e){};location.reload()};
 }
 function vRevoked(){
@@ -5548,7 +5502,7 @@ function vSetup(err){
     '<li><b>Build → Firestore Database → Create database</b> → Production mode → location <b>asia-south1 (Mumbai)</b></li>'+
     '<li>In Firestore, open the <b>Rules</b> tab, replace everything with the rules below → <b>Publish</b></li>'+
     '<li><b>Build → Authentication → Get started → Sign-in method → Email/Password → Enable</b></li>'+
-    '<li>Team members <b>sign up themselves</b> in the app. New accounts stay pending until an admin approves them in More → Team members. For a brand-new Firebase project, approve the first owner once in Firestore by setting that user profile to <span class="mono">status: active</span> and <span class="mono">role: mainframe</span>.</li>'+
+    '<li>Team members <b>sign up themselves</b> in the app (just a user ID + password, no email/OTP) — new accounts wait until an admin approves them in More → Team members. The ID <span class="mono">trishal</span> becomes the mainframe owner automatically.</li>'+
     '<li>Click the <b>&lt;/&gt;</b> (Web) icon on Project Overview → register app → copy the <span class="mono">firebaseConfig</span> block</li>'+
     '<li>Paste it below → Connect → sign in. Then share this file (or the team link from More) with your staff — they sign in with their own ID.</li></ol></div>'+
     '<div class="card pad mb"><div class="eyebrow" style="margin-bottom:6px">Security rules (step 3)</div><pre class="mono" id="ruletext" style="font-size:11.5px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;white-space:pre-wrap">'+esc(FB_RULES)+'</pre><button class="btn sm" id="rule-copy">'+ico('copy')+'Copy rules</button></div>'+
@@ -5573,7 +5527,7 @@ function vCloudError(e){
     '<div class="card pad mb"><div class="eyebrow" style="margin-bottom:6px">Usual fixes</div><ul style="padding-left:18px;font-size:14px;line-height:1.8">'+
     (denied?'<li><b>Enable Email/Password sign-in</b> (Authentication → Sign-in method) and check the Firestore <b>Rules</b> allow signed-in users</li>':'')+
     '<li>Check internet on this device</li><li>Make sure Firestore Database was created in the project</li><li>Re-paste the config if the project changed</li></ul></div>'+
-    '<div class="row" style="gap:9px"><button class="btn pri grow" data-reload>'+ico('undo')+'Retry</button><button class="btn grow" id="ce-cfg">Re-enter config</button></div>'+
+    '<div class="row" style="gap:9px"><button class="btn pri grow" onclick="location.reload()">'+ico('undo')+'Retry</button><button class="btn grow" id="ce-cfg">Re-enter config</button></div>'+
     '<button class="btn block mt" id="ce-local">Use on this device only (no sync)</button>';
   $('#ce-cfg').onclick=()=>{localStorage.removeItem('gdwn:fbconfig');location.reload()};
   $('#ce-local').onclick=()=>{localStorage.removeItem('gdwn:fbconfig');localStorage.setItem('gdwn:mode','local');location.reload()};
