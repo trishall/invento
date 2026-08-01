@@ -957,7 +957,7 @@ function pileDrain(i,q,preferF){
   setPiles(i,ps);
   return took.join(' + ');
 }
-function shelfName(f){const x=fById(f);return x?x.name:'All stock'}
+function shelfName(f){const x=fById(f);return x?(x.name+(x.box?' · '+x.box:'')):'All stock'}
 /* short location text: "R31C2 ·8 + R8C2 ·7" for multi, full path for single */
 function pileSummary(i){if(!isMultiRack(i))return folderPath(i.folder);return i.piles.map(p=>shelfName(p.f)+' ·'+fmtQty(p.q)).join(' + ')}
 /* after any DIRECT i.qty set on a multi-rack item: rebalance the primary pile */
@@ -1095,7 +1095,7 @@ Object.assign(HI,{
 'Change my password':'पासवर्ड बदलें','Confirm new password':'नया पासवर्ड दोबारा','New password (min 6 characters)':'नया पासवर्ड (कम से कम 6 अक्षर)','New password must be 6+ characters':'नया पासवर्ड 6+ अक्षर का हो','New passwords do not match':'दोनों पासवर्ड मेल नहीं खाते','Password updated':'पासवर्ड बदल गया','Password must be 6+ characters':'पासवर्ड 6+ अक्षर का हो','Password must be at least 6 characters':'पासवर्ड कम से कम 6 अक्षर का हो','Password (min 6)':'पासवर्ड (कम से कम 6)','Enter your password':'अपना पासवर्ड भरें','Enter your current password':'अभी का पासवर्ड भरें','Enter your email/ID and password':'ईमेल/ID और पासवर्ड भरें','Enter your user ID':'अपना यूज़र ID भरें','Your email':'आपका ईमेल','Your password':'आपका पासवर्ड','Your user ID':'आपका यूज़र ID','Forgot password':'पासवर्ड भूल गए','Request sent — the admin will set a new password':'रिक्वेस्ट भेज दी — एडमिन नया पासवर्ड सेट करेंगे','Add email & password':'ईमेल और पासवर्ड जोड़ें','My account has no email (old account)':'मेरे अकाउंट में ईमेल नहीं है (पुराना अकाउंट)','Enter a valid email':'सही ईमेल भरें','Enter a real email address':'सही ईमेल पता भरें','Enter a valid phone number':'सही फोन नंबर भरें','Link phone number':'फोन नंबर जोड़ें','Phone linked — you can now sign in by SMS too':'फोन जुड़ गया — अब SMS से भी लॉग इन कर सकते हैं','SMS code':'SMS कोड','Enter the code':'कोड भरें','Enter the 6-digit code':'6 अंकों का कोड भरें','Code sent again':'कोड दोबारा भेजा','Check your inbox':'अपना इनबॉक्स देखें','Verification email sent — check inbox/spam':'वेरिफ़िकेशन ईमेल भेजा — इनबॉक्स/स्पैम देखें','At least 6 characters':'कम से कम 6 अक्षर','Pick a user ID (letters/numbers)':'यूज़र ID चुनें (अक्षर/नंबर)','Delete my account':'मेरा अकाउंट डिलीट करें','Delete account':'अकाउंट डिलीट करें','Sign out':'लॉग आउट',
 'Import items from CSV':'CSV से आइटम लाएँ','Choose a CSV file':'CSV फ़ाइल चुनें','or drop it here':'या यहाँ छोड़ें','Ready to import':'इम्पोर्ट के लिए तैयार','Valid rows':'सही लाइनें','Skipped rows':'छोड़ी गई लाइनें','Show skipped rows':'छोड़ी गई लाइनें दिखाएँ','Create as new item':'नया आइटम बनाएँ','Create as new items anyway':'फिर भी नए आइटम बनाएँ','Update existing items (qty &amp; details)':'पुराने आइटम अपडेट करें (मात्रा और जानकारी)','Could not read file':'फ़ाइल नहीं पढ़ पाए','Could not find Name and Quantity columns':'Name और Quantity कॉलम नहीं मिले','File needs a header row and at least one data row':'फ़ाइल में हेडर और कम से कम एक लाइन चाहिए','Not sure of the format?':'फॉर्मेट समझ नहीं आ रहा?','download this file':'यह फ़ाइल डाउनलोड करें','Template downloaded — fill it and import':'टेम्पलेट डाउनलोड हुआ — भरकर इम्पोर्ट करें','Minimum columns:':'कम से कम कॉलम:','CSV downloaded':'CSV डाउनलोड हो गई','No items to export':'एक्सपोर्ट के लिए कुछ नहीं','Sample data loaded':'सैंपल डेटा आ गया','Load sample leather-goods data':'लेदर सामान का सैंपल डेटा भरें','Imported —':'इम्पोर्ट हुआ —','Review import results':'इम्पोर्ट का नतीजा देखें',
 'Sales & reorder':'बिक्री और री-ऑर्डर','Best sellers':'सबसे ज़्यादा बिके','No sales data yet':'अभी बिक्री का डेटा नहीं','No activity in this period':'इस दौरान कोई एक्टिविटी नहीं','No movements in this period':'इस दौरान कोई मूवमेंट नहीं','No stock changes in that period':'उस दौरान स्टॉक में बदलाव नहीं','Nothing is low':'कुछ भी कम नहीं है','In &amp; out':'आया और गया','Total in':'कुल आया','Total out':'कुल गया','Stock in only':'सिर्फ आया','Stock out only':'सिर्फ गया','All actions':'सारे काम','Last 30 days (full history)':'पिछले 30 दिन (पूरी हिस्ट्री)','Adjustments, picks and receipts will show up here.':'एडजस्टमेंट, पिक और आवक यहाँ दिखेंगे।','Changes to items, folders and stock counts will show up here.':'आइटम, फ़ोल्डर और स्टॉक के बदलाव यहाँ दिखेंगे।',
-'Barcode &amp; QR labels':'बारकोड और QR लेबल','Restock labels':'रीस्टॉक लेबल','Allow pop-ups to print':'प्रिंट के लिए पॉप-अप चालू करें','Code library offline — labels show text only':'कोड लाइब्रेरी ऑफ़लाइन — लेबल पर सिर्फ टेक्स्ट दिखेगा','Barcode machine':'बारकोड मशीन','Content':'क्या छापें','Quick command':'झटपट कमांड','Layout':'लेआउट','Code on top (fills label)':'कोड ऊपर (पूरा लेबल भरे)','Side by side':'साथ-साथ','Custom…':'अपना साइज़…','Return to office':'ऑफिस वापस','Overview':'कारोबार','Full dashboard':'पूरा डैशबोर्ड','Sold / out':'बिका / गया','Stocked in':'आया','Need to order':'ऑर्डर करना है','Top sellers':'सबसे ज़्यादा बिके','Pending':'बाकी','History':'हिस्ट्री','Cancelled':'रद्द','Cancel PO':'PO रद्द करें','Pending order nos. — e.g. #1043, #1051':'पेंडिंग ऑर्डर नं. — जैसे #1043, #1051','AI assistant':'AI असिस्टेंट','Ask anything about your stock — in Hindi or English':'स्टॉक के बारे में कुछ भी पूछें — हिंदी या English में','One line: item, quantity, rack. Add the word remove to take stock out.':'एक लाइन में: आइटम, मात्रा, रैक। स्टॉक घटाने के लिए remove या निकालो लिखें।','Which item?':'कौन सा आइटम?','Quick command':'झटपट कमांड','Code + text':'कोड + टेक्स्ट','Only barcode / QR':'सिर्फ बारकोड / QR','Only text':'सिर्फ टेक्स्ट','Border':'बॉर्डर',
+'Barcode &amp; QR labels':'बारकोड और QR लेबल','Restock labels':'रीस्टॉक लेबल','Allow pop-ups to print':'प्रिंट के लिए पॉप-अप चालू करें','Code library offline — labels show text only':'कोड लाइब्रेरी ऑफ़लाइन — लेबल पर सिर्फ टेक्स्ट दिखेगा','Barcode machine':'बारकोड मशीन','Content':'क्या छापें','Quick command':'झटपट कमांड','New location':'नई जगह','Edit location':'जगह बदलें','Type of place':'किस तरह की जगह','Box no. (optional)':'बॉक्स नं. (ज़रूरी नहीं)','Layout':'लेआउट','Code on top (fills label)':'कोड ऊपर (पूरा लेबल भरे)','Side by side':'साथ-साथ','Custom…':'अपना साइज़…','Return to office':'ऑफिस वापस','Overview':'कारोबार','Full dashboard':'पूरा डैशबोर्ड','Sold / out':'बिका / गया','Stocked in':'आया','Need to order':'ऑर्डर करना है','Top sellers':'सबसे ज़्यादा बिके','Pending':'बाकी','History':'हिस्ट्री','Cancelled':'रद्द','Cancel PO':'PO रद्द करें','Pending order nos. — e.g. #1043, #1051':'पेंडिंग ऑर्डर नं. — जैसे #1043, #1051','AI assistant':'AI असिस्टेंट','Ask anything about your stock — in Hindi or English':'स्टॉक के बारे में कुछ भी पूछें — हिंदी या English में','One line: item, quantity, rack. Add the word remove to take stock out.':'एक लाइन में: आइटम, मात्रा, रैक। स्टॉक घटाने के लिए remove या निकालो लिखें।','Which item?':'कौन सा आइटम?','Quick command':'झटपट कमांड','Code + text':'कोड + टेक्स्ट','Only barcode / QR':'सिर्फ बारकोड / QR','Only text':'सिर्फ टेक्स्ट','Border':'बॉर्डर',
 'Settings saved':'सेटिंग सेव हो गई','Recovery point saved':'बैकअप बन गया','Backup':'बैकअप','Backup downloaded':'बैकअप डाउनलोड हुआ','Backup restored':'बैकअप वापस आ गया','15-day recovery point saved automatically':'हर 15 दिन में बैकअप अपने आप बनता है','Not a valid backup file':'यह सही बैकअप फ़ाइल नहीं है','Could not read that recovery point':'वह बैकअप नहीं पढ़ पाए','All data erased':'सारा डेटा मिट गया','This device only':'सिर्फ इस फोन पर','Use on this device only (no sync)':'सिर्फ इस फोन पर (बिना सिंक)','Describe the problem first':'पहले दिक्कत लिखें','Describe what went wrong. A screenshot helps a lot.':'क्या गड़बड़ हुई, लिखें। स्क्रीनशॉट से बहुत मदद मिलती है।','Sent — the admin will see it in Help':'भेज दिया — एडमिन को मदद में दिखेगा','Could not send — tell the admin directly':'नहीं भेज पाए — एडमिन को सीधे बताएँ','Word for a place (singular)':'जगह के लिए शब्द (एकवचन)','…plural':'…बहुवचन','Which market?':'कौन सा मार्केट?','Choose market':'मार्केट चुनें','Switch market':'मार्केट बदलें',
 'Could not sync — retrying':'सिंक नहीं हुआ — दोबारा कोशिश','Could not save — storage error':'सेव नहीं हुआ — स्टोरेज की दिक्कत','Check internet on this device':'इस फोन का इंटरनेट देखें','Could not run action':'यह काम नहीं हो पाया'
 });
@@ -1455,7 +1455,7 @@ function txHTML(t){
 /* ============================================================
    STOCK BROWSER
    ============================================================ */
-function matches(i,q){q=q.toLowerCase();return [i.name,skusOf(i).join(' '),(i.tags||[]).join(' '),i.notes].some(v=>v&&String(v).toLowerCase().includes(q))}
+function matches(i,q){q=q.toLowerCase();const locs=(typeof isMultiRack==='function'&&isMultiRack(i))?pilesOf(i).map(p=>shelfName(p.f)).join(' '):shelfName(i.folder);return [i.name,skusOf(i).join(' '),(i.tags||[]).join(' '),i.notes,locs].some(v=>v&&String(v).toLowerCase().includes(q))}
 function sortItems(arr){
   const s=S.meta.sort;
   const c={updated:(a,b)=>b.updatedAt-a.updatedAt,name:(a,b)=>a.name.localeCompare(b.name),qty:(a,b)=>(+b.qty||0)-(+a.qty||0),value:(a,b)=>itemValue(b)-itemValue(a)}[s]||((a,b)=>b.updatedAt-a.updatedAt);
@@ -1982,18 +1982,27 @@ function addToDlg(i){
 /* ============================================================
    FOLDERS
    ============================================================ */
+const LOC_KINDS=[['rack','Rack','रैक'],['shelf','Shelf','शेल्फ़'],['column','Column','कॉलम'],['box','Box','बॉक्स'],['room','Room','कमरा'],['area','Area / custom','जगह (अपनी)']];
+function locKindLabel(k){const r=LOC_KINDS.find(x=>x[0]===k);return r?(langHi()?r[2]:r[1]):''}
+function folderLabel(f){if(!f)return '';return (f.box?'📦 ':'')+f.name+(f.box?' · '+f.box:'')}
 function folderDlg(parentId,editId){
   const f=editId?fById(editId):null;
-  openModal('<h3>'+(f?'Rename folder':'New folder')+'</h3>'+
-    '<div class="field"><label>Folder name</label><input class="in" id="fd-n" value="'+esc(f?f.name:'')+'" placeholder="e.g. Shelf A, Export stock, Jodhpur unit"></div>'+
-    (!f?'<div class="field"><label>Inside</label><select class="in" id="fd-p">'+folderSelect(parentId||null)+'</select></div>':'')+
-    '<button class="btn pri block" id="fd-go">'+(f?'Save':'Create folder')+'</button>');
+  const T=(hi,en)=>langHi()?hi:en;
+  openModal('<h3>'+(f?T('जगह बदलें','Edit location'):T('नई जगह','New location'))+'</h3>'+
+    '<div class="field"><label>'+T('किस तरह की जगह','Type of place')+'</label><select class="in" id="fd-k">'+
+      LOC_KINDS.map(k=>'<option value="'+k[0]+'"'+((f&&f.kind===k[0])||(!f&&k[0]==='rack')?' selected':'')+'>'+(langHi()?k[2]:k[1])+'</option>').join('')+
+    '</select></div>'+
+    '<div class="field"><label>'+T('नाम','Name')+'</label><input class="in" id="fd-n" value="'+esc(f?f.name:'')+'" placeholder="'+T('जैसे: R11, ऊपर वाला कमरा, शेल्फ़ A','e.g. R11, Upper room, Shelf A')+'"></div>'+
+    '<div class="field"><label>'+T('बॉक्स नं. (ज़रूरी नहीं)','Box no. (optional)')+'</label><input class="in" id="fd-b" value="'+esc(f&&f.box?f.box:'')+'" placeholder="'+T('जैसे: BOX-14','e.g. BOX-14')+'"></div>'+
+    (!f?'<div class="field"><label>'+T('किसके अंदर','Inside')+'</label><select class="in" id="fd-p">'+folderSelect(parentId||null)+'</select></div>':'')+
+    '<button class="btn pri block" id="fd-go">'+(f?T('सेव करें','Save'):T('बनाएँ','Create'))+'</button>');
   const inp=$('#fd-n');inp.focus();
   $('#fd-go').onclick=()=>{
     const n=inp.value.trim();if(!n){toast('Name required','err');return}
-    if(f){logTx('folder',{detail:'Renamed “'+f.name+'” → “'+n+'”'});f.name=n}
-    else{const nf={id:uid('f'),name:n,parent:$('#fd-p').value||null,createdAt:Date.now()};S.folders.push(nf);logTx('folder',{detail:'Created folder “'+n+'”'})}
-    save('folders');closeModal();toast(f?'Renamed':'Folder created','ok');route();
+    const kind=$('#fd-k').value, box=$('#fd-b').value.trim();
+    if(f){logTx('folder',{detail:'Renamed “'+f.name+'” → “'+n+'”'});f.name=n;f.kind=kind;f.box=box}
+    else{const nf={id:uid('f'),name:n,kind:kind,box:box,parent:$('#fd-p').value||null,createdAt:Date.now()};S.folders.push(nf);logTx('folder',{detail:'Created '+kind+' “'+n+'”'+(box?' ('+box+')':'')})}
+    save('folders');closeModal();toast(f?'Saved':'Created','ok');route();
   };
   inp.onkeydown=e=>{if(e.key==='Enter')$('#fd-go').click()};
 }
