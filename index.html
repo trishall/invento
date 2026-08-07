@@ -359,6 +359,14 @@ table.t tfoot td{font-weight:800;background:color-mix(in srgb,var(--ink) 4%,var(
 /* ---------- toast ---------- */
 #toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 16px);z-index:80;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
 @media(min-width:920px){#toasts{bottom:22px}}
+#ldbar{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--saddle),#e6b98a);z-index:99999;opacity:0;transition:width .25s ease,opacity .25s ease;pointer-events:none}
+#ldbar.on{opacity:1}
+.pgspin{display:grid;place-items:center;padding:40px 0;gap:10px}
+.pgspin i{width:30px;height:30px;border-radius:50%;border:3px solid var(--line2);border-top-color:var(--saddle);animation:spin .8s linear infinite;display:block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.bgchip{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:9998;background:var(--dark-surface);color:#fff;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;display:none;align-items:center;gap:7px;box-shadow:var(--shadow-lg)}
+.bgchip.on{display:flex}
+.bgchip i{width:12px;height:12px;border-radius:50%;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;animation:spin .8s linear infinite;display:block}
 .toast{background:var(--dark-surface);color:#fff;border-radius:11px;padding:10px 16px;font-size:13.5px;font-weight:600;box-shadow:var(--shadow-lg);animation:up .18s ease;max-width:88vw;text-align:center}
 .toast.err{background:var(--red)}
 .toast.ok{background:var(--green)}
@@ -390,15 +398,7 @@ table.t tfoot td{font-weight:800;background:color-mix(in srgb,var(--ink) 4%,var(
 .lbl.s-m{width:62mm;height:30mm;font-size:9.5pt}
 .lbl.s-l{width:96mm;height:46mm;font-size:13pt}
 .lbl.s-x{width:100mm;height:60mm;font-size:16pt}
-.lbl.s-c{font-size:10pt}
-.lbl.stack{flex-direction:column;align-items:stretch;gap:0.6mm;padding:0.8mm;justify-content:flex-start}
-.lbl.stack .code{flex:1 1 auto;width:100%;min-height:0;display:grid;place-items:center;overflow:hidden}
-.lbl.stack .code svg,.lbl.stack .code img,.lbl.stack .code canvas{width:100%!important;height:100%!important;max-height:100%;object-fit:contain;display:block}
-.lbl.stack.qr .code svg,.lbl.stack.qr .code img,.lbl.stack.qr .code canvas{width:auto!important;height:100%!important;max-width:100%}
-.lbl.stack .tx{flex:0 0 auto;width:100%;text-align:center;line-height:1.1}
-.lbl.stack .tn{-webkit-line-clamp:2;font-size:.92em}
-.lbl.stack .ts{font-size:.9em;font-weight:700}
-.lbl.stack.codeonly{padding:0.5mm}.lbl.stack.codeonly .code{height:100%}
+
 #printArea{display:none}
 body.printing #app,body.printing #ovl,body.printing #toasts,body.printing #bulkbar{display:none!important}
 body.printing #printArea{display:block;padding:8mm}
@@ -439,6 +439,7 @@ body.printing #printArea{display:block;padding:8mm}
 </style>
 </head>
 <body>
+<div id="ldbar" aria-hidden="true"></div>
 <div id="app">
   <nav id="side" aria-label="Main">
     <div class="brand"><span class="bx"><svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#8A5226"/><circle cx="32" cy="17.5" r="4" fill="#E8B04B"/><path d="M19 28h26v17a3 3 0 0 1-3 3H22a3 3 0 0 1-3-3z" fill="none" stroke="#F4E9D8" stroke-width="3.4" stroke-linejoin="round"/><path d="M19 28l-5.5-6.5M45 28l5.5-6.5" fill="none" stroke="#F4E9D8" stroke-width="3.4" stroke-linecap="round"/><path d="M32 33v9" stroke="#F4E9D8" stroke-width="3.4" stroke-linecap="round"/></svg></span><span>INVENTO<small>by Trishal</small></span></div>
@@ -842,9 +843,9 @@ async function initCloud(cfg){
     if(p.status!=='active')location.reload();
     else if(bootDone&&was&&was.role!==p.role){toast('Your role is now '+p.role,'ok');route()}
   },()=>{});
-  const first=[];
-  function wireCol(col,query,apply){
-    first.push(new Promise((res,rej)=>{
+  const first=[],later=[];
+  function wireCol(col,query,apply,defer){
+    (defer?later:first).push(new Promise((res,rej)=>{
       let done=false;
       query.onSnapshot(snap=>{
         if(dirty[col]){saveNow(col)}
@@ -856,13 +857,13 @@ async function initCloud(cfg){
   }
   wireCol('items',db.collection('items').orderBy('createdAt'),s=>mergeCol('items',s.docs));
   wireCol('folders',db.collection('folders').orderBy('createdAt'),s=>mergeCol('folders',s.docs));
-  wireCol('lists',db.collection('lists'),s=>mergeCol('lists',s.docs));
-  wireCol('pos',db.collection('pos'),s=>mergeCol('pos',s.docs));
-  wireCol('dispatches',db.collection('dispatches').orderBy('ts','desc').limit(800),s=>mergeCol('dispatches',s.docs));
-  wireCol('approvals',db.collection('approvals'),s=>mergeCol('approvals',s.docs));
-  wireCol('awbs',db.collection('awbs').orderBy('acceptedAt','desc').limit(1000),s=>mergeCol('awbs',s.docs));
-  wireCol('trash',db.collection('trash').orderBy('deletedAt','desc'),s=>mergeCol('trash',s.docs));
-  wireCol('txns',db.collection('txns').where('ts','>=',Date.now()-30*86400000).orderBy('ts','desc').limit(1500),s=>{S.txns=s.docs.map(d=>{const x=d.data();x.id=d.id;return x})});
+  wireCol('lists',db.collection('lists'),s=>mergeCol('lists',s.docs),true);
+  wireCol('pos',db.collection('pos'),s=>mergeCol('pos',s.docs),true);
+  wireCol('dispatches',db.collection('dispatches').orderBy('ts','desc').limit(400),s=>mergeCol('dispatches',s.docs),true);
+  wireCol('approvals',db.collection('approvals'),s=>mergeCol('approvals',s.docs),true);
+  wireCol('awbs',db.collection('awbs').orderBy('acceptedAt','desc').limit(1000),s=>mergeCol('awbs',s.docs),true);
+  wireCol('trash',db.collection('trash').orderBy('deletedAt','desc'),s=>mergeCol('trash',s.docs),true);
+  wireCol('txns',db.collection('txns').where('ts','>=',Date.now()-30*86400000).orderBy('ts','desc').limit(1200),s=>{S.txns=s.docs.map(d=>{const x=d.data();x.id=d.id;return x})},true);
   wireCol('meta',db.collection('meta').doc('app'),s=>{
     const d=s.exists?(s.data()||{}):{};
     S.meta=Object.assign(DEFAULT_META(),d);
@@ -870,7 +871,9 @@ async function initCloud(cfg){
     fixCurrency();
   });
   const timeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error('Timed out connecting to Firestore — check internet, project setup and security rules.')),15000));
-  await Promise.race([Promise.all(first),timeout]);
+  await Promise.race([Promise.all(first),timeout]);      // items + folders + meta only
+  bgBusy(true);
+  Promise.all(later).then(()=>{bgBusy(false);repaintSoon()}).catch(()=>bgBusy(false));
   cloudReady=true;
   if(isAdminU()){purgeOldTxns();purgeOldAwbs();}
   return 'cloud';
@@ -1095,7 +1098,7 @@ Object.assign(HI,{
 'Change my password':'पासवर्ड बदलें','Confirm new password':'नया पासवर्ड दोबारा','New password (min 6 characters)':'नया पासवर्ड (कम से कम 6 अक्षर)','New password must be 6+ characters':'नया पासवर्ड 6+ अक्षर का हो','New passwords do not match':'दोनों पासवर्ड मेल नहीं खाते','Password updated':'पासवर्ड बदल गया','Password must be 6+ characters':'पासवर्ड 6+ अक्षर का हो','Password must be at least 6 characters':'पासवर्ड कम से कम 6 अक्षर का हो','Password (min 6)':'पासवर्ड (कम से कम 6)','Enter your password':'अपना पासवर्ड भरें','Enter your current password':'अभी का पासवर्ड भरें','Enter your email/ID and password':'ईमेल/ID और पासवर्ड भरें','Enter your user ID':'अपना यूज़र ID भरें','Your email':'आपका ईमेल','Your password':'आपका पासवर्ड','Your user ID':'आपका यूज़र ID','Forgot password':'पासवर्ड भूल गए','Request sent — the admin will set a new password':'रिक्वेस्ट भेज दी — एडमिन नया पासवर्ड सेट करेंगे','Add email & password':'ईमेल और पासवर्ड जोड़ें','My account has no email (old account)':'मेरे अकाउंट में ईमेल नहीं है (पुराना अकाउंट)','Enter a valid email':'सही ईमेल भरें','Enter a real email address':'सही ईमेल पता भरें','Enter a valid phone number':'सही फोन नंबर भरें','Link phone number':'फोन नंबर जोड़ें','Phone linked — you can now sign in by SMS too':'फोन जुड़ गया — अब SMS से भी लॉग इन कर सकते हैं','SMS code':'SMS कोड','Enter the code':'कोड भरें','Enter the 6-digit code':'6 अंकों का कोड भरें','Code sent again':'कोड दोबारा भेजा','Check your inbox':'अपना इनबॉक्स देखें','Verification email sent — check inbox/spam':'वेरिफ़िकेशन ईमेल भेजा — इनबॉक्स/स्पैम देखें','At least 6 characters':'कम से कम 6 अक्षर','Pick a user ID (letters/numbers)':'यूज़र ID चुनें (अक्षर/नंबर)','Delete my account':'मेरा अकाउंट डिलीट करें','Delete account':'अकाउंट डिलीट करें','Sign out':'लॉग आउट',
 'Import items from CSV':'CSV से आइटम लाएँ','Choose a CSV file':'CSV फ़ाइल चुनें','or drop it here':'या यहाँ छोड़ें','Ready to import':'इम्पोर्ट के लिए तैयार','Valid rows':'सही लाइनें','Skipped rows':'छोड़ी गई लाइनें','Show skipped rows':'छोड़ी गई लाइनें दिखाएँ','Create as new item':'नया आइटम बनाएँ','Create as new items anyway':'फिर भी नए आइटम बनाएँ','Update existing items (qty &amp; details)':'पुराने आइटम अपडेट करें (मात्रा और जानकारी)','Could not read file':'फ़ाइल नहीं पढ़ पाए','Could not find Name and Quantity columns':'Name और Quantity कॉलम नहीं मिले','File needs a header row and at least one data row':'फ़ाइल में हेडर और कम से कम एक लाइन चाहिए','Not sure of the format?':'फॉर्मेट समझ नहीं आ रहा?','download this file':'यह फ़ाइल डाउनलोड करें','Template downloaded — fill it and import':'टेम्पलेट डाउनलोड हुआ — भरकर इम्पोर्ट करें','Minimum columns:':'कम से कम कॉलम:','CSV downloaded':'CSV डाउनलोड हो गई','No items to export':'एक्सपोर्ट के लिए कुछ नहीं','Sample data loaded':'सैंपल डेटा आ गया','Load sample leather-goods data':'लेदर सामान का सैंपल डेटा भरें','Imported —':'इम्पोर्ट हुआ —','Review import results':'इम्पोर्ट का नतीजा देखें',
 'Sales & reorder':'बिक्री और री-ऑर्डर','Best sellers':'सबसे ज़्यादा बिके','No sales data yet':'अभी बिक्री का डेटा नहीं','No activity in this period':'इस दौरान कोई एक्टिविटी नहीं','No movements in this period':'इस दौरान कोई मूवमेंट नहीं','No stock changes in that period':'उस दौरान स्टॉक में बदलाव नहीं','Nothing is low':'कुछ भी कम नहीं है','In &amp; out':'आया और गया','Total in':'कुल आया','Total out':'कुल गया','Stock in only':'सिर्फ आया','Stock out only':'सिर्फ गया','All actions':'सारे काम','Last 30 days (full history)':'पिछले 30 दिन (पूरी हिस्ट्री)','Adjustments, picks and receipts will show up here.':'एडजस्टमेंट, पिक और आवक यहाँ दिखेंगे।','Changes to items, folders and stock counts will show up here.':'आइटम, फ़ोल्डर और स्टॉक के बदलाव यहाँ दिखेंगे।',
-'Barcode &amp; QR labels':'बारकोड और QR लेबल','Restock labels':'रीस्टॉक लेबल','Allow pop-ups to print':'प्रिंट के लिए पॉप-अप चालू करें','Code library offline — labels show text only':'कोड लाइब्रेरी ऑफ़लाइन — लेबल पर सिर्फ टेक्स्ट दिखेगा','Barcode machine':'बारकोड मशीन','Content':'क्या छापें','Quick command':'झटपट कमांड','New location':'नई जगह','Edit location':'जगह बदलें','Type of place':'किस तरह की जगह','Box no. (optional)':'बॉक्स नं. (ज़रूरी नहीं)','Layout':'लेआउट','Code on top (fills label)':'कोड ऊपर (पूरा लेबल भरे)','Side by side':'साथ-साथ','Custom…':'अपना साइज़…','Return to office':'ऑफिस वापस','Overview':'कारोबार','Full dashboard':'पूरा डैशबोर्ड','Sold / out':'बिका / गया','Stocked in':'आया','Need to order':'ऑर्डर करना है','Top sellers':'सबसे ज़्यादा बिके','Pending':'बाकी','History':'हिस्ट्री','Cancelled':'रद्द','Cancel PO':'PO रद्द करें','Pending order nos. — e.g. #1043, #1051':'पेंडिंग ऑर्डर नं. — जैसे #1043, #1051','AI assistant':'AI असिस्टेंट','Ask anything about your stock — in Hindi or English':'स्टॉक के बारे में कुछ भी पूछें — हिंदी या English में','One line: item, quantity, rack. Add the word remove to take stock out.':'एक लाइन में: आइटम, मात्रा, रैक। स्टॉक घटाने के लिए remove या निकालो लिखें।','Which item?':'कौन सा आइटम?','Quick command':'झटपट कमांड','Code + text':'कोड + टेक्स्ट','Only barcode / QR':'सिर्फ बारकोड / QR','Only text':'सिर्फ टेक्स्ट','Border':'बॉर्डर',
+'Barcode &amp; QR labels':'बारकोड और QR लेबल','Restock labels':'रीस्टॉक लेबल','Allow pop-ups to print':'प्रिंट के लिए पॉप-अप चालू करें','Code library offline — labels show text only':'कोड लाइब्रेरी ऑफ़लाइन — लेबल पर सिर्फ टेक्स्ट दिखेगा','Barcode machine':'बारकोड मशीन','Content':'क्या छापें','Quick command':'झटपट कमांड','New location':'नई जगह','Edit location':'जगह बदलें','Type of place':'किस तरह की जगह','Box no. (optional)':'बॉक्स नं. (ज़रूरी नहीं)','Return to office':'ऑफिस वापस','Overview':'कारोबार','Full dashboard':'पूरा डैशबोर्ड','Sold / out':'बिका / गया','Stocked in':'आया','Need to order':'ऑर्डर करना है','Top sellers':'सबसे ज़्यादा बिके','Pending':'बाकी','History':'हिस्ट्री','Cancelled':'रद्द','Cancel PO':'PO रद्द करें','Pending order nos. — e.g. #1043, #1051':'पेंडिंग ऑर्डर नं. — जैसे #1043, #1051','AI assistant':'AI असिस्टेंट','Ask anything about your stock — in Hindi or English':'स्टॉक के बारे में कुछ भी पूछें — हिंदी या English में','One line: item, quantity, rack. Add the word remove to take stock out.':'एक लाइन में: आइटम, मात्रा, रैक। स्टॉक घटाने के लिए remove या निकालो लिखें।','Which item?':'कौन सा आइटम?','Quick command':'झटपट कमांड','Code + text':'कोड + टेक्स्ट','Only barcode / QR':'सिर्फ बारकोड / QR','Only text':'सिर्फ टेक्स्ट','Border':'बॉर्डर',
 'Settings saved':'सेटिंग सेव हो गई','Recovery point saved':'बैकअप बन गया','Backup':'बैकअप','Backup downloaded':'बैकअप डाउनलोड हुआ','Backup restored':'बैकअप वापस आ गया','15-day recovery point saved automatically':'हर 15 दिन में बैकअप अपने आप बनता है','Not a valid backup file':'यह सही बैकअप फ़ाइल नहीं है','Could not read that recovery point':'वह बैकअप नहीं पढ़ पाए','All data erased':'सारा डेटा मिट गया','This device only':'सिर्फ इस फोन पर','Use on this device only (no sync)':'सिर्फ इस फोन पर (बिना सिंक)','Describe the problem first':'पहले दिक्कत लिखें','Describe what went wrong. A screenshot helps a lot.':'क्या गड़बड़ हुई, लिखें। स्क्रीनशॉट से बहुत मदद मिलती है।','Sent — the admin will see it in Help':'भेज दिया — एडमिन को मदद में दिखेगा','Could not send — tell the admin directly':'नहीं भेज पाए — एडमिन को सीधे बताएँ','Word for a place (singular)':'जगह के लिए शब्द (एकवचन)','…plural':'…बहुवचन','Which market?':'कौन सा मार्केट?','Choose market':'मार्केट चुनें','Switch market':'मार्केट बदलें',
 'Could not sync — retrying':'सिंक नहीं हुआ — दोबारा कोशिश','Could not save — storage error':'सेव नहीं हुआ — स्टोरेज की दिक्कत','Check internet on this device':'इस फोन का इंटरनेट देखें','Could not run action':'यह काम नहीं हो पाया'
 });
@@ -1296,7 +1299,19 @@ const view={sel:new Set(),q:'',tag:'',low:false,warehouse:null};
 function go(h){location.hash=h}
 window.addEventListener('hashchange',route);
 
+let _ldT=null;
+function loadStart(){const b=document.getElementById('ldbar');if(!b)return;
+  clearTimeout(_ldT);b.classList.add('on');b.style.width='12%';
+  setTimeout(()=>{b.style.width='68%'},60)}
+function loadEnd(){const b=document.getElementById('ldbar');if(!b)return;
+  b.style.width='100%';
+  _ldT=setTimeout(()=>{b.classList.remove('on');setTimeout(()=>{b.style.width='0'},260)},180)}
+function bgBusy(on){let c=document.querySelector('.bgchip');
+  if(!c){c=document.createElement('div');c.className='bgchip';c.setAttribute('data-noi18n','');
+    c.innerHTML='<i></i><span>'+(langHi()?'बाकी डेटा आ रहा है…':'Loading the rest…')+'</span>';document.body.appendChild(c)}
+  c.classList.toggle('on',!!on)}
 function route(){
+  loadStart();setTimeout(loadEnd,300);
   if(!bootDone)return;
   if(scannerStop){try{scannerStop()}catch(e){};scannerStop=null}
   view.sel.clear();renderBulk();
@@ -1532,7 +1547,7 @@ function vProducts(){
   let h='';
   if(can('dispatch'))h+=modeSlider('inv');
   h+='<div class="crumbs mb"><a href="#stock">Stock</a>'+ico('chev')+'<span>Items'+(view.warehouse?' · '+esc(whName(view.warehouse)):'')+'</span></div>';
-  h+='<div class="row mb"><div class="searchbar grow">'+ico('search')+'<input id="q" type="search" enterkeyhint="search" placeholder="Search name, SKU, code, tag…" value="'+esc(view.q)+'" autocomplete="off">'+(view.q?'<button class="icobtn ghost" id="clrq" style="width:30px;height:30px" aria-label="Clear">'+ico('x')+'</button>':'')+'</div><button class="icobtn" id="sortBtn" aria-label="Sort">'+ico('sort')+'</button><button class="icobtn" id="viewBtn" aria-label="Toggle view">'+ico(S.meta.view==='grid'?'listv':'grid')+'</button></div>';
+  h+='<div class="row mb"><div class="searchbar grow">'+ico('search')+'<input id="q" type="search" enterkeyhint="search" placeholder="Search name, SKU, code, tag…" value="'+esc(view.q)+'" autocomplete="off">'+(view.q?'<button class="icobtn ghost" id="clrq" style="width:30px;height:30px" aria-label="Clear">'+ico('x')+'</button>':'')+'</div><button class="icobtn" id="goq" aria-label="Search" style="background:var(--saddle);border-color:var(--saddle);color:#fff">'+ico('search')+'</button><button class="icobtn" id="sortBtn" aria-label="Sort">'+ico('sort')+'</button><button class="icobtn" id="viewBtn" aria-label="Toggle view">'+ico(S.meta.view==='grid'?'listv':'grid')+'</button></div>';
   const tags=allTags().slice(0,12);
   h+='<div class="chips mb"><button class="chip'+(view.low?' on':'')+'" id="chipLow">Low stock</button>';
   tags.forEach(t=>{h+='<button class="chip'+(view.tag===t?' on':'')+'" data-tag="'+esc(t)+'">'+esc(t)+'</button>'});
@@ -1543,9 +1558,10 @@ function vProducts(){
   else h+='<div class="ilist">'+pool.map(i=>rowHTML(i,{selectable:true})).join('')+'</div>';
   $('#main').innerHTML=h;
   if(can('dispatch'))wireModeSlider();
-  const q=$('#q');let qt=null;
-  q.oninput=()=>{view.q=q.value;clearTimeout(qt);qt=setTimeout(()=>{const pos=q.selectionStart;vProducts();const nq=$('#q');if(nq){nq.focus();try{nq.setSelectionRange(pos,pos)}catch(e){}}},220)};
-  q.onkeydown=e=>{if(e.key==='Enter')q.blur()};
+  const q=$('#q');
+  const runQ=()=>{view.q=q.value;vProducts()};
+  q.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();runQ()}};
+  if($('#goq'))$('#goq').onclick=runQ;
   if($('#clrq'))$('#clrq').onclick=()=>{view.q='';vProducts()};
   $('#viewBtn').onclick=()=>{S.meta.view=S.meta.view==='grid'?'list':'grid';save('meta');vProducts()};
   $('#sortBtn').onclick=()=>sortMenu(()=>vProducts());
@@ -1611,8 +1627,10 @@ function vStockFolders(fid){
   $('#main').innerHTML=h;
   // wire
   if(!fid)wireModeSlider();
-  const q=$('#q');q.oninput=()=>{view.q=q.value;rerenderStockBody(fid)};
-  q.onkeydown=e=>{if(e.key==='Enter')q.blur()};
+  const q=$('#q');
+  const runQ=()=>{view.q=q.value;rerenderStockBody(fid)};
+  q.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();runQ()}};
+  if($('#goq'))$('#goq').onclick=runQ;
   if($('#clrq'))$('#clrq').onclick=()=>{view.q='';vStockFolders(fid)};
   $('#viewBtn').onclick=()=>{S.meta.view=S.meta.view==='grid'?'list':'grid';save('meta');vStockFolders(fid)};
   $('#sortBtn').onclick=()=>sortMenu(()=>vStockFolders(fid));
@@ -2220,15 +2238,10 @@ function vLabels(){
   let h='<h1 class="page">Barcode &amp; QR labels</h1>';
   h+='<div class="card pad mb">'+
     '<div class="f3"><div class="field"><label>Content</label><select class="in" id="lb-mode"><option value="both" selected>Code + text</option><option value="code">Only barcode / QR</option><option value="text">Only text</option></select></div>'+
-    '<div class="field"><label>Layout</label><select class="in" id="lb-lay"><option value="stack" selected>Code on top (fills label)</option><option value="side">Side by side</option></select></div>'+
     '<div class="field"><label>Code type</label><select class="in" id="lb-type"><option value="qr">QR code</option><option value="bar">Barcode (Code 128)</option></select></div>'+
-    '<div class="field"><label>Size</label><select class="in" id="lb-size"><option value="s">Small · 48×24 mm</option><option value="m" selected>Medium · 62×30 mm</option><option value="l">Large · 96×46 mm</option><option value="x">XL · 100×60 mm</option><option value="c">Custom…</option></select></div>'+
+    '<div class="field"><label>Size</label><select class="in" id="lb-size"><option value="s">Small · 48×24 mm</option><option value="m" selected>Medium · 62×30 mm</option><option value="l">Large · 96×46 mm</option><option value="x">XL · 100×60 mm</option></select></div>'+
     '<div class="field"><label>Copies each</label><input class="in num" id="lb-n" inputmode="numeric" value="1"></div></div>'+
     '<div class="row wrap" style="gap:14px">'+
-      '<div class="row mb" id="lb-cwrap" style="gap:9px;display:none">'+
-        '<div class="field grow"><label>'+(langHi()?'चौड़ाई (mm)':'Width (mm)')+'</label><input class="in num" id="lb-cw" inputmode="decimal" value="50"></div>'+
-        '<div class="field grow"><label>'+(langHi()?'ऊँचाई (mm)':'Height (mm)')+'</label><input class="in num" id="lb-ch" inputmode="decimal" value="25"></div>'+
-      '</div>'+
       '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-border"> Border</label>'+
       '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-name" checked> Name</label>'+
       '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-sku" checked> SKU under code</label>'+
@@ -2258,10 +2271,6 @@ function vLabels(){
   async function buildSheet(target){
     const type=$('#lb-type').value,size=$('#lb-size').value,n=clamp(parseInt($('#lb-n').value)||1,1,100);
     const mode=$('#lb-mode').value,withBorder=$('#lb-border').checked;
-    const lay=(($('#lb-lay')||{}).value)||'stack';
-    const cw=Math.max(15,Math.min(200,parseFloat((($('#lb-cw')||{}).value))||50));
-    const ch=Math.max(10,Math.min(200,parseFloat((($('#lb-ch')||{}).value))||25));
-    const cstyle=(size==='c')?' style="width:'+cw+'mm;height:'+ch+'mm"':'';
     const showName=$('#lb-name').checked,showSku=$('#lb-sku').checked,showPrice=$('#lb-price').checked,showTags=$('#lb-tags').checked,showLoc=$('#lb-loc').checked;
     let libOK=true;
     if(mode!=='text')try{
@@ -2275,7 +2284,7 @@ function vLabels(){
       const codes=skusOf(i);const list=codes.length?codes:[''];
       list.forEach(code=>{ if(!code)return;
         for(let k=0;k<n;k++){ nLabels++;
-          const cls='lbl s-'+size+(withBorder?' bordered':'')+(lay==='stack'&&mode!=='text'?' stack':'')+(type==='qr'?' qr':'')+(mode==='code'?' codeonly':mode==='text'?' textonly':'');
+          const cls='lbl s-'+size+(withBorder?' bordered':'')+(mode==='code'?' codeonly':mode==='text'?' textonly':'');
           const codeHtml=(mode==='text')?'':'<div class="code" data-code="'+esc(code)+'" data-type="'+type+'"></div>';
           const txHtml=(mode==='code')?'':'<div class="tx">'+
             (showName?'<div class="tn">'+esc(i.name)+'</div>':'')+
@@ -2283,7 +2292,7 @@ function vLabels(){
             (showLoc?'<div class="ts" style="font-weight:600">'+esc(folderPath(i.folder))+'</div>':'')+
             (showTags&&(i.tags||[]).length?'<div class="ts" style="font-weight:600">'+esc((i.tags||[]).join(', '))+'</div>':'')+
             (showPrice&&+i.price?'<div class="tp num">'+fmtMoney(+i.price)+'</div>':'')+'</div>';
-          sheet+='<div class="'+cls+'"'+cstyle+'>'+codeHtml+txHtml+'</div>';
+          sheet+='<div class="'+cls+'">'+codeHtml+txHtml+'</div>';
         }
       });
     });
@@ -2292,18 +2301,13 @@ function vLabels(){
     $$('.lbl .code',target).forEach(el=>{
       const code=el.dataset.code;
       if(!libOK){el.innerHTML='<div class="mono" style="font-weight:700;font-size:1.1em;writing-mode:vertical-rl;transform:rotate(180deg)">'+esc(code)+'</div>';return}
-      let QD=(mode==='code')?QRDIM2:QRDIM, BH=(mode==='code')?BARH2:BARH;
-      if(lay==='stack'){QD={s:150,m:180,l:230,x:280,c:200};BH={s:70,m:80,l:100,x:120,c:90};}
-      if(!QD[size]){QD[size]=200}if(!BH[size]){BH[size]=90}
+      const QD=(mode==='code')?QRDIM2:QRDIM, BH=(mode==='code')?BARH2:BARH;
       if(type==='qr'){new QRCode(el,{text:code,width:QD[size],height:QD[size],correctLevel:QRCode.CorrectLevel.M})}
-      else{const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');el.appendChild(svg);try{JsBarcode(svg,code,{format:'CODE128',displayValue:(mode!=='code'||showSku)&&lay!=='stack',fontSize:(size==='s'?9:size==='x'?14:11)+(mode==='code'?2:0),height:BH[size],width:(lay==='stack'?2.4:((size==='l'||size==='x'?2:1.4)+(mode==='code'?0.6:0))),margin:lay==='stack'?0:2,textMargin:1})}catch(e){el.innerHTML='<div class="mono small">'+esc(code)+'</div>'}}
+      else{const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');el.appendChild(svg);try{JsBarcode(svg,code,{format:'CODE128',displayValue:mode!=='code'||showSku,fontSize:(size==='s'?9:size==='x'?14:11)+(mode==='code'?2:0),height:BH[size],width:(size==='l'||size==='x'?2:1.4)+(mode==='code'?0.6:0),margin:2,textMargin:1})}catch(e){el.innerHTML='<div class="mono small">'+esc(code)+'</div>'}}
     });
     if(!libOK)toast('Code library offline — labels show text only','err');
     logTx('label',{detail:nLabels+' label'+(nLabels===1?'':'s')+' for '+its.length+' item'+(its.length>1?'s':'')});
   }
-  const syncCustom=()=>{const w=$('#lb-cwrap');if(w)w.style.display=($('#lb-size').value==='c')?'flex':'none'};
-  syncCustom();
-  $('#lb-size').addEventListener('change',syncCustom);
   $('#lb-prev').onclick=()=>buildSheet($('#lb-stage'));
   $('#lb-print').onclick=async()=>{await buildSheet($('#printArea'));printNow()};
 }
@@ -4011,6 +4015,53 @@ async function runApproval(req){
   if(req.type==='delLocation'){
     await deleteFolder(req.payload.folderId,true); // skip its own approval (already approved)
   }
+  if(req.type==='awbReturnBulk'){
+    await doBulkReturn((req.payload&&req.payload.ids)||[]);
+  }
+}
+async function doBulkReturn(ids){
+  const list=(S.awbs||[]).filter(a=>a.status==='accepted'&&(!ids.length||ids.indexOf(a.id)>=0));
+  if(!list.length){toast(langHi()?'कुछ बाकी नहीं':'Nothing pending','err');return 0}
+  const now=Date.now(),by=userName();
+  list.forEach(a=>{a.status='returned';a.resolvedBy=by;a.resolvedAt=now});
+  await saveNow('awbs');
+  logTx('list',{detail:list.length+' AWB'+(list.length>1?'s':'')+' returned to office (bulk)'});
+  toast(list.length+(langHi()?' AWB ऑफिस वापस':' AWBs returned to office'),'ok');
+  updateBadges();
+  return list.length;
+}
+async function awbBulkReturnFlow(){
+  const pend=(S.awbs||[]).filter(a=>a.status==='accepted');
+  if(!pend.length){toast(langHi()?'कुछ बाकी नहीं':'Nothing pending','err');return}
+  const T=(hi,en)=>langHi()?hi:en;
+  const mine=pend.filter(a=>(a.acceptedBy||'')===userName());
+  openModal('<h3>'+T('सब ऑफिस वापस','Return all to office')+'</h3>'+
+    '<p class="sub mb">'+T('कौन से AWB ऑफिस वापस दर्ज करने हैं?','Which AWBs should be marked returned to office?')+'</p>'+
+    '<button class="btn pri block mb" id="br-all">'+T('सारे बाकी AWB ('+pend.length+')','All pending ('+pend.length+')')+'</button>'+
+    (mine.length&&mine.length!==pend.length?'<button class="btn block mb" id="br-mine">'+T('सिर्फ मेरे ('+mine.length+')','Only mine ('+mine.length+')')+'</button>':'')+
+    '<button class="btn block mb" id="br-pick">'+T('चुनकर करें','Pick individually')+'</button>'+
+    '<button class="btn block" onclick="closeModal()">'+T('रद्द करें','Cancel')+'</button>');
+  const ask=async(list,lbl)=>{
+    closeModal();
+    const res=await requestOrApprove('awbReturnBulk',{ids:list.map(a=>a.id)},
+      'Return '+list.length+' AWBs to office',
+      'Marking <b>'+list.length+'</b> AWB'+(list.length>1?'s':'')+' as returned to office needs admin approval.');
+    if(res==='approved')await doBulkReturn(list.map(a=>a.id));
+    vAwb();
+  };
+  const a1=$('#br-all');if(a1)a1.onclick=()=>ask(pend);
+  const a2=$('#br-mine');if(a2)a2.onclick=()=>ask(mine);
+  const a3=$('#br-pick');if(a3)a3.onclick=()=>{
+    closeModal();
+    openModal('<h3>'+T('चुनें','Pick AWBs')+'</h3><div style="max-height:46dvh;overflow:auto" id="br-list">'+
+      pend.map((a,ix)=>'<label class="row" style="gap:9px;padding:7px 2px;border-bottom:1px solid var(--line2);align-items:center;cursor:pointer"><input type="checkbox" data-brc="'+ix+'" checked style="width:18px;height:18px;accent-color:var(--saddle)"><span class="grow"><span class="mono" style="font-weight:700">'+esc(a.awb)+'</span><div class="sub">'+esc(a.acceptedBy||'—')+' · '+awbAgeDays(a)+'d</div></span></label>').join('')+
+      '</div><button class="btn pri block mt" id="br-go">'+T('आगे बढ़ें','Continue')+'</button>');
+    $('#br-go').onclick=()=>{
+      const sel=pend.filter((a,ix)=>{const c=$('#modal [data-brc="'+ix+'"]');return c&&c.checked});
+      if(!sel.length){toast(T('कोई नहीं चुना','Nothing selected'),'err');return}
+      ask(sel);
+    };
+  };
 }
 
 function vDispatch(sub,arg){
@@ -4036,10 +4087,11 @@ function vDispatch(sub,arg){
       return {ok:true}},
     onDone:async(code,med)=>{
       const a=awbByNo(code);
-      if(a&&a.status==='accepted'){await dispatchAwbByNo(code,{sku:med.sku,photo:med.photo,video:med.video});return}
-      S.awbs.unshift({id:uid('awb'),awb:code,status:'dispatched',acceptedBy:userName(),acceptedAt:Date.now(),resolvedBy:userName(),resolvedAt:Date.now(),sku:med.sku||'',photo:med.photo||'',video:med.video||'',market:getMarket()});
+      if(a&&a.status==='accepted'){await dispatchAwbByNo(code,{sku:med.sku,photo:med.photo});return {created:false}}
+      S.awbs.unshift({id:uid('awb'),awb:code,status:'dispatched',acceptedBy:userName(),acceptedAt:Date.now(),resolvedBy:userName(),resolvedAt:Date.now(),sku:med.sku||'',photo:med.photo||'',market:getMarket()});
       await saveNow('awbs');
       logTx('dispatch',{detail:'Packed · '+code+(med.sku?' · '+med.sku:'')});
+      return {created:true};
     },
     onClose:()=>route()
   }));
@@ -4822,6 +4874,7 @@ function vAwb(sub,arg){
   h+='<div class="card pad mt"><div class="row" style="align-items:center;gap:8px">'+
      '<b class="grow">'+(langHi()?'हिस्ट्री':'History')+' <span class="muted num" style="font-weight:600">'+disp.length+(langHi()?' डिस्पैच · ':' dispatched · ')+ret.length+(langHi()?' वापस':' returned')+'</span></b>'+
      '<button class="btn sm" id="aw-hist">'+(langHi()?'देखें':'View')+'</button><button class="btn sm" id="aw-csv">'+ico('csv')+'CSV</button></div>'+
+     (pend.length?'<button class="btn sm block mt" id="aw-bulkret" style="color:var(--saddle);border-color:var(--saddle);font-weight:700">'+ico('undo')+(langHi()?'सब ऑफिस वापस ('+pend.length+')':'Return all to office ('+pend.length+')')+'</button>':'')+
      (isAdminU()&&pend.length?'<button class="btn sm block mt" id="aw-clear" style="color:var(--red);border-color:var(--red-bg)">'+ico('trash')+(langHi()?'सारे बाकी AWB हटाएँ ('+pend.length+')':'Clear all pending inward ('+pend.length+')')+'</button>':'')+
      '<div class="hint" style="margin-top:6px">'+(langHi()?'डिस्पैच हो चुके नंबर यहाँ रहते हैं — '+AWB_KEEP_DAYS+' दिन तक दोबारा स्कैन नहीं होगा।':'Dispatched numbers live here — duplicate scans stay blocked for '+AWB_KEEP_DAYS+' days.')+'</div>'+
      '<div id="aw-histbox" style="display:none;margin-top:10px"></div></div>';
@@ -4848,6 +4901,7 @@ function vAwb(sub,arg){
     };
     paint();const hq=$('#aw-hq');if(hq)hq.oninput=paint;
   };
+  const brb=$('#aw-bulkret');if(brb)brb.onclick=()=>awbBulkReturnFlow();
   const clr=$('#aw-clear');
   if(clr)clr.onclick=async()=>{
     if(!isAdminU()){toast(langHi()?'सिर्फ एडमिन':'Admins only','err');return}
@@ -4998,41 +5052,29 @@ async function pcRecStop(code,intl){
   return await pcSave(blob,code,intl);
 }
 
-/* opts: {title, intl, validate(code)->{ok,msg}, onDone(code,{sku,photo,video}), onClose()}
-   scan AWB -> scan SKU (or Skip) -> scan AWB = photo -> scan AWB = video on
-   -> scan AWB = video off & parcel complete.  Video auto-caps at VID_MAX_S. */
-const VID_MAX_S=60;
+/* opts: {title, intl, validate(code)->{ok,msg}, onDone(code,{sku,photo}), onClose()}
+   Dispatch parcel: scan AWB -> auto photo -> scan item SKU -> dispatched, stock -1, Revise available. */
 async function parcelCamFlow(opts){
   let cam=null;try{cam=await pcCam()}catch(e){cam=null}
-  await pcDirGet();
-  let stage='idle',cur='',sku='',photo='',n=0,busy=false,secs=0,tmr=null;
+  let stage='idle',cur='',photo='',n=0,busy=false,lastUndo=null;
   const T=(hi,en)=>langHi()?hi:en;
-  const steps=[['1',T('AWB','AWB')],['2',T('SKU','SKU')],['3',T('फोटो','Photo')],['4',T('वीडियो','Video')],['5',T('पूरा','Done')]];
-  const stepIx={idle:0,sku:1,photo:2,video:3,rec:4};
+  const steps=[T('AWB','AWB'),T('फोटो','Photo'),T('SKU','SKU')];
+  const stepIx={idle:0,shot:1,sku:2};
 
   const bar=()=>{const at=stepIx[stage]||0;
-    return '<div class="row mb" style="gap:5px">'+steps.map((s,i)=>'<div style="flex:1;text-align:center;padding:5px 2px;border-radius:8px;font-size:11px;font-weight:700;background:'+(i<at?'var(--green-bg,rgba(120,160,120,.18))':i===at?'var(--saddle)':'var(--line2)')+';color:'+(i===at?'#fff':'inherit')+'">'+s[1]+'</div>').join('')+'</div>'};
+    return '<div class="row mb" style="gap:5px">'+steps.map((s,k)=>'<div style="flex:1;text-align:center;padding:5px 2px;border-radius:8px;font-size:11.5px;font-weight:700;background:'+(k<at?'rgba(120,160,120,.25)':k===at?'var(--saddle)':'var(--line2)')+';color:'+(k===at?'#fff':'inherit')+'">'+s+'</div>').join('')+'</div>'};
 
   const paint=()=>{
     let h='<h3>'+esc(opts.title||T('डिस्पैच','Dispatch'))+'</h3>'+bar();
-    h+='<div class="row mb" style="gap:8px;align-items:center">'+
-       '<span class="pill '+(opts.intl?'info':'gray')+'">'+(opts.intl?T('इंटरनेशनल','International'):T('घरेलू','Domestic'))+'</span><span class="grow"></span>'+
-       (cam?'<button class="btn sm" id="pc-fold">'+ico('folder')+(_pcDir?T('फ़ोल्डर ✓','Folder ✓'):T('वीडियो फ़ोल्डर','Set video folder'))+'</button>':'')+'</div>';
-    if(!cam)h+='<div class="hint mb" style="color:var(--amber)">'+T('कैमरा नहीं मिला — सिर्फ स्कैन चलेगा।','No camera — scanning only.')+'</div>';
-
-    if(stage==='idle')h+='<div class="card pad mb" style="text-align:center;border:2px dashed var(--line2)"><div style="font-size:28px">'+ico('ticket')+'</div><b>'+T('AWB स्कैन करें','Scan the AWB')+'</b><div class="sub">'+T('नया पार्सल शुरू करने के लिए','to start the next parcel')+'</div></div>';
-    if(stage==='sku'){
-      h+='<div class="card pad mb" style="border:2px solid var(--saddle)"><div class="mono" style="font-weight:800;font-size:15px">'+esc(cur)+'</div><div class="sub">'+T('आइटम का SKU स्कैन करें','Scan the item SKU')+'</div></div>';
-      h+='<button class="btn block mb" id="pc-skip">'+T('छोड़ें (Skip)','Skip')+'</button>';
-    }
-    if(stage==='photo'){
-      h+='<div class="card pad mb" style="text-align:center;border:2px solid var(--saddle)"><div class="mono" style="font-weight:800">'+esc(cur)+'</div>'+(sku?'<div class="sub">SKU: <b>'+esc(sku)+'</b></div>':'')+'<b>'+T('फोटो के लिए वही AWB दोबारा स्कैन करें','Scan the same AWB to take the photo')+'</b></div>';
-    }
-    if(stage==='video')h+='<div class="card pad mb" style="text-align:center;border:2px solid var(--green)">'+(photo?'<img src="'+photo+'" style="max-width:140px;border-radius:10px;margin:0 auto 8px;display:block">':'')+'<b style="color:var(--green)">'+T('फोटो हो गई','Photo taken')+'</b><div class="sub">'+T('वीडियो चालू करने के लिए फिर से AWB स्कैन करें','scan the AWB again to start the video')+'</div></div>';
-    if(stage==='rec')h+='<div class="card pad mb" style="text-align:center;border:2px solid var(--red)"><div style="font-size:30px;color:var(--red)">●</div><b style="color:var(--red)">'+T('रिकॉर्डिंग','Recording')+' <span id="pc-t" class="num">'+secs+'s</span></b><div class="sub">'+T('पैक करें — फिर AWB स्कैन करके बंद करें और पूरा करें','pack it — then scan the AWB to stop and finish')+'</div></div>';
-    if(cam&&(stage==='photo'||stage==='rec'))h+='<div class="scanwrap mb" style="max-height:32dvh"><video id="pc-v" playsinline muted autoplay></video></div>';
+    h+='<div class="row mb" style="gap:8px;align-items:center"><span class="pill '+(opts.intl?'info':'gray')+'">'+(opts.intl?T('इंटरनेशनल','International'):T('घरेलू','Domestic'))+'</span></div>';
+    if(!cam)h+='<div class="hint mb" style="color:var(--amber)">'+T('कैमरा नहीं मिला — फोटो के बिना चलेगा।','No camera — will run without photos.')+'</div>';
+    if(stage==='idle')h+='<div class="card pad mb" style="text-align:center;border:2px dashed var(--line2)"><div style="font-size:26px">'+ico('ticket')+'</div><b>'+T('AWB स्कैन करें','Scan the AWB')+'</b><div class="sub">'+T('नया पार्सल शुरू करने के लिए','to start the next parcel')+'</div></div>';
+    if(stage==='shot')h+='<div class="card pad mb" style="text-align:center;border:2px solid var(--saddle)"><div class="mono" style="font-weight:800">'+esc(cur)+'</div><b>'+T('फोटो ली जा रही है…','Taking photo…')+'</b></div>';
+    if(stage==='sku')h+='<div class="card pad mb" style="text-align:center;border:2px solid var(--green)"><div class="mono" style="font-weight:800">'+esc(cur)+'</div>'+(photo?'<img src="'+photo+'" style="max-width:150px;border-radius:10px;margin:8px auto;display:block">':'')+'<b>'+T('अब आइटम का SKU स्कैन करें','Now scan the item SKU')+'</b><div class="sub">'+T('स्कैन करते ही डिस्पैच होगा और स्टॉक घटेगा','scanning it dispatches the parcel and reduces stock')+'</div></div>';
+    if(cam&&(stage==='shot'||stage==='idle'))h+='<div class="scanwrap mb" style="max-height:30dvh"><video id="pc-v" playsinline muted autoplay></video></div>';
     h+='<div class="searchbar mb" style="border-color:var(--saddle)">'+ico('scan')+'<input id="pc-in" placeholder="'+T('स्कैन का इंतज़ार…','Waiting for scan…')+'" autocomplete="off" autocapitalize="characters"></div>';
     h+='<div id="pc-feed" class="sub" style="min-height:34px;margin-bottom:8px"></div>';
+    if(stage==='sku')h+='<button class="btn block mb" id="pc-skip">'+T('SKU छोड़ें (स्टॉक न घटाएँ)','Skip SKU (do not reduce stock)')+'</button>';
     h+='<button class="btn pri block" id="pc-done">'+ico('check')+T('खत्म','Done')+(n?' · '+n:'')+'</button>';
     $('#modal').innerHTML=h;wire();
     const v=$('#pc-v');if(v&&cam){v.srcObject=cam;v.play().catch(()=>{})}
@@ -5040,25 +5082,43 @@ async function parcelCamFlow(opts){
   const feed=html=>{const f=$('#pc-feed');if(f)f.innerHTML=html};
   const err=(c,m)=>{beep(false);feed('<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:10px;padding:9px 11px"><b style="color:var(--red)">'+esc(c)+'</b><div style="color:var(--red);font-weight:600;font-size:13px">'+esc(m)+'</div></div>')};
 
-  const tick=()=>{secs++;const el=$('#pc-t');if(el)el.textContent=secs+'s';
-    if(secs>=VID_MAX_S){clearInterval(tmr);tmr=null;capHit()}};
-  const startRec=()=>{if(!cam||!pcRecStart())return false;secs=0;clearInterval(tmr);tmr=setInterval(tick,1000);return true};
-
-  const capHit=async()=>{
-    const path=await pcRecStop(cur,opts.intl);
-    stage='video';paint();
-    openModal('<h3>'+T('वीडियो '+VID_MAX_S+' सेकंड का हो गया','Video hit '+VID_MAX_S+'s')+'</h3><p class="sub mb">'+esc(cur)+' — '+T('और रिकॉर्ड करना है या यहीं पूरा करें?','keep recording, or finish this parcel here?')+'</p>'+
-      '<button class="btn pri block mb" id="pc-cont">'+T('और रिकॉर्ड करें','Keep recording')+'</button><button class="btn block" id="pc-fin">'+T('यहीं पूरा करें','Finish parcel')+'</button>');
-    $('#pc-cont').onclick=()=>{closeModal();openModal('<div class="sub">…</div>');stage='rec';paint();startRec();feed(T('रिकॉर्डिंग फिर चालू','Recording resumed'))};
-    $('#pc-fin').onclick=async()=>{closeModal();openModal('<div class="sub">…</div>');await finish(path)};
+  /* ---- undo the last parcel: put stock back, un-dispatch the AWB ---- */
+  const undoLast=async()=>{
+    const u=lastUndo;if(!u)return;
+    lastUndo=null;
+    if(u.itemId&&u.qty){const it=iById(u.itemId);
+      if(it){pileAdd(it,u.rack,u.qty);await saveNow('items');
+        logTx('in',{itemId:it.id,itemName:it.name,qty:u.qty,reason:'Dispatch reversed',detail:'Undo · '+u.awb});}}
+    const a=awbByNo(u.awb);
+    if(a&&u.created){S.awbs=S.awbs.filter(x=>x.id!==a.id);await saveNow('awbs')}
+    else if(a){a.status='accepted';a.resolvedBy='';a.resolvedAt=0;a.sku='';a.photo='';await saveNow('awbs')}
+    n=Math.max(0,n-1);
+    toast(T('वापस कर दिया','Reversed'),'ok');updateBadges();paint();
+    feed('<b>'+T('पिछला पार्सल वापस कर दिया','Last parcel reversed')+'</b>');
   };
 
-  const finish=async videoPath=>{
-    clearInterval(tmr);tmr=null;
-    await opts.onDone(cur,{sku:sku,photo:photo,video:videoPath});
+  const finish=async(skuCode)=>{
+    let it=skuCode?findByCode(skuCode):null;
+    let took=null;
+    if(skuCode&&!it){err(skuCode,T('यह SKU नहीं मिला','No item with that SKU'));return}
+    if(it){
+      const avail=+it.qty||0;
+      if(avail<1){err(skuCode,T('स्टॉक खत्म है — घटाया नहीं','Out of stock — not reduced'));}
+      else{
+        const rack=(pilesOf(it)[0]||{}).f;
+        const old=avail;pileDrain(it,1,rack);await saveNow('items');
+        logTx('out',{itemId:it.id,itemName:it.name,fromQ:old,toQ:+it.qty||0,qty:1,reason:'Dispatched',detail:'Dispatch · '+cur});
+        took={itemId:it.id,qty:1,rack:rack};
+      }
+    }
+    const res=await opts.onDone(cur,{sku:skuCode||'',photo:photo,item:it||null});
+    lastUndo={awb:cur,itemId:took&&took.itemId,qty:took&&took.qty,rack:took&&took.rack,created:!!(res&&res.created)};
     n++;beep(true);
-    const d=cur;cur='';sku='';photo='';secs=0;stage='idle';paint();
-    feed('<b style="color:var(--green)">✓ '+esc(d)+T(' पूरा','  complete')+'</b><div class="sub">'+n+T(' पार्सल','  parcels')+(videoPath?' · 🎬':'')+'</div>');
+    const done=cur,nm=it?it.name:'';cur='';photo='';stage='idle';paint();
+    feed('<div class="row" style="gap:8px;align-items:center"><div class="grow"><b style="color:var(--green)">✓ '+esc(done)+'</b>'+
+      (nm?'<div class="sub">'+esc(nm)+' · −1'+(it?' · '+T('बचा ','left ')+fmtQty(it.qty):'')+'</div>':'<div class="sub">'+T('स्टॉक नहीं घटाया','stock not reduced')+'</div>')+
+      '</div><button class="btn sm" id="pc-undo" style="flex:0 0 auto;color:var(--red);border-color:var(--red-bg)">'+T('वापस करें','Revise')+'</button></div>');
+    const ub=$('#pc-undo');if(ub)ub.onclick=undoLast;
   };
 
   const onScan=async code=>{
@@ -5067,33 +5127,22 @@ async function parcelCamFlow(opts){
       if(stage==='idle'){
         const v=await opts.validate(code);
         if(!v||!v.ok){err(code,(v&&v.msg)||'skipped');return}
-        cur=code;sku='';photo='';stage='sku';paint();return;
-      }
-      if(stage==='sku'){                      // any code that isn't the AWB = the SKU
-        if(code===cur){stage=cam?'photo':'video';paint();feed(T('SKU छोड़ा','SKU skipped'));return}
-        sku=code;beep(true);stage=cam?'photo':'video';paint();feed('SKU: <b>'+esc(sku)+'</b>');return;
-      }
-      if(stage==='photo'){
-        if(code!==cur){err(code,T('वही AWB स्कैन करें','Scan the same AWB'));return}
+        cur=code;photo='';stage='shot';paint();
+        await new Promise(r=>setTimeout(r,450));           // let the camera settle
         const el=$('#pc-v');if(el&&cam)photo=pcShot(el);
-        beep(true);stage='video';paint();return;
-      }
-      if(stage==='video'){
-        if(code!==cur){err(code,T('वही AWB स्कैन करें','Scan the same AWB'));return}
-        if(startRec()){stage='rec';paint()} else {await finish('')}
+        beep(true);stage='sku';paint();
         return;
       }
-      if(stage==='rec'){
-        if(code!==cur){err(code,T('वही AWB स्कैन करें','Scan the same AWB'));return}
-        const p=await pcRecStop(cur,opts.intl);
-        await finish(p);return;
+      if(stage==='sku'){
+        if(code===cur){err(code,T('आइटम का SKU स्कैन करें','Scan the item SKU, not the AWB'));return}
+        await finish(code);
+        return;
       }
     } finally { busy=false }
   };
 
   function wire(){
-    const fb=$('#pc-fold');if(fb)fb.onclick=async()=>{await pcDirPick();paint()};
-    const sk=$('#pc-skip');if(sk)sk.onclick=()=>{stage=cam?'photo':'video';paint();feed(T('SKU छोड़ा','SKU skipped'))};
+    const sk=$('#pc-skip');if(sk)sk.onclick=()=>finish('');
     const I=$('#pc-in');
     if(I){
       I.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();const v=I.value.trim();I.value='';if(v)onScan(v)}};
@@ -5101,12 +5150,12 @@ async function parcelCamFlow(opts){
       try{I.focus()}catch(e){}
     }
     const dn=$('#pc-done');
-    if(dn)dn.onclick=async()=>{dn.disabled=true;clearInterval(tmr);if(stage==='rec'){const p=await pcRecStop(cur,opts.intl);await finish(p)}pcCamStop();closeModal();if(opts.onClose)opts.onClose()};
+    if(dn)dn.onclick=()=>{pcCamStop();closeModal();if(opts.onClose)opts.onClose()};
   }
   openModal('<div class="sub">…</div>');paint();
   const foc=setInterval(()=>{const I=$('#pc-in');if(!I){clearInterval(foc);return}if(document.activeElement!==I){try{I.focus()}catch(e){}}},600);
   const ov=$('#ovl');
-  const obs=new MutationObserver(async()=>{if(!ov.classList.contains('show')&&!$('#pc-in')){obs.disconnect();clearInterval(foc);clearInterval(tmr);if(_pcRec&&cur){const p=await pcRecStop(cur,opts.intl);await opts.onDone(cur,{sku:sku,photo:photo,video:p})}pcCamStop()}});
+  const obs=new MutationObserver(()=>{if(!ov.classList.contains('show')&&!$('#pc-in')){obs.disconnect();clearInterval(foc);pcCamStop()}});
   obs.observe(ov,{attributes:true,attributeFilter:['class']});
 }
 
