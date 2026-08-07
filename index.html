@@ -4757,7 +4757,7 @@ function vReturnView(id){
 /* ============================================================
    AWB / SHIPMENTS — accountability for shipping labels
    ============================================================ */
-const AWB_OVERDUE_DAYS=3;
+const AWB_OVERDUE_DAYS=7;
 const AWB_KEEP_DAYS=60;   // dispatched/returned docs are remembered this long, then aged out
 async function purgeOldAwbs(){
   try{
