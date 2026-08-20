@@ -393,7 +393,7 @@ table.t tfoot td{font-weight:800;background:color-mix(in srgb,var(--ink) 4%,var(
 .lbl .tx{min-width:0;line-height:1.18}
 .lbl .tn{font-weight:700;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .lbl .ts{font-family:ui-monospace,Menlo,Consolas,monospace;color:#333}
-.lbl .tp{font-weight:700}
+.lbl .tp{font-weight:700}.lbl{position:relative}.lbl .by{position:absolute;right:1.4mm;bottom:0.8mm;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:0.62em;font-weight:700;letter-spacing:.08em;color:#555;line-height:1}
 .lbl.s-s{width:48mm;height:24mm;font-size:8.2pt}
 .lbl.s-m{width:62mm;height:30mm;font-size:9.5pt}
 .lbl.s-l{width:96mm;height:46mm;font-size:13pt}
@@ -1098,7 +1098,7 @@ Object.assign(HI,{
 'Change my password':'पासवर्ड बदलें','Confirm new password':'नया पासवर्ड दोबारा','New password (min 6 characters)':'नया पासवर्ड (कम से कम 6 अक्षर)','New password must be 6+ characters':'नया पासवर्ड 6+ अक्षर का हो','New passwords do not match':'दोनों पासवर्ड मेल नहीं खाते','Password updated':'पासवर्ड बदल गया','Password must be 6+ characters':'पासवर्ड 6+ अक्षर का हो','Password must be at least 6 characters':'पासवर्ड कम से कम 6 अक्षर का हो','Password (min 6)':'पासवर्ड (कम से कम 6)','Enter your password':'अपना पासवर्ड भरें','Enter your current password':'अभी का पासवर्ड भरें','Enter your email/ID and password':'ईमेल/ID और पासवर्ड भरें','Enter your user ID':'अपना यूज़र ID भरें','Your email':'आपका ईमेल','Your password':'आपका पासवर्ड','Your user ID':'आपका यूज़र ID','Forgot password':'पासवर्ड भूल गए','Request sent — the admin will set a new password':'रिक्वेस्ट भेज दी — एडमिन नया पासवर्ड सेट करेंगे','Add email & password':'ईमेल और पासवर्ड जोड़ें','My account has no email (old account)':'मेरे अकाउंट में ईमेल नहीं है (पुराना अकाउंट)','Enter a valid email':'सही ईमेल भरें','Enter a real email address':'सही ईमेल पता भरें','Enter a valid phone number':'सही फोन नंबर भरें','Link phone number':'फोन नंबर जोड़ें','Phone linked — you can now sign in by SMS too':'फोन जुड़ गया — अब SMS से भी लॉग इन कर सकते हैं','SMS code':'SMS कोड','Enter the code':'कोड भरें','Enter the 6-digit code':'6 अंकों का कोड भरें','Code sent again':'कोड दोबारा भेजा','Check your inbox':'अपना इनबॉक्स देखें','Verification email sent — check inbox/spam':'वेरिफ़िकेशन ईमेल भेजा — इनबॉक्स/स्पैम देखें','At least 6 characters':'कम से कम 6 अक्षर','Pick a user ID (letters/numbers)':'यूज़र ID चुनें (अक्षर/नंबर)','Delete my account':'मेरा अकाउंट डिलीट करें','Delete account':'अकाउंट डिलीट करें','Sign out':'लॉग आउट',
 'Import items from CSV':'CSV से आइटम लाएँ','Choose a CSV file':'CSV फ़ाइल चुनें','or drop it here':'या यहाँ छोड़ें','Ready to import':'इम्पोर्ट के लिए तैयार','Valid rows':'सही लाइनें','Skipped rows':'छोड़ी गई लाइनें','Show skipped rows':'छोड़ी गई लाइनें दिखाएँ','Create as new item':'नया आइटम बनाएँ','Create as new items anyway':'फिर भी नए आइटम बनाएँ','Update existing items (qty &amp; details)':'पुराने आइटम अपडेट करें (मात्रा और जानकारी)','Could not read file':'फ़ाइल नहीं पढ़ पाए','Could not find Name and Quantity columns':'Name और Quantity कॉलम नहीं मिले','File needs a header row and at least one data row':'फ़ाइल में हेडर और कम से कम एक लाइन चाहिए','Not sure of the format?':'फॉर्मेट समझ नहीं आ रहा?','download this file':'यह फ़ाइल डाउनलोड करें','Template downloaded — fill it and import':'टेम्पलेट डाउनलोड हुआ — भरकर इम्पोर्ट करें','Minimum columns:':'कम से कम कॉलम:','CSV downloaded':'CSV डाउनलोड हो गई','No items to export':'एक्सपोर्ट के लिए कुछ नहीं','Sample data loaded':'सैंपल डेटा आ गया','Load sample leather-goods data':'लेदर सामान का सैंपल डेटा भरें','Imported —':'इम्पोर्ट हुआ —','Review import results':'इम्पोर्ट का नतीजा देखें',
 'Sales & reorder':'बिक्री और री-ऑर्डर','Best sellers':'सबसे ज़्यादा बिके','No sales data yet':'अभी बिक्री का डेटा नहीं','No activity in this period':'इस दौरान कोई एक्टिविटी नहीं','No movements in this period':'इस दौरान कोई मूवमेंट नहीं','No stock changes in that period':'उस दौरान स्टॉक में बदलाव नहीं','Nothing is low':'कुछ भी कम नहीं है','In &amp; out':'आया और गया','Total in':'कुल आया','Total out':'कुल गया','Stock in only':'सिर्फ आया','Stock out only':'सिर्फ गया','All actions':'सारे काम','Last 30 days (full history)':'पिछले 30 दिन (पूरी हिस्ट्री)','Adjustments, picks and receipts will show up here.':'एडजस्टमेंट, पिक और आवक यहाँ दिखेंगे।','Changes to items, folders and stock counts will show up here.':'आइटम, फ़ोल्डर और स्टॉक के बदलाव यहाँ दिखेंगे।',
-'Barcode &amp; QR labels':'बारकोड और QR लेबल','Restock labels':'रीस्टॉक लेबल','Allow pop-ups to print':'प्रिंट के लिए पॉप-अप चालू करें','Code library offline — labels show text only':'कोड लाइब्रेरी ऑफ़लाइन — लेबल पर सिर्फ टेक्स्ट दिखेगा','Barcode machine':'बारकोड मशीन','Content':'क्या छापें','Quick command':'झटपट कमांड','New location':'नई जगह','Edit location':'जगह बदलें','Type of place':'किस तरह की जगह','Box no. (optional)':'बॉक्स नं. (ज़रूरी नहीं)','Return to office':'ऑफिस वापस','Overview':'कारोबार','Full dashboard':'पूरा डैशबोर्ड','Sold / out':'बिका / गया','Stocked in':'आया','Need to order':'ऑर्डर करना है','Top sellers':'सबसे ज़्यादा बिके','Pending':'बाकी','History':'हिस्ट्री','Cancelled':'रद्द','Cancel PO':'PO रद्द करें','Pending order nos. — e.g. #1043, #1051':'पेंडिंग ऑर्डर नं. — जैसे #1043, #1051','AI assistant':'AI असिस्टेंट','Ask anything about your stock — in Hindi or English':'स्टॉक के बारे में कुछ भी पूछें — हिंदी या English में','One line: item, quantity, rack. Add the word remove to take stock out.':'एक लाइन में: आइटम, मात्रा, रैक। स्टॉक घटाने के लिए remove या निकालो लिखें।','Which item?':'कौन सा आइटम?','Quick command':'झटपट कमांड','Code + text':'कोड + टेक्स्ट','Only barcode / QR':'सिर्फ बारकोड / QR','Only text':'सिर्फ टेक्स्ट','Border':'बॉर्डर',
+'Barcode &amp; QR labels':'बारकोड और QR लेबल','Restock labels':'रीस्टॉक लेबल','Allow pop-ups to print':'प्रिंट के लिए पॉप-अप चालू करें','Code library offline — labels show text only':'कोड लाइब्रेरी ऑफ़लाइन — लेबल पर सिर्फ टेक्स्ट दिखेगा','Barcode machine':'बारकोड मशीन','Content':'क्या छापें','Quick command':'झटपट कमांड','New location':'नई जगह','Edit location':'जगह बदलें','Type of place':'किस तरह की जगह','Box no. (optional)':'बॉक्स नं. (ज़रूरी नहीं)','Return to office':'ऑफिस वापस','Overview':'कारोबार','Full dashboard':'पूरा डैशबोर्ड','Sold / out':'बिका / गया','Stocked in':'आया','Need to order':'ऑर्डर करना है','Top sellers':'सबसे ज़्यादा बिके','Pending':'बाकी','History':'हिस्ट्री','Cancelled':'रद्द','Cancel PO':'PO रद्द करें','Pending order nos. — e.g. #1043, #1051':'पेंडिंग ऑर्डर नं. — जैसे #1043, #1051','AI assistant':'AI असिस्टेंट','Ask anything about your stock — in Hindi or English':'स्टॉक के बारे में कुछ भी पूछें — हिंदी या English में','One line: item, quantity, rack. Add the word remove to take stock out.':'एक लाइन में: आइटम, मात्रा, रैक। स्टॉक घटाने के लिए remove या निकालो लिखें।','Which item?':'कौन सा आइटम?','Quick command':'झटपट कमांड','Code + text':'कोड + टेक्स्ट','Only barcode / QR':'सिर्फ बारकोड / QR','Only text':'सिर्फ टेक्स्ट','Border':'बॉर्डर','Printed by (3 letters) *':'किसने छापा (3 अक्षर) *','Enter your 3-letter initials first':'पहले अपने 3 अक्षर डालें',
 'Settings saved':'सेटिंग सेव हो गई','Recovery point saved':'बैकअप बन गया','Backup':'बैकअप','Backup downloaded':'बैकअप डाउनलोड हुआ','Backup restored':'बैकअप वापस आ गया','15-day recovery point saved automatically':'हर 15 दिन में बैकअप अपने आप बनता है','Not a valid backup file':'यह सही बैकअप फ़ाइल नहीं है','Could not read that recovery point':'वह बैकअप नहीं पढ़ पाए','All data erased':'सारा डेटा मिट गया','This device only':'सिर्फ इस फोन पर','Use on this device only (no sync)':'सिर्फ इस फोन पर (बिना सिंक)','Describe the problem first':'पहले दिक्कत लिखें','Describe what went wrong. A screenshot helps a lot.':'क्या गड़बड़ हुई, लिखें। स्क्रीनशॉट से बहुत मदद मिलती है।','Sent — the admin will see it in Help':'भेज दिया — एडमिन को मदद में दिखेगा','Could not send — tell the admin directly':'नहीं भेज पाए — एडमिन को सीधे बताएँ','Word for a place (singular)':'जगह के लिए शब्द (एकवचन)','…plural':'…बहुवचन','Which market?':'कौन सा मार्केट?','Choose market':'मार्केट चुनें','Switch market':'मार्केट बदलें',
 'Could not sync — retrying':'सिंक नहीं हुआ — दोबारा कोशिश','Could not save — storage error':'सेव नहीं हुआ — स्टोरेज की दिक्कत','Check internet on this device':'इस फोन का इंटरनेट देखें','Could not run action':'यह काम नहीं हो पाया'
 });
@@ -2240,7 +2240,8 @@ function vLabels(){
     '<div class="f3"><div class="field"><label>Content</label><select class="in" id="lb-mode"><option value="both" selected>Code + text</option><option value="code">Only barcode / QR</option><option value="text">Only text</option></select></div>'+
     '<div class="field"><label>Code type</label><select class="in" id="lb-type"><option value="qr">QR code</option><option value="bar">Barcode (Code 128)</option></select></div>'+
     '<div class="field"><label>Size</label><select class="in" id="lb-size"><option value="s">Small · 48×24 mm</option><option value="m" selected>Medium · 62×30 mm</option><option value="l">Large · 96×46 mm</option><option value="x">XL · 100×60 mm</option></select></div>'+
-    '<div class="field"><label>Copies each</label><input class="in num" id="lb-n" inputmode="numeric" value="1"></div></div>'+
+    '<div class="field"><label>Copies each</label><input class="in num" id="lb-n" inputmode="numeric" value="1"></div>'+
+    '<div class="field"><label>Printed by (3 letters) *</label><input class="in mono" id="lb-by" maxlength="3" autocapitalize="characters" spellcheck="false" placeholder="e.g. TRI" required value="'+esc(lblByDefault())+'" style="text-transform:uppercase;letter-spacing:.15em"></div></div>'+
     '<div class="row wrap" style="gap:14px">'+
       '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-border"> Border</label>'+
       '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-name" checked> Name</label>'+
@@ -2264,6 +2265,7 @@ function vLabels(){
   }
   function syncBtns(){const on=sel.size>0;$('#lb-prev').disabled=!on;$('#lb-print').disabled=!on;$('#lb-prev').innerHTML=ico('label')+'Preview'+(on?' ('+sel.size+')':'')}
   $('#lb-q').oninput=paintList;
+  $('#lb-by').oninput=e=>{const v=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,3);if(v!==e.target.value)e.target.value=v};
   $('#lb-all').onclick=()=>{const q=($('#lb-q').value||'').trim().toLowerCase();S.items.filter(i=>skusOf(i).length&&(!q||matches(i,q))).forEach(i=>sel.add(i.id));paintList()};
   paintList();
 
@@ -2271,6 +2273,9 @@ function vLabels(){
   async function buildSheet(target){
     const type=$('#lb-type').value,size=$('#lb-size').value,n=clamp(parseInt($('#lb-n').value)||1,1,100);
     const mode=$('#lb-mode').value,withBorder=$('#lb-border').checked;
+    const by=($('#lb-by').value||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,3);
+    if(by.length!==3){const el=$('#lb-by');el.style.borderColor='var(--red)';el.focus();toast('Enter your 3-letter initials first','err');return false}
+    $('#lb-by').style.borderColor='';try{localStorage.setItem('lbl_by',by)}catch(e){}
     const showName=$('#lb-name').checked,showSku=$('#lb-sku').checked,showPrice=$('#lb-price').checked,showTags=$('#lb-tags').checked,showLoc=$('#lb-loc').checked;
     let libOK=true;
     if(mode!=='text')try{
@@ -2292,7 +2297,7 @@ function vLabels(){
             (showLoc?'<div class="ts" style="font-weight:600">'+esc(folderPath(i.folder))+'</div>':'')+
             (showTags&&(i.tags||[]).length?'<div class="ts" style="font-weight:600">'+esc((i.tags||[]).join(', '))+'</div>':'')+
             (showPrice&&+i.price?'<div class="tp num">'+fmtMoney(+i.price)+'</div>':'')+'</div>';
-          sheet+='<div class="'+cls+'">'+codeHtml+txHtml+'</div>';
+          sheet+='<div class="'+cls+'">'+codeHtml+txHtml+(by?'<div class="by">'+esc(by)+'</div>':'')+'</div>';
         }
       });
     });
@@ -2306,11 +2311,12 @@ function vLabels(){
       else{const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');el.appendChild(svg);try{JsBarcode(svg,code,{format:'CODE128',displayValue:mode!=='code'||showSku,fontSize:(size==='s'?9:size==='x'?14:11)+(mode==='code'?2:0),height:BH[size],width:(size==='l'||size==='x'?2:1.4)+(mode==='code'?0.6:0),margin:2,textMargin:1})}catch(e){el.innerHTML='<div class="mono small">'+esc(code)+'</div>'}}
     });
     if(!libOK)toast('Code library offline — labels show text only','err');
-    logTx('label',{detail:nLabels+' label'+(nLabels===1?'':'s')+' for '+its.length+' item'+(its.length>1?'s':'')});
+    logTx('label',{detail:nLabels+' label'+(nLabels===1?'':'s')+' for '+its.length+' item'+(its.length>1?'s':'')+(by?' · by '+by:'')});
   }
   $('#lb-prev').onclick=()=>buildSheet($('#lb-stage'));
-  $('#lb-print').onclick=async()=>{await buildSheet($('#printArea'));printNow()};
+  $('#lb-print').onclick=async()=>{if(await buildSheet($('#printArea'))===false)return;printNow()};
 }
+function lblByDefault(){try{const v=localStorage.getItem('lbl_by');if(v)return v}catch(e){}const nm=(MODE==='cloud'?userName():S.meta.user)||'';return nm.replace(/[^A-Za-z]/g,'').slice(0,3).toUpperCase()}
 function printNow(){
   document.body.classList.add('printing');
   setTimeout(()=>{window.print();setTimeout(()=>{document.body.classList.remove('printing')},400)},120);
