@@ -393,7 +393,7 @@ table.t tfoot td{font-weight:800;background:color-mix(in srgb,var(--ink) 4%,var(
 .lbl .tx{min-width:0;line-height:1.18}
 .lbl .tn{font-weight:700;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .lbl .ts{font-family:ui-monospace,Menlo,Consolas,monospace;color:#333}
-.lbl .tp{font-weight:700}.lbl{position:relative}.lbl .by{position:absolute;right:1.4mm;bottom:0.8mm;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:0.62em;font-weight:700;letter-spacing:.08em;color:#555;line-height:1}
+.lbl .tp{font-weight:700}.lbl{position:relative}.lbl .ts.by{font-weight:700;letter-spacing:.15em;color:#555;margin-top:.3mm}.lbl .byc{position:absolute;right:1.4mm;bottom:0.8mm;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:0.62em;font-weight:700;letter-spacing:.08em;color:#555;line-height:1}
 .lbl.s-s{width:48mm;height:24mm;font-size:8.2pt}
 .lbl.s-m{width:62mm;height:30mm;font-size:9.5pt}
 .lbl.s-l{width:96mm;height:46mm;font-size:13pt}
@@ -2293,11 +2293,11 @@ function vLabels(){
           const codeHtml=(mode==='text')?'':'<div class="code" data-code="'+esc(code)+'" data-type="'+type+'"></div>';
           const txHtml=(mode==='code')?'':'<div class="tx">'+
             (showName?'<div class="tn">'+esc(i.name)+'</div>':'')+
-            (showSku?'<div class="ts">'+esc(code)+'</div>':'')+
+            (showSku?'<div class="ts">'+esc(code)+'</div>':'')+(by?'<div class="ts by">'+esc(by)+'</div>':'')+
             (showLoc?'<div class="ts" style="font-weight:600">'+esc(folderPath(i.folder))+'</div>':'')+
             (showTags&&(i.tags||[]).length?'<div class="ts" style="font-weight:600">'+esc((i.tags||[]).join(', '))+'</div>':'')+
             (showPrice&&+i.price?'<div class="tp num">'+fmtMoney(+i.price)+'</div>':'')+'</div>';
-          sheet+='<div class="'+cls+'">'+codeHtml+txHtml+(by?'<div class="by">'+esc(by)+'</div>':'')+'</div>';
+          sheet+='<div class="'+cls+'">'+codeHtml+txHtml+(mode==='code'&&by?'<div class="byc">'+esc(by)+'</div>':'')+'</div>';
         }
       });
     });
