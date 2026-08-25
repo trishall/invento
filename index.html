@@ -556,40 +556,26 @@ function fmtDate(ts){const d=new Date(ts);return d.toLocaleDateString(locale(),{
 function fmtDT(ts){const d=new Date(ts);return fmtDate(ts)+', '+d.toLocaleTimeString(locale(),{hour:'numeric',minute:'2-digit'})}
 function ago(ts){const s=(Date.now()-ts)/1000;if(s<60)return 'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';if(s<86400*7)return Math.floor(s/86400)+'d ago';return fmtDate(ts)}
 function download(name,content,mime){const b=content instanceof Blob?content:new Blob([content],{type:mime||'text/plain'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(u);a.remove()},400)}
-function beep(ok){try{const ctx=beep.ctx||(beep.ctx=new (window.AudioContext||window.webkitAudioContext)());const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=ok?1180:220;g.gain.value=.12;o.start();o.stop(ctx.currentTime+(ok?.09:.22))}catch(e){}
- if(navigator.vibrate)navigator.vibrate(ok?35:[60,40,60])}
-/* ============================================================
-   VOICE FEEDBACK (per device, default ON)
-   The phone speaks each scan so hands stay on the cartons.
-   ============================================================ */
-function voiceOn(){try{return localStorage.getItem('invento_voice')!=='0'}catch(e){return true}}
-function setVoiceOn(on){try{localStorage.setItem('invento_voice',on?'1':'0')}catch(e){}}
-function say(text,opt){
-  if(!voiceOn())return;
+function beep(ok){
   try{
-    if(!('speechSynthesis' in window))return;
-    const u=new SpeechSynthesisUtterance(String(text));
-    u.rate=(opt&&opt.rate)||1.05;u.pitch=1;u.volume=1;
-    u.lang=(typeof langHi==='function'&&langHi())?'hi-IN':'en-IN';
-    try{speechSynthesis.cancel()}catch(e){}
-    speechSynthesis.speak(u);
+    const ctx=beep.ctx||(beep.ctx=new (window.AudioContext||window.webkitAudioContext)());
+    const tone=(at,dur,freq)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);
+      o.frequency.value=freq;g.gain.value=.14;o.start(ctx.currentTime+at);o.stop(ctx.currentTime+at+dur)};
+    if(ok)tone(0,.22,1180);                       // correct — one clear beep
+    else{tone(0,.20,300);tone(.30,.20,300)}       // wrong — two low beeps
   }catch(e){}
+  if(navigator.vibrate)navigator.vibrate(ok?60:[110,90,110]);
 }
-/* loud 3-tone warble for "this should not have happened" moments */
+/* Scan alarm: three long low beeps — reserved for "this should not have happened"
+   (an AWB going out that never came in, a barcode not in the catalog). */
 function alarmSound(){
   try{
     const ctx=beep.ctx||(beep.ctx=new (window.AudioContext||window.webkitAudioContext)());
-    [0,.22,.44].forEach((t,ix)=>{
-      const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);
-      o.frequency.value=ix%2?520:880;g.gain.value=.18;
-      o.start(ctx.currentTime+t);o.stop(ctx.currentTime+t+.17);
-    });
+    [0,.34,.68].forEach(t=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);
+      o.frequency.value=260;g.gain.value=.2;o.start(ctx.currentTime+t);o.stop(ctx.currentTime+t+.26)});
   }catch(e){}
-  if(navigator.vibrate)navigator.vibrate([120,70,120,70,220]);
+  if(navigator.vibrate)navigator.vibrate([160,90,160,90,260]);
 }
-const V_YES=()=>langHi()?'हाँ':'Yes';
-const V_IN=()=>langHi()?'अंदर':'In';
-const V_NO=()=>langHi()?'नहीं':'No';
 function toast(msg,kind){const t=document.createElement('div');t.className='toast'+(kind?' '+kind:'');t.textContent=msg;$('#toasts').appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .3s'},2400);setTimeout(()=>t.remove(),2800)}
 function lazyScript(src){lazyScript.c=lazyScript.c||{};if(lazyScript.c[src])return lazyScript.c[src];lazyScript.c[src]=new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('load failed'));document.head.appendChild(s)});return lazyScript.c[src]}
 
@@ -1269,7 +1255,6 @@ function refreshAcctMenu(){
   h+='<div class="seg2"><button data-th="light" class="'+(th!=='dark'?'on':'')+'">'+ico('sun')+'Light</button><button data-th="dark" class="'+(th==='dark'?'on':'')+'">'+ico('moon')+'Dark</button></div>';
   h+='<div class="sep"></div>';
   h+='<button id="acct-scanner">'+ico('scan')+'Barcode machine: <b style="margin-left:4px;color:'+(hwScanner()?'var(--green)':'var(--muted)')+'">'+(hwScanner()?'ON':'OFF')+'</b></button>';
-  h+='<button id="acct-voice">'+ico('bolt')+(langHi()?'स्कैन आवाज़: ':'Scan voice: ')+'<b style="margin-left:4px;color:'+(voiceOn()?'var(--green)':'var(--muted)')+'">'+(voiceOn()?'ON':'OFF')+'</b></button>';
   h+='<button id="acct-settings">'+ico('gear')+'Settings</button>';
   if(MODE==='cloud'&&fbUser&&(fbUser.email||'').indexOf('@invento.app')>=0)h+='<button id="acct-mig">'+ico('lock')+'Add recovery email</button>';
   if(MODE==='cloud'&&fbUser&&fbUser.email)h+='<button id="acct-pw">'+ico('lock')+'Change my password</button>';
@@ -1280,7 +1265,6 @@ function refreshAcctMenu(){
   m.innerHTML=h;
   $$('#acct-menu [data-th]').forEach(b=>b.onclick=()=>{applyTheme(b.dataset.th);refreshAcctMenu()});
   const sc=$('#acct-scanner');if(sc)sc.onclick=()=>{setHwScanner(!hwScanner());refreshAcctMenu();toast('Barcode machine '+(hwScanner()?'ON — scans add instantly':'OFF — camera scanning'),'ok')};
-  const vo=$('#acct-voice');if(vo)vo.onclick=()=>{setVoiceOn(!voiceOn());refreshAcctMenu();if(voiceOn()){say(V_YES());toast(langHi()?'स्कैन आवाज़ चालू':'Scan voice ON — the phone speaks each scan','ok')}else toast(langHi()?'स्कैन आवाज़ बंद':'Scan voice OFF — beeps only','ok')};
   const st=$('#acct-settings');if(st)st.onclick=()=>{closeAcct();go('#more')};
   const pw=$('#acct-pw');if(pw)pw.onclick=()=>{closeAcct();changeMyPassword()};
   const mg=$('#acct-mig');if(mg)mg.onclick=()=>{closeAcct();attachEmailFlow()};
@@ -1791,7 +1775,6 @@ function vItem(id){
     const nv=+i.qty||0;save('items');
     logTx(dir>0?'in':'out',{itemId:i.id,itemName:i.name,fromQ:old,toQ:nv,qty:n,reason:reason,detail:reason+' · '+shelfName(pf)});
     updateBadges();beep(true);
-    say((dir>0?V_YES()+'. '+(langHi()?'जोड़े ':'Added '):V_YES()+'. '+(langHi()?'निकाले ':'Removed '))+fmtQty(n));
     toast((dir>0?'Added ':'Removed ')+fmtQty(n)+' in '+shelfName(pf)+' — now '+fmtQty(nv),'ok');
     if(wasMulti||isMultiRack(i))route();
     else{const qb=$('#qbig');if(qb)qb.innerHTML=fmtQty(nv)+'<span class="muted" style="font-size:15px;font-weight:600"> '+esc(i.unit||'')+'</span>';const qv=$('#qval');if(qv)qv.textContent='Value '+fmtMoney(itemValue(i));const an2=$('#adj-n');if(an2)an2.value=''}
@@ -2144,7 +2127,6 @@ function vScan(mode,arg){
       const nv=+it.qty||0;save('items');
       logTx(dir>0?'in':'out',{itemId:it.id,itemName:it.name,fromQ:old,toQ:nv,qty:n,reason:'Quick command',detail:'Command · '+shelfName(pf)});
       updateBadges();beep(true);qcRender('');$('#qc').value='';
-      say((dir>0?V_YES()+'. '+(langHi()?'जोड़े ':'Added '):V_YES()+'. '+(langHi()?'निकाले ':'Removed '))+fmtQty(n));
       toast((dir>0?'Added ':'Removed ')+fmtQty(n)+' in '+shelfName(pf)+' — now '+fmtQty(nv),'ok');
     };
   }
@@ -2184,7 +2166,7 @@ function vScan(mode,arg){
     if(mode==='pick'&&list){scanPick(list,code);return}
     const it=findByCode(code);
     if(it){beep(true);quickScanModal(it)}
-    else{beep(false);say(langHi()?'नहीं मिला। यह आइटम लिस्ट में नहीं है।':'Not found. This item is not in the stock list.',{rate:1});openModal('<h3>Code not found</h3><p class="sub mb">No item matches <span class="mono">'+esc(code)+'</span>.</p><button class="btn pri block mb" id="ns-add">'+ico('plus')+'Add new item with this code</button><button class="btn block" id="ns-x">Keep scanning</button>');
+    else{beep(false);openModal('<h3>Code not found</h3><p class="sub mb">No item matches <span class="mono">'+esc(code)+'</span>.</p><button class="btn pri block mb" id="ns-add">'+ico('plus')+'Add new item with this code</button><button class="btn block" id="ns-x">Keep scanning</button>');
       $('#ns-add').onclick=()=>{closeModal();sessionStorage.setItem('newcode',code);go('#edit/new')};
       $('#ns-x').onclick=closeModal;}
   }
@@ -2217,7 +2199,6 @@ function vScan(mode,arg){
       const nv=+it.qty||0;save('items');
       logTx(dir>0?'in':'out',{itemId:it.id,itemName:it.name,fromQ:old,toQ:nv,qty:n,reason:reason,detail:'Scan · '+reason+' · '+shelfName(pf)});
       updateBadges();beep(true);closeModal();
-      say((dir>0?V_YES()+'. '+(langHi()?'जोड़े ':'Added '):V_YES()+'. '+(langHi()?'निकाले ':'Removed '))+fmtQty(n));
       toast((dir>0?'Added ':'Removed ')+fmtQty(n)+' in '+shelfName(pf)+' — '+it.name+' now '+fmtQty(nv),'ok');
     };
     $('#qs-out').onclick=()=>apply(-1);
@@ -4219,12 +4200,11 @@ function wireDispatchLineEvents(){
 
 function addDispatchLineByCode(code){
   const it=findByCode(code);
-  if(!it){alarmSound();say(langHi()?'सावधान। यह स्टॉक लिस्ट में नहीं है।':'Warning. Not in the stock list.',{rate:.95});toast('⚠ '+code+' — '+(langHi()?'आइटम लिस्ट में नहीं':'not in your item list'),'err')}
-  else say(V_YES());
+  if(!it){alarmSound();toast('⚠ '+code+' — '+(langHi()?'आइटम लिस्ट में नहीं':'not in your item list'),'err')}
   const existing=it?dDraft.lines.find(l=>l.itemId===it.id):dDraft.lines.find(l=>l.code===code&&!l.itemId);
   if(existing){existing.qty=round4((+existing.qty||0)+1);}
   else dDraft.lines.push({itemId:it?it.id:null,name:it?it.name:'',code:code,qty:1,thumb:it?it.thumb:''});
-  beep(true);
+  if(it)beep(true);
 }
 async function dispatchAddPhoto(file){
   try{
@@ -4860,25 +4840,23 @@ async function acceptAwb(no,extra){
   no=String(no||'').trim();
   if(!no)return {ok:false,msg:'Empty'};
   const ex=awbByNo(no);
-  if(ex&&ex.status==='accepted'){say(V_NO());return {ok:false,msg:(langHi()?'पहले से लिस्ट में है':'Already scanned inward')+' ('+(ex.acceptedBy||'someone')+')'}}
-  if(ex&&ex.status==='dispatched'){say(V_NO());return {ok:false,msg:(langHi()?'यह पहले ही डिस्पैच हो चुका है · ':'Already dispatched · ')+ago(ex.resolvedAt)}}
-  if(ex&&ex.status==='returned'){say(V_NO());return {ok:false,msg:(langHi()?'यह ऑफिस वापस जा चुका है · ':'Already returned to office · ')+ago(ex.resolvedAt)}}
+  if(ex&&ex.status==='accepted'){beep(false);return {ok:false,msg:(langHi()?'पहले से लिस्ट में है':'Already scanned inward')+' ('+(ex.acceptedBy||'someone')+')'}}
+  if(ex&&ex.status==='dispatched'){beep(false);return {ok:false,msg:(langHi()?'यह पहले ही डिस्पैच हो चुका है · ':'Already dispatched · ')+ago(ex.resolvedAt)}}
+  if(ex&&ex.status==='returned'){beep(false);return {ok:false,msg:(langHi()?'यह ऑफिस वापस जा चुका है · ':'Already returned to office · ')+ago(ex.resolvedAt)}}
   const rec=Object.assign({id:uid('awb'),awb:no,status:'accepted',acceptedBy:userName(),acceptedAt:Date.now()},extra||{});
   S.awbs.unshift(rec);
   await saveNow('awbs');
   logTx('list',{detail:'AWB accepted · '+no+(rec.customer?' · '+rec.customer:'')});
-  say(V_IN());
   return {ok:true,rec};
 }
 async function dispatchAwbByNo(no,extra){
   no=String(no||'').trim();
   if(!no)return {ok:false,msg:'Empty'};
   let a=awbByNo(no);
-  if(a&&a.status==='dispatched'){say(V_NO());return {ok:false,msg:(langHi()?'यह पहले ही डिस्पैच हो चुका है · ':'Already dispatched · ')+ago(a.resolvedAt)+' · '+(a.resolvedBy||'')}}
-  if(a&&a.status==='returned'){say(V_NO());return {ok:false,msg:(langHi()?'यह ऑफिस वापस जा चुका है · ':'Was returned to office · ')+ago(a.resolvedAt)}}
+  if(a&&a.status==='dispatched'){beep(false);return {ok:false,msg:(langHi()?'यह पहले ही डिस्पैच हो चुका है · ':'Already dispatched · ')+ago(a.resolvedAt)+' · '+(a.resolvedBy||'')}}
+  if(a&&a.status==='returned'){beep(false);return {ok:false,msg:(langHi()?'यह ऑफिस वापस जा चुका है · ':'Was returned to office · ')+ago(a.resolvedAt)}}
   if(!a){ /* going OUT but never scanned IN — must never pass quietly */
-    alarmSound();say(langHi()?'सावधान। यह अंदर स्कैन नहीं हुआ।':'Warning. This was not scanned in.',{rate:.95});
-    toast('⚠ '+no+' — '+(langHi()?'अंदर स्कैन नहीं हुआ':'never scanned inward'),'err');
+    alarmSound();    toast('⚠ '+no+' — '+(langHi()?'अंदर स्कैन नहीं हुआ':'never scanned inward'),'err');
     return {ok:false,msg:(langHi()?'पहले Inward स्कैन करें':'Scan it inward first')};
   }
   a.status='dispatched';a.resolvedBy=userName();a.resolvedAt=Date.now();
@@ -4887,7 +4865,6 @@ async function dispatchAwbByNo(no,extra){
   if(extra&&extra.video)a.video=extra.video;
   await saveNow('awbs');
   logTx('dispatch',{detail:'AWB dispatched · '+no+(a.sku?' · '+a.sku:'')});
-  say(V_YES());
   return {ok:true,rec:a};
 }
 async function returnAwbRec(a){
@@ -4895,7 +4872,6 @@ async function returnAwbRec(a){
   a.status='returned';a.resolvedBy=userName();a.resolvedAt=Date.now();
   await saveNow('awbs');
   logTx('list',{detail:'AWB returned to office · '+a.awb});
-  say(langHi()?'वापस':'Returned');
   return true;
 }
 
@@ -5455,8 +5431,7 @@ async function aiRun(files){
   }
   const good=aiRows.filter(r=>!r.err&&r.awb).length;
   if(prog)prog.innerHTML='<b>'+(aiStop?(langHi()?'रोक दिया':'Stopped'):(langHi()?'हो गया':'Done'))+'</b> — '+good+(langHi()?' ट्रैकिंग नंबर मिले। नीचे जाँच लें।':(' tracking number'+(good===1?'':'s')+' found. Check them below.'));
-  aiBusy=false;beep(true);say(langHi()?'पढ़ना पूरा':'Reading finished');
-  aiPaintRows();
+  aiBusy=false;beep(true);  aiPaintRows();
 }
 let aiShowBlanks=false;
 function aiPaintRows(){
@@ -5502,8 +5477,7 @@ async function aiCommit(){
     if(res&&res.ok)n++;
   }
   aiRows=[];
-  beep(true);say(V_YES()+'. '+n+(langHi()?' जोड़े':' added'));
-  toast(n+(langHi()?' AWB inward हो गए':(' AWB'+(n===1?'':'s')+' added to Inward')),'ok');
+  beep(true);  toast(n+(langHi()?' AWB inward हो गए':(' AWB'+(n===1?'':'s')+' added to Inward')),'ok');
   go('#awb');
 }
 
