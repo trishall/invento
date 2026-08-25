@@ -5314,7 +5314,43 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra){
    The API key is stored ONLY on this device (localStorage) and
    goes straight to Anthropic. It never touches Firestore.
    ============================================================ */
-let aiRows=[],aiBusy=false;
+let aiRows=[],aiBusy=false,aiStop=false;
+const AI_MAX_PAGES=80;
+/* own model instance: forces JSON back and allows a long request (big scans) */
+async function aiInvModel(){
+  if(aiInvModel.m)return aiInvModel.m;
+  const V='12.16.0';
+  const [appM,aiM]=await Promise.all([
+    import('https://www.gstatic.com/firebasejs/'+V+'/firebase-app.js'),
+    import('https://www.gstatic.com/firebasejs/'+V+'/firebase-ai.js')
+  ]);
+  const cfg=(typeof fbApp!=='undefined'&&fbApp&&fbApp.options)?fbApp.options:FB_CONFIG;
+  const app=appM.getApps().find(a=>a.name==='aiapp')||appM.initializeApp(cfg,'aiapp');
+  const ai=aiM.getAI(app,{backend:new aiM.VertexAIBackend()});
+  aiInvModel.m=aiM.getGenerativeModel(ai,
+    {model:'gemini-2.5-flash',generationConfig:{responseMimeType:'application/json',temperature:0}},
+    {timeout:300000});
+  return aiInvModel.m;
+}
+/* a merged PDF holds many labels — render each page to an image and read them one by one */
+async function pdfPages(file){
+  await lazyScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+  const lib=window.pdfjsLib;
+  if(!lib)throw new Error(langHi()?'PDF लाइब्रेरी लोड नहीं हुई':'PDF library failed to load');
+  try{lib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'}catch(e){}
+  const buf=await file.arrayBuffer();
+  const pdf=await lib.getDocument({data:new Uint8Array(buf)}).promise;
+  return {n:Math.min(pdf.numPages,AI_MAX_PAGES),total:pdf.numPages,
+    img:async(p)=>{
+      const page=await pdf.getPage(p);
+      let vp=page.getViewport({scale:1});
+      const sc=Math.min(2.2,1700/Math.max(vp.width,vp.height));
+      vp=page.getViewport({scale:sc});
+      const c=document.createElement('canvas');c.width=Math.round(vp.width);c.height=Math.round(vp.height);
+      await page.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
+      return c.toDataURL('image/jpeg',.82).split(',')[1];
+    }};
+}
 const AI_PROMPT="You are reading a courier shipping label or a sales invoice from an Indian leather-goods exporter.\n\nReturn ONLY valid JSON, no markdown fences, no commentary, exactly:\n{\"shipments\":[{\"awb\":\"\",\"courier\":\"\",\"invoice_no\":\"\",\"customer\":\"\",\"items\":[{\"name\":\"\",\"qty\":1}]}]}\n\nRules:\n- \"awb\" = the tracking / AWB / consignment / docket number. Most important field. Copy the digits and letters EXACTLY as printed. Do not guess, do not reformat, do not add spaces. If you cannot read it clearly, use \"\".\n- \"courier\" = Delhivery, Bluedart, DTDC, XpressBees, Ekart, India Post, Shadowfax, Amazon, etc. \"\" if unclear.\n- \"customer\" = the person or company the parcel is going TO (consignee). Never the sender, never Mahetri / Classy Leather Bags / Asgard.\n- \"items\" = products listed, name as printed, qty a number, default 1. Empty array if none shown.\n- Several labels on one page = one object each.\n- NEVER invent an AWB number. An empty string is far better than a wrong one.";
 
 function aiB64(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(file)})}
@@ -5331,14 +5367,19 @@ function aiShrink(file){
     r.onerror=rej;r.readAsDataURL(file);
   });
 }
-async function aiReadFile(file){
-  const isPdf=/pdf$/i.test(file.type)||/\.pdf$/i.test(file.name);
-  const part=isPdf
-    ?{inlineData:{mimeType:'application/pdf',data:await aiB64(file)}}
-    :{inlineData:{mimeType:'image/jpeg',data:await aiShrink(file)}};
-  const model=await aiModelGet();     // same Firebase AI Logic model the assistant uses
-  const res=await model.generateContent({contents:[{role:'user',parts:[part,{text:AI_PROMPT}]}]});
-  const txt=((res&&res.response&&res.response.text&&res.response.text())||'').trim();
+async function aiReadB64(b64,mime){
+  const model=await aiInvModel();
+  const run=async()=>{
+    const res=await model.generateContent({contents:[{role:'user',parts:[{inlineData:{mimeType:mime||'image/jpeg',data:b64}},{text:AI_PROMPT}]}]});
+    return ((res&&res.response&&res.response.text&&res.response.text())||'').trim();
+  };
+  let txt='';
+  try{txt=await run()}
+  catch(e){
+    const em=String((e&&e.message)||e);
+    if(/timeout|deadline|503|unavailable/i.test(em)){await new Promise(r=>setTimeout(r,1200));txt=await run()}
+    else throw e;
+  }
   const clean=txt.replace(/^```(?:json)?/i,'').replace(/```$/,'').trim();
   let parsed;try{parsed=JSON.parse(clean)}catch(e){throw new Error(langHi()?'यह पेज पढ़ नहीं पाए':'Could not read that page')}
   return (parsed&&parsed.shipments)||[];
@@ -5363,42 +5404,69 @@ function vAiScan(){
   $('#ai-files').onchange=e=>aiRun(Array.from(e.target.files||[]));
   if(aiRows.length)aiPaintRows();
 }
+function aiPushShips(ships,label){
+  if(!ships.length){aiRows.push({file:label,awb:'',customer:'',courier:'',invoice_no:'',items:[],err:(langHi()?'इस पेज पर कुछ नहीं मिला':'Nothing found on this page'),pick:false});return}
+  ships.forEach(s=>aiRows.push({
+    file:label,
+    awb:String(s.awb||'').trim(),
+    courier:String(s.courier||'').trim(),
+    invoice_no:String(s.invoice_no||'').trim(),
+    customer:String(s.customer||'').trim(),
+    items:Array.isArray(s.items)?s.items.filter(x=>x&&x.name).map(x=>({name:String(x.name).slice(0,120),qty:+x.qty||1})):[],
+    pick:aiStatusFor(String(s.awb||'').trim()).k==='new'
+  }));
+}
 async function aiRun(files){
   if(!files.length||aiBusy)return;
-  aiBusy=true;aiRows=[];aiPaintRows();
+  aiBusy=true;aiStop=false;aiRows=[];aiPaintRows();
   const prog=$('#ai-prog');
+  const setProg=(txt)=>{if(prog)prog.innerHTML='<div class="row" style="gap:9px;align-items:center"><div class="grow">'+txt+'</div><button class="btn sm" id="ai-stop" style="flex:0 0 auto">'+(langHi()?'रोकें':'Stop')+'</button></div>';
+    const sb=$('#ai-stop');if(sb)sb.onclick=()=>{aiStop=true;toast(langHi()?'रोक रहे हैं…':'Stopping…','ok')}};
+  outer:
   for(let ix=0;ix<files.length;ix++){
     const f=files[ix];
-    if(prog)prog.innerHTML='<b>'+(langHi()?'पढ़ रहे हैं ':'Reading ')+(ix+1)+' / '+files.length+'</b> — '+esc(f.name)+' <span class="muted">('+(langHi()?'यह स्क्रीन खुली रखें':'keep this screen open')+')</span>';
+    const isPdf=/pdf$/i.test(f.type)||/\.pdf$/i.test(f.name);
     try{
-      const ships=await aiReadFile(f);
-      if(!ships.length)aiRows.push({file:f.name,awb:'',customer:'',courier:'',invoice_no:'',items:[],err:(langHi()?'इस पेज पर कुछ नहीं मिला':'Nothing found on this page'),pick:false});
-      else ships.forEach(s=>aiRows.push({
-        file:f.name,
-        awb:String(s.awb||'').trim(),
-        courier:String(s.courier||'').trim(),
-        invoice_no:String(s.invoice_no||'').trim(),
-        customer:String(s.customer||'').trim(),
-        items:Array.isArray(s.items)?s.items.filter(x=>x&&x.name).map(x=>({name:String(x.name).slice(0,120),qty:+x.qty||1})):[],
-        pick:aiStatusFor(String(s.awb||'').trim()).k==='new'
-      }));
+      if(isPdf){
+        setProg('<b>'+esc(f.name)+'</b> — '+(langHi()?'PDF खोल रहे हैं…':'opening PDF…'));
+        const doc=await pdfPages(f);
+        if(doc.total>AI_MAX_PAGES)toast((langHi()?'PDF में ':'PDF has ')+doc.total+(langHi()?' पेज — पहले ':' pages — reading the first ')+AI_MAX_PAGES,'err');
+        for(let p=1;p<=doc.n;p++){
+          if(aiStop)break outer;
+          setProg('<b>'+esc(f.name)+'</b> — '+(langHi()?'पेज ':'page ')+p+' / '+doc.n+' · '+aiRows.filter(r=>!r.err).length+(langHi()?' मिले':' found'));
+          const label=f.name+' · p'+p;
+          try{aiPushShips(await aiReadB64(await doc.img(p),'image/jpeg'),label)}
+          catch(e){aiRows.push({file:label,awb:'',customer:'',items:[],err:String((e&&e.message)||e).slice(0,120),pick:false})}
+          aiPaintRows();
+        }
+      } else {
+        if(aiStop)break outer;
+        setProg('<b>'+(langHi()?'पढ़ रहे हैं ':'Reading ')+(ix+1)+' / '+files.length+'</b> — '+esc(f.name));
+        aiPushShips(await aiReadB64(await aiShrink(f),'image/jpeg'),f.name);
+        aiPaintRows();
+      }
     }catch(e){
       const em=String((e&&e.message)||e);
       aiRows.push({file:f.name,awb:'',customer:'',items:[],err:em.slice(0,160),pick:false});
       if(/403|permission|not.*enabled|SERVICE_DISABLED|has not been used/i.test(em)){
         toast(langHi()?'Firebase console → AI Logic → Settings में Vertex AI Gemini API चालू करें':'Enable it once: Firebase console → AI Logic → Settings → Vertex AI Gemini API','err');break}
+      aiPaintRows();
     }
-    aiPaintRows();
   }
-  if(prog)prog.innerHTML='<b>'+(langHi()?'हो गया':'Done')+'</b> — '+aiRows.length+(langHi()?' शिपमेंट पढ़े। नीचे जाँच लें।':(' shipment'+(aiRows.length===1?'':'s')+' read. Check them below.'));
+  const good=aiRows.filter(r=>!r.err&&r.awb).length;
+  if(prog)prog.innerHTML='<b>'+(aiStop?(langHi()?'रोक दिया':'Stopped'):(langHi()?'हो गया':'Done'))+'</b> — '+good+(langHi()?' ट्रैकिंग नंबर मिले। नीचे जाँच लें।':(' tracking number'+(good===1?'':'s')+' found. Check them below.'));
   aiBusy=false;beep(true);say(langHi()?'पढ़ना पूरा':'Reading finished');
   aiPaintRows();
 }
+let aiShowBlanks=false;
 function aiPaintRows(){
   const out=$('#ai-out');if(!out)return;
   if(!aiRows.length){out.innerHTML='';return}
-  let h='<div class="eyebrow mb">'+(langHi()?'सेव करने से पहले जाँचें — गलत हो तो सुधार लें':'Check before saving — edit anything the AI got wrong')+'</div>';
+  const blanks=aiRows.filter(r=>r.err&&!r.awb).length;
+  let h='<div class="eyebrow mb">'+(langHi()?'सेव करने से पहले जाँचें — गलत हो तो सुधार लें':'Check before saving — edit anything the AI got wrong')+
+    (blanks?' · <span class="muted" style="text-transform:none;letter-spacing:0">'+blanks+(langHi()?' पेज खाली':' blank page'+(blanks===1?'':'s'))+'</span>':'')+'</div>';
   aiRows.forEach((r,ix)=>{
+    if(r.err&&!r.awb&&!aiShowBlanks)return;
     const st=r.err?{k:'bad',t:r.err}:aiStatusFor(r.awb);
     const pill=st.k==='new'?'<span class="pill ok">'+esc(st.t)+'</span>':(st.k==='dup'?'<span class="pill low">'+esc(st.t)+'</span>':'<span class="pill" style="background:var(--red-bg);color:var(--red)">'+esc(st.t)+'</span>');
     h+='<div class="awbmini" style="border-color:'+(st.k==='new'?'var(--line)':'var(--red)')+';margin-bottom:9px">'+
@@ -5411,12 +5479,14 @@ function aiPaintRows(){
   });
   const n=aiRows.filter(r=>r.pick&&!r.err&&r.awb&&aiStatusFor(r.awb).k==='new').length;
   h+='<button class="btn pri block" id="ai-commit"'+(n?'':' disabled')+'>'+ico('inbox')+(langHi()?(n+' Inward में जोड़ें'):('Add '+n+' to Inward'))+'</button>'+
+     (blanks?'<button class="btn block mt" id="ai-blanks">'+(aiShowBlanks?(langHi()?'खाली पेज छिपाएँ':'Hide blank pages'):(langHi()?'खाली पेज दिखाएँ ('+blanks+')':'Show blank pages ('+blanks+')'))+'</button>':'')+
      '<button class="btn block mt" id="ai-clear">'+(langHi()?'लिस्ट साफ़ करें':'Clear list')+'</button>';
   out.innerHTML=h;
   $$('#ai-out [data-aip]').forEach(c=>c.onchange=()=>{aiRows[+c.dataset.aip].pick=c.checked;aiPaintRows()});
   $$('#ai-out [data-aiawb]').forEach(i=>i.onchange=()=>{aiRows[+i.dataset.aiawb].awb=i.value.trim();aiRows[+i.dataset.aiawb].err='';aiPaintRows()});
   $$('#ai-out [data-aicus]').forEach(i=>i.onchange=()=>{aiRows[+i.dataset.aicus].customer=i.value.trim()});
-  $('#ai-clear').onclick=()=>{aiRows=[];const p=$('#ai-prog');if(p)p.innerHTML='';aiPaintRows()};
+  const bb=$('#ai-blanks');if(bb)bb.onclick=()=>{aiShowBlanks=!aiShowBlanks;aiPaintRows()};
+  $('#ai-clear').onclick=()=>{aiRows=[];aiShowBlanks=false;const p=$('#ai-prog');if(p)p.innerHTML='';aiPaintRows()};
   const cm=$('#ai-commit');if(cm)cm.onclick=aiCommit;
 }
 async function aiCommit(){
