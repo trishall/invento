@@ -559,20 +559,42 @@ function download(name,content,mime){const b=content instanceof Blob?content:new
 function beep(ok){
   try{
     const ctx=beep.ctx||(beep.ctx=new (window.AudioContext||window.webkitAudioContext)());
-    const tone=(at,dur,freq)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);
-      o.frequency.value=freq;g.gain.value=.14;o.start(ctx.currentTime+at);o.stop(ctx.currentTime+at+dur)};
-    if(ok)tone(0,.22,1180);                       // correct — one clear beep
-    else{tone(0,.20,300);tone(.30,.20,300)}       // wrong — two low beeps
+    if(ctx.state==='suspended')ctx.resume();
+    /* square wave + hard attack and a clean cut = a sharp scanner-gun beep
+       that carries over machine noise instead of a soft round tone */
+    const tone=(at,dur,freq)=>{
+      const t=ctx.currentTime+at;
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.type='square';o.frequency.setValueAtTime(freq,t);
+      o.connect(g);g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(.35,t+.004);   // instant attack — the "crack"
+      g.gain.setValueAtTime(.35,t+dur-.012);             // hold flat, full volume
+      g.gain.exponentialRampToValueAtTime(0.0001,t+dur); // clean cut, no click
+      o.start(t);o.stop(t+dur+.01);
+    };
+    if(ok)tone(0,.20,2100);                       // correct — one sharp high beep
+    else{tone(0,.18,420);tone(.26,.18,420)}       // wrong — two sharp low beeps
   }catch(e){}
   if(navigator.vibrate)navigator.vibrate(ok?60:[110,90,110]);
 }
-/* Scan alarm: three long low beeps — reserved for "this should not have happened"
+/* Scan alarm: three sharp low blasts — reserved for "this should not have happened"
    (an AWB going out that never came in, a barcode not in the catalog). */
 function alarmSound(){
   try{
     const ctx=beep.ctx||(beep.ctx=new (window.AudioContext||window.webkitAudioContext)());
-    [0,.34,.68].forEach(t=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);
-      o.frequency.value=260;g.gain.value=.2;o.start(ctx.currentTime+t);o.stop(ctx.currentTime+t+.26)});
+    if(ctx.state==='suspended')ctx.resume();
+    [0,.30,.60].forEach(at=>{
+      const t=ctx.currentTime+at;
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.type='square';o.frequency.setValueAtTime(300,t);
+      o.connect(g);g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(.42,t+.004);
+      g.gain.setValueAtTime(.42,t+.22-.012);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+.22);
+      o.start(t);o.stop(t+.23);
+    });
   }catch(e){}
   if(navigator.vibrate)navigator.vibrate([160,90,160,90,260]);
 }
