@@ -5314,11 +5314,6 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra){
    The API key is stored ONLY on this device (localStorage) and
    goes straight to Anthropic. It never touches Firestore.
    ============================================================ */
-const AI_MODELS={good:{id:'claude-sonnet-5',label:'Most accurate (Sonnet)'},fast:{id:'claude-haiku-4-5-20251001',label:'Fast & cheap (Haiku)'}};
-function aiKey(){try{return localStorage.getItem('invento_aikey')||''}catch(e){return ''}}
-function setAiKey(k){try{k?localStorage.setItem('invento_aikey',k):localStorage.removeItem('invento_aikey')}catch(e){}}
-function aiMdl(){try{return localStorage.getItem('invento_aimodel')||'good'}catch(e){return 'good'}}
-function setAiMdl(m){try{localStorage.setItem('invento_aimodel',m)}catch(e){}}
 let aiRows=[],aiBusy=false;
 const AI_PROMPT="You are reading a courier shipping label or a sales invoice from an Indian leather-goods exporter.\n\nReturn ONLY valid JSON, no markdown fences, no commentary, exactly:\n{\"shipments\":[{\"awb\":\"\",\"courier\":\"\",\"invoice_no\":\"\",\"customer\":\"\",\"items\":[{\"name\":\"\",\"qty\":1}]}]}\n\nRules:\n- \"awb\" = the tracking / AWB / consignment / docket number. Most important field. Copy the digits and letters EXACTLY as printed. Do not guess, do not reformat, do not add spaces. If you cannot read it clearly, use \"\".\n- \"courier\" = Delhivery, Bluedart, DTDC, XpressBees, Ekart, India Post, Shadowfax, Amazon, etc. \"\" if unclear.\n- \"customer\" = the person or company the parcel is going TO (consignee). Never the sender, never Mahetri / Classy Leather Bags / Asgard.\n- \"items\" = products listed, name as printed, qty a number, default 1. Empty array if none shown.\n- Several labels on one page = one object each.\n- NEVER invent an AWB number. An empty string is far better than a wrong one.";
 
@@ -5338,23 +5333,12 @@ function aiShrink(file){
 }
 async function aiReadFile(file){
   const isPdf=/pdf$/i.test(file.type)||/\.pdf$/i.test(file.name);
-  const block=isPdf
-    ?{type:'document',source:{type:'base64',media_type:'application/pdf',data:await aiB64(file)}}
-    :{type:'image',source:{type:'base64',media_type:'image/jpeg',data:await aiShrink(file)}};
-  const r=await fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{'content-type':'application/json','x-api-key':aiKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:AI_MODELS[aiMdl()].id,max_tokens:1200,messages:[{role:'user',content:[block,{type:'text',text:AI_PROMPT}]}]})
-  });
-  if(!r.ok){
-    let m='';try{const j=await r.json();m=(j.error&&j.error.message)||''}catch(e){}
-    if(r.status===401)throw new Error(langHi()?'API key गलत है':'API key rejected — check the key');
-    if(r.status===429)throw new Error(langHi()?'थोड़ा रुकें':'Rate limited — wait a moment');
-    if(r.status===400&&/credit|balance/i.test(m))throw new Error(langHi()?'API क्रेडिट खत्म':'No API credit left');
-    throw new Error(m||('HTTP '+r.status));
-  }
-  const data=await r.json();
-  const txt=(data.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('').trim();
+  const part=isPdf
+    ?{inlineData:{mimeType:'application/pdf',data:await aiB64(file)}}
+    :{inlineData:{mimeType:'image/jpeg',data:await aiShrink(file)}};
+  const model=await aiModelGet();     // same Firebase AI Logic model the assistant uses
+  const res=await model.generateContent({contents:[{role:'user',parts:[part,{text:AI_PROMPT}]}]});
+  const txt=((res&&res.response&&res.response.text&&res.response.text())||'').trim();
   const clean=txt.replace(/^```(?:json)?/i,'').replace(/```$/,'').trim();
   let parsed;try{parsed=JSON.parse(clean)}catch(e){throw new Error(langHi()?'यह पेज पढ़ नहीं पाए':'Could not read that page')}
   return (parsed&&parsed.shipments)||[];
@@ -5370,26 +5354,12 @@ function aiStatusFor(no){
 function vAiScan(){
   if(!isAdminU()){toast(langHi()?'सिर्फ एडमिन':'Admins only','err');go('#awb');return}
   topTitle(langHi()?'AI इनवॉइस रीडर':'AI invoice reader','#awb');
-  if(!aiKey()){
-    $('#main').innerHTML='<h1 class="page">'+(langHi()?'AI इनवॉइस रीडर':'AI invoice reader')+'</h1>'+
-      '<div class="card pad"><div class="eyebrow mb">'+(langHi()?'एक बार का सेटअप':'One-time setup')+'</div>'+
-      '<p class="sub mb">'+(langHi()?'यह आपकी अपनी Anthropic API key से चलता है (जितना इस्तेमाल, उतना खर्च — Claude subscription से अलग)। console.anthropic.com → API keys से बनाएँ और यहाँ डालें। यह सिर्फ इसी डिवाइस पर सेव होगी — Firebase में नहीं जाएगी, स्टाफ को नहीं दिखेगी।':'This runs on your own Anthropic API key (pay per use, separate from a Claude subscription). Create one at console.anthropic.com → API keys and paste it here. It is stored on this device only — never uploaded to Firebase, never visible to your staff.')+'</p>'+
-      '<div class="field"><label>API key</label><input class="in mono" id="ai-k" type="password" placeholder="sk-ant-..." autocomplete="off"></div>'+
-      '<button class="btn pri block" id="ai-ksave">'+ico('check')+(langHi()?'इस डिवाइस पर सेव करें':'Save key on this device')+'</button></div>';
-    $('#ai-ksave').onclick=()=>{const k=($('#ai-k').value||'').trim();if(!/^sk-ant-/.test(k)){toast(langHi()?'यह Anthropic key जैसी नहीं लग रही':'That does not look like an Anthropic key','err');return}setAiKey(k);toast(langHi()?'key सेव हो गई':'Key saved on this device','ok');vAiScan()};
-    return;
-  }
   let h='<h1 class="page">'+(langHi()?'AI इनवॉइस रीडर':'AI invoice reader')+'</h1>';
-  h+='<p class="sub mb">'+(langHi()?'इनवॉइस की फोटो या PDF डालें। AI ट्रैकिंग नंबर, ग्राहक का नाम और आइटम पढ़ेगा — सेव करने से पहले आप जाँच सकते हैं।':'Upload invoice photos or PDFs. Claude reads the tracking number, customer and item names, then you check the list before anything is saved.')+'</p>';
-  h+='<div class="row mb wrap" style="gap:8px">'+
-     '<select class="in" id="ai-model" style="flex:1;min-width:160px;padding:9px 10px">'+Object.keys(AI_MODELS).map(k=>'<option value="'+k+'"'+(aiMdl()===k?' selected':'')+'>'+AI_MODELS[k].label+'</option>').join('')+'</select>'+
-     '<button class="btn" id="ai-forget" style="flex:0 0 auto">'+ico('trash')+(langHi()?'key हटाएँ':'Remove key')+'</button></div>';
+  h+='<p class="sub mb">'+(langHi()?'इनवॉइस की फोटो या PDF डालें। AI ट्रैकिंग नंबर, ग्राहक का नाम और आइटम पढ़ेगा — सेव करने से पहले आप जाँच सकते हैं। यह वही AI है जो ऐप में पहले से चल रहा है, कोई अलग key नहीं चाहिए।':'Upload invoice photos or PDFs. The AI reads the tracking number, customer and item names, then you check the list before anything is saved. This uses the same AI already built into the app — no extra key needed.')+'</p>';
   h+='<label class="btn pri block mb" for="ai-files" style="cursor:pointer">'+ico('camera')+(langHi()?'इनवॉइस चुनें (फोटो / PDF)':'Choose invoice photos / PDFs')+'</label>'+
      '<input type="file" id="ai-files" accept="image/*,application/pdf" multiple style="display:none">';
   h+='<div id="ai-prog" class="sub mb"></div><div id="ai-out"></div>';
   $('#main').innerHTML=h;
-  $('#ai-model').onchange=e=>setAiMdl(e.target.value);
-  $('#ai-forget').onclick=async()=>{const ok=await confirmDlg(langHi()?'key हटाएँ?':'Remove API key?',langHi()?'इस डिवाइस पर दोबारा डालनी पड़ेगी।':'You will need to paste it again on this device.',langHi()?'हटाएँ':'Remove',true);if(ok){setAiKey('');vAiScan()}};
   $('#ai-files').onchange=e=>aiRun(Array.from(e.target.files||[]));
   if(aiRows.length)aiPaintRows();
 }
@@ -5413,8 +5383,10 @@ async function aiRun(files){
         pick:aiStatusFor(String(s.awb||'').trim()).k==='new'
       }));
     }catch(e){
-      aiRows.push({file:f.name,awb:'',customer:'',items:[],err:(e&&e.message)||'Failed',pick:false});
-      if(/API key|credit|क्रेडिट/i.test((e&&e.message)||'')){toast((e&&e.message)||'Failed','err');break}
+      const em=String((e&&e.message)||e);
+      aiRows.push({file:f.name,awb:'',customer:'',items:[],err:em.slice(0,160),pick:false});
+      if(/403|permission|not.*enabled|SERVICE_DISABLED|has not been used/i.test(em)){
+        toast(langHi()?'Firebase console → AI Logic → Settings में Vertex AI Gemini API चालू करें':'Enable it once: Firebase console → AI Logic → Settings → Vertex AI Gemini API','err');break}
     }
     aiPaintRows();
   }
