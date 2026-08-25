@@ -135,8 +135,6 @@ hr.sep{border:none;border-top:1px solid var(--line);margin:14px 0}
 .section-h a{font-size:13px;font-weight:600;text-decoration:none;margin-left:auto}
 
 .bigbtns{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:6px 0 14px}
-.bigbtns.three{grid-template-columns:repeat(3,1fr)}
-@media(max-width:640px){.bigbtns.three{grid-template-columns:1fr 1fr}.bigbtns.three>button:last-child{grid-column:1/-1}}
 .bigbtn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:30px 14px;border-radius:18px;border:2px solid var(--line);background:var(--card);cursor:pointer;font-size:18px;font-weight:800;color:var(--ink);box-shadow:var(--shadow);min-height:140px;text-align:center}
 .bigbtn svg{width:42px;height:42px;color:var(--saddle)}
 .bigbtn.sel{border-color:var(--saddle);background:var(--saddle-bg)}
@@ -359,14 +357,6 @@ table.t tfoot td{font-weight:800;background:color-mix(in srgb,var(--ink) 4%,var(
 /* ---------- toast ---------- */
 #toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 16px);z-index:80;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
 @media(min-width:920px){#toasts{bottom:22px}}
-#ldbar{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--saddle),#e6b98a);z-index:99999;opacity:0;transition:width .25s ease,opacity .25s ease;pointer-events:none}
-#ldbar.on{opacity:1}
-.pgspin{display:grid;place-items:center;padding:40px 0;gap:10px}
-.pgspin i{width:30px;height:30px;border-radius:50%;border:3px solid var(--line2);border-top-color:var(--saddle);animation:spin .8s linear infinite;display:block}
-@keyframes spin{to{transform:rotate(360deg)}}
-.bgchip{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:9998;background:var(--dark-surface);color:#fff;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;display:none;align-items:center;gap:7px;box-shadow:var(--shadow-lg)}
-.bgchip.on{display:flex}
-.bgchip i{width:12px;height:12px;border-radius:50%;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;animation:spin .8s linear infinite;display:block}
 .toast{background:var(--dark-surface);color:#fff;border-radius:11px;padding:10px 16px;font-size:13.5px;font-weight:600;box-shadow:var(--shadow-lg);animation:up .18s ease;max-width:88vw;text-align:center}
 .toast.err{background:var(--red)}
 .toast.ok{background:var(--green)}
@@ -383,7 +373,7 @@ table.t tfoot td{font-weight:800;background:color-mix(in srgb,var(--ink) 4%,var(
 
 /* ---------- labels & print ---------- */
 .lblsheet{display:flex;flex-wrap:wrap;gap:4mm;align-content:flex-start}
-.lbl{border:none;border-radius:2mm;display:flex;align-items:center;gap:2.5mm;padding:2.5mm;background:#fff;overflow:hidden;page-break-inside:avoid;break-inside:avoid}.lbl.bordered{border:1px dashed #BBB}.lbl.codeonly{justify-content:center;padding:1.5mm}.lbl.textonly{justify-content:center;text-align:center}.lbl.textonly .tx{width:100%}.lbl.textonly .tn{font-size:1.45em;-webkit-line-clamp:3;line-height:1.15}.lbl.textonly .ts{font-size:1.2em;font-weight:700}
+.lbl{border:1px dashed #BBB;border-radius:2mm;display:flex;align-items:center;gap:2.5mm;padding:2.5mm;background:#fff;overflow:hidden;page-break-inside:avoid;break-inside:avoid}
 .lblsheet{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:6px}
 .lblsheet .lbl{color:#222}
 .skel{background:linear-gradient(90deg,var(--line2) 25%,var(--card) 50%,var(--line2) 75%);background-size:200% 100%;animation:skel 1.1s infinite;border-radius:10px}
@@ -393,12 +383,10 @@ table.t tfoot td{font-weight:800;background:color-mix(in srgb,var(--ink) 4%,var(
 .lbl .tx{min-width:0;line-height:1.18}
 .lbl .tn{font-weight:700;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .lbl .ts{font-family:ui-monospace,Menlo,Consolas,monospace;color:#333}
-.lbl .tp{font-weight:700}.lbl{position:relative}.lbl .ts.by{font-weight:700;letter-spacing:.15em;color:#555;margin-top:.3mm}.lbl .byc{position:absolute;right:1.4mm;bottom:0.8mm;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:0.62em;font-weight:700;letter-spacing:.08em;color:#555;line-height:1}
+.lbl .tp{font-weight:700}
 .lbl.s-s{width:48mm;height:24mm;font-size:8.2pt}
 .lbl.s-m{width:62mm;height:30mm;font-size:9.5pt}
 .lbl.s-l{width:96mm;height:46mm;font-size:13pt}
-.lbl.s-x{width:100mm;height:60mm;font-size:16pt}
-
 #printArea{display:none}
 body.printing #app,body.printing #ovl,body.printing #toasts,body.printing #bulkbar{display:none!important}
 body.printing #printArea{display:block;padding:8mm}
@@ -406,7 +394,7 @@ body.printing #printArea{display:block;padding:8mm}
   body{background:#fff}
   #app,#ovl,#toasts,#bulkbar,#topbar,#bottomnav{display:none!important}
   #printArea{display:block!important;padding:0}
-  .lbl.bordered{border-style:solid;border-color:#eee}
+  .lbl{border-style:solid;border-color:#eee}
   @page{margin:8mm}
 }
 .printdoc h2{font-size:18pt;margin-bottom:2mm}
@@ -439,7 +427,6 @@ body.printing #printArea{display:block;padding:8mm}
 </style>
 </head>
 <body>
-<div id="ldbar" aria-hidden="true"></div>
 <div id="app">
   <nav id="side" aria-label="Main">
     <div class="brand"><span class="bx"><svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#8A5226"/><circle cx="32" cy="17.5" r="4" fill="#E8B04B"/><path d="M19 28h26v17a3 3 0 0 1-3 3H22a3 3 0 0 1-3-3z" fill="none" stroke="#F4E9D8" stroke-width="3.4" stroke-linejoin="round"/><path d="M19 28l-5.5-6.5M45 28l5.5-6.5" fill="none" stroke="#F4E9D8" stroke-width="3.4" stroke-linecap="round"/><path d="M32 33v9" stroke="#F4E9D8" stroke-width="3.4" stroke-linecap="round"/></svg></span><span>INVENTO<small>by Trishal</small></span></div>
@@ -447,7 +434,6 @@ body.printing #printArea{display:block;padding:8mm}
     <a href="#stock" data-nav="stock" id="sn-stock"></a>
     <a href="#dispatch" data-nav="dispatch" id="sn-dispatch"></a>
     <a href="#scan" data-nav="scan" id="sn-scan"></a>
-    <a href="#ai" data-nav="ai" id="sn-ai"></a>
     <a href="#flows" data-nav="flows" id="sn-flows"></a>
     <a href="#labels" data-nav="labels" id="sn-labels"></a>
     <a href="#reports" data-nav="reports" id="sn-reports"></a>
@@ -481,7 +467,6 @@ body.printing #printArea{display:block;padding:8mm}
 
 /* ---------- icons ---------- */
 const IC = {
-spark:'<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/>',
   home:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/>',
   box:'<path d="M21 8.5 12 3 3 8.5v8L12 21l9-4.5z"/><path d="M3 8.5 12 13l9-4.5"/><path d="M12 13v8"/>',
   folder:'<path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4l2 2.5h9A1.5 1.5 0 0 1 21 9v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18z"/>',
@@ -558,6 +543,37 @@ function ago(ts){const s=(Date.now()-ts)/1000;if(s<60)return 'just now';if(s<360
 function download(name,content,mime){const b=content instanceof Blob?content:new Blob([content],{type:mime||'text/plain'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(u);a.remove()},400)}
 function beep(ok){try{const ctx=beep.ctx||(beep.ctx=new (window.AudioContext||window.webkitAudioContext)());const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=ok?1180:220;g.gain.value=.12;o.start();o.stop(ctx.currentTime+(ok?.09:.22))}catch(e){}
  if(navigator.vibrate)navigator.vibrate(ok?35:[60,40,60])}
+/* ============================================================
+   VOICE FEEDBACK (per device, default ON)
+   Speaks a short word on scan so the person never has to look
+   at the screen — hands stay on the cartons.
+   ============================================================ */
+function voiceOn(){try{return localStorage.getItem('invento_voice')!=='0'}catch(e){return true}}
+function setVoiceOn(on){try{localStorage.setItem('invento_voice',on?'1':'0')}catch(e){}}
+function say(text,opt){
+  if(!voiceOn())return;
+  try{
+    if(!('speechSynthesis' in window))return;
+    const u=new SpeechSynthesisUtterance(String(text));
+    u.rate=(opt&&opt.rate)||1.05;u.pitch=(opt&&opt.pitch)||1;u.volume=1;u.lang='en-IN';
+    try{speechSynthesis.cancel()}catch(e){}
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+/* loud 3-tone warble for "this should not have happened" moments */
+function alarm(){
+  try{
+    const ctx=beep.ctx||(beep.ctx=new (window.AudioContext||window.webkitAudioContext)());
+    [0,.22,.44].forEach((t,ix)=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);
+      o.frequency.value=ix%2?520:880;g.gain.value=.18;
+      o.start(ctx.currentTime+t);o.stop(ctx.currentTime+t+.17);
+    });
+  }catch(e){}
+  if(navigator.vibrate)navigator.vibrate([120,70,120,70,220]);
+}
+/* speak a test line so people can hear what the toggle does */
+function voiceTest(){say('Yes')}
 function toast(msg,kind){const t=document.createElement('div');t.className='toast'+(kind?' '+kind:'');t.textContent=msg;$('#toasts').appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .3s'},2400);setTimeout(()=>t.remove(),2800)}
 function lazyScript(src){lazyScript.c=lazyScript.c||{};if(lazyScript.c[src])return lazyScript.c[src];lazyScript.c[src]=new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('load failed'));document.head.appendChild(s)});return lazyScript.c[src]}
 
@@ -605,7 +621,7 @@ const MAINFRAME_ID='trishal';
 let myProfile=null;
 const isAdminU=()=>MODE!=='cloud'||(myProfile&&(myProfile.role==='admin'||myProfile.role==='mainframe'));
 const isMF=()=>MODE==='cloud'&&myProfile&&myProfile.role==='mainframe';
-const PERM_KEYS=['additem','delitem','adjqty','editloc','trash','export','dispatch','awbAccept','awbDispatch'];
+const PERM_KEYS=['additem','delitem','adjqty','editloc','trash','export','dispatch','awbAccept','awbDispatch','awbReturn','awbDelete'];
 const PERM_LABELS={additem:'Add & edit items',delitem:'Delete items (to trash)',adjqty:'Add / remove stock quantity',editloc:'Create & edit locations',trash:'Restore & permanently delete',export:'Export / download data',dispatch:'Create dispatches (send orders out)',awbAccept:'AWB — accept (scan in) shipping labels',awbDispatch:'AWB — dispatch (send out)',awbReturn:'AWB — return to office',awbDelete:'AWB — delete records'};
 const PERM_DEFAULT={additem:true,delitem:true,adjqty:true,editloc:true,trash:true,export:true,dispatch:true,awbAccept:true,awbDispatch:true,awbReturn:true,awbDelete:false};
 const PERM_HINT={additem:'Create new items and edit existing ones (name, price, SKU, photo).',delitem:'Send items to Trash. Turn off to prevent accidental removals.',adjqty:'The daily floor job — add received stock, remove sold/damaged with a reason.',editloc:'Create, rename or delete locations.',trash:'Restore items from Trash or delete them permanently.',export:'Download CSV, backups, and use Import.',dispatch:'Open Dispatch, scan/photograph and send orders out (reduces stock).',awbAccept:'Scan shipping labels taken from office to accept them.',awbDispatch:'Scan AWBs outward to dispatch them.',awbReturn:'Return AWBs to office (regular users must scan; admins can tap).',awbDelete:'Permanently delete AWB records (off by default).'};
@@ -843,9 +859,9 @@ async function initCloud(cfg){
     if(p.status!=='active')location.reload();
     else if(bootDone&&was&&was.role!==p.role){toast('Your role is now '+p.role,'ok');route()}
   },()=>{});
-  const first=[],later=[];
-  function wireCol(col,query,apply,defer){
-    (defer?later:first).push(new Promise((res,rej)=>{
+  const first=[];
+  function wireCol(col,query,apply){
+    first.push(new Promise((res,rej)=>{
       let done=false;
       query.onSnapshot(snap=>{
         if(dirty[col]){saveNow(col)}
@@ -857,13 +873,13 @@ async function initCloud(cfg){
   }
   wireCol('items',db.collection('items').orderBy('createdAt'),s=>mergeCol('items',s.docs));
   wireCol('folders',db.collection('folders').orderBy('createdAt'),s=>mergeCol('folders',s.docs));
-  wireCol('lists',db.collection('lists'),s=>mergeCol('lists',s.docs),true);
-  wireCol('pos',db.collection('pos'),s=>mergeCol('pos',s.docs),true);
-  wireCol('dispatches',db.collection('dispatches').orderBy('ts','desc').limit(400),s=>mergeCol('dispatches',s.docs),true);
-  wireCol('approvals',db.collection('approvals'),s=>mergeCol('approvals',s.docs),true);
-  wireCol('awbs',db.collection('awbs').orderBy('acceptedAt','desc').limit(1000),s=>mergeCol('awbs',s.docs),true);
-  wireCol('trash',db.collection('trash').orderBy('deletedAt','desc'),s=>mergeCol('trash',s.docs),true);
-  wireCol('txns',db.collection('txns').where('ts','>=',Date.now()-30*86400000).orderBy('ts','desc').limit(1200),s=>{S.txns=s.docs.map(d=>{const x=d.data();x.id=d.id;return x})},true);
+  wireCol('lists',db.collection('lists'),s=>mergeCol('lists',s.docs));
+  wireCol('pos',db.collection('pos'),s=>mergeCol('pos',s.docs));
+  wireCol('dispatches',db.collection('dispatches').orderBy('ts','desc').limit(800),s=>mergeCol('dispatches',s.docs));
+  wireCol('approvals',db.collection('approvals'),s=>mergeCol('approvals',s.docs));
+  wireCol('awbs',db.collection('awbs').orderBy('acceptedAt','desc').limit(1000),s=>mergeCol('awbs',s.docs));
+  wireCol('trash',db.collection('trash').orderBy('deletedAt','desc'),s=>mergeCol('trash',s.docs));
+  wireCol('txns',db.collection('txns').where('ts','>=',Date.now()-30*86400000).orderBy('ts','desc').limit(1500),s=>{S.txns=s.docs.map(d=>{const x=d.data();x.id=d.id;return x})});
   wireCol('meta',db.collection('meta').doc('app'),s=>{
     const d=s.exists?(s.data()||{}):{};
     S.meta=Object.assign(DEFAULT_META(),d);
@@ -871,11 +887,9 @@ async function initCloud(cfg){
     fixCurrency();
   });
   const timeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error('Timed out connecting to Firestore — check internet, project setup and security rules.')),15000));
-  await Promise.race([Promise.all(first),timeout]);      // items + folders + meta only
-  bgBusy(true);
-  Promise.all(later).then(()=>{bgBusy(false);repaintSoon()}).catch(()=>bgBusy(false));
+  await Promise.race([Promise.all(first),timeout]);
   cloudReady=true;
-  if(isAdminU()){purgeOldTxns();purgeOldAwbs();}
+  if(isAdminU())purgeOldTxns();
   return 'cloud';
 }
 async function purgeOldTxns(){
@@ -917,7 +931,6 @@ function userName(){
 }
 function logTx(act,o){
   const t=Object.assign({id:uid('t'),ts:Date.now(),user:userName(),act:act},o||{});
-  try{if((act==='out'||act==='dispatch'||act==='pick')&&o&&o.itemId&&(+o.fromQ>0)&&((+o.toQ||0)<=0))queueStockoutPrompt(o.itemId)}catch(e){}
   S.txns.unshift(t);
   if(S.txns.length>1500)S.txns.length=1500;
   if(MODE==='cloud'){if(writeOK(1)){try{db.collection('txns').doc(t.id).set(clean(t))}catch(e){console.error('txn',e)}}else wlBlocked();}
@@ -960,7 +973,7 @@ function pileDrain(i,q,preferF){
   setPiles(i,ps);
   return took.join(' + ');
 }
-function shelfName(f){const x=fById(f);return x?(x.name+(x.box?' · '+x.box:'')):'All stock'}
+function shelfName(f){const x=fById(f);return x?x.name:'All stock'}
 /* short location text: "R31C2 ·8 + R8C2 ·7" for multi, full path for single */
 function pileSummary(i){if(!isMultiRack(i))return folderPath(i.folder);return i.piles.map(p=>shelfName(p.f)+' ·'+fmtQty(p.q)).join(' + ')}
 /* after any DIRECT i.qty set on a multi-rack item: rebalance the primary pile */
@@ -1042,164 +1055,10 @@ async function loadSample(){
   await Promise.all([saveNow('folders'),saveNow('items')]);
 }
 
-
-/* ============================================================
-   HINDI MODE (option a) — runtime UI translation layer
-   English stays the source of truth in code; when hi is on,
-   a DOM pass swaps known strings. Numbers/SKUs (.num/.mono)
-   are never touched. Toggle: login screen + Settings.
-   ============================================================ */
-function langHi(){try{return localStorage.getItem('invento_lang')==='hi'}catch(e){return false}}
-function setLang(l){try{localStorage.setItem('invento_lang',l)}catch(e){}}
-const HI={
-'Home':'होम','Stock':'स्टॉक','Dispatch':'डिस्पैच','Scan':'स्कैन','Workflows':'वर्कफ़्लो','Labels':'लेबल','Reports':'रिपोर्ट','More':'अन्य',
-'Welcome':'स्वागत है','Set up Invento':'Invento शुरू करें','Quick actions':'क्विक एक्शन','Recent activity':'हाल की एक्टिविटी','No activity yet':'अभी कोई एक्टिविटी नहीं','View all':'सब देखें','Low stock':'कम स्टॉक','Out of stock':'स्टॉक खत्म','Stock value':'स्टॉक की कीमत','Items':'आइटम','Item':'आइटम','Items here':'यहाँ आइटम','Add first item':'पहला आइटम जोड़ें','Load sample data':'सैंपल डेटा भरें','Import CSV':'CSV इम्पोर्ट करें',
-'Add item':'आइटम जोड़ें','New item':'नया आइटम','Every product in one list':'सारे प्रोडक्ट एक लिस्ट में','Folders':'फ़ोल्डर','Folder':'फ़ोल्डर','No folders yet':'अभी कोई फ़ोल्डर नहीं','Folder name':'फ़ोल्डर का नाम','New folder':'नया फ़ोल्डर','Inside':'किसके अंदर','All stock':'पूरा स्टॉक','All warehouses':'सभी गोदाम','Warehouse':'गोदाम','New warehouse':'नया गोदाम','Warehouse name':'गोदाम का नाम','+ Warehouse':'+ गोदाम','Godown':'गोदाम',
-'Search':'खोजें','Sort by':'क्रम','Name':'नाम','Qty':'मात्रा','Quantity':'मात्रा','Price':'कीमत','Unit':'यूनिट','Notes':'नोट्स','Tags':'टैग','Add tag':'टैग जोड़ें','History':'हिस्ट्री','No history yet.':'अभी कोई हिस्ट्री नहीं।','No matches.':'कुछ नहीं मिला।','No movements recorded yet.':'अभी कोई मूवमेंट दर्ज नहीं।','Older entries are in the Activity log.':'पुरानी एंट्री एक्टिविटी लॉग में हैं।',
-'Quantity on hand':'मौजूद मात्रा','Min quantity':'कम-से-कम मात्रा','Min qty (low-stock alert)':'कम-से-कम मात्रा (अलर्ट के लिए)','No alert':'कोई अलर्ट नहीं','Price (sell)':'बेचने की कीमत','Cost (USD)':'लागत (USD)','Barcode / QR value':'बारकोड / QR कोड','More SKUs / barcodes (optional)':'और SKU / बारकोड (ज़रूरी नहीं)','Image link':'फोटो का लिंक','Photos (up to 3)':'फोटो (ज़्यादा से ज़्यादा 3)','Take photo':'फोटो लें','Created':'बना','Updated':'बदला','Save':'सेव करें','Save settings':'सेटिंग सेव करें','Saved':'सेव हो गया','Done':'हो गया','Cancel':'रद्द करें','Delete':'डिलीट','Edit':'बदलें','Move':'मूव करें','Clone':'कॉपी बनाएँ','Copies':'कॉपियाँ','Quantity each':'हर एक की मात्रा','Restore':'वापस लाएँ','Download':'डाउनलोड','Open':'खोलें','Open item':'आइटम खोलें','Close':'बंद करें','Total':'कुल','Units':'यूनिट','Total units':'कुल यूनिट',
-'Add':'जोड़ें','Remove':'घटाएँ','Reason':'वजह','Adjust':'घटा-बढ़ाएँ','Add to which rack?':'किस रैक में जोड़ें?','Remove from which rack?':'किस रैक से निकालें?','A different rack…':'कोई और रैक…','Add here':'यहाँ जोड़ें','From which rack':'किस रैक से','Quantity to move':'कितना मूव करना है','Move part of the stock and the rest stays where it is.':'जितना चाहें उतना मूव करें — बाकी वहीं रहेगा।','Move part of the stock and the rest stays where it is — each rack keeps its own count.':'जितना चाहें उतना मूव करें — हर रैक का हिसाब अलग रहेगा।','Full quantity of each selected item will move.':'चुने हुए हर आइटम की पूरी मात्रा मूव होगी।',
-'Sold':'बिक गया','Damaged':'खराब / डैमेज','Restock / received':'माल आया','Purchase / received':'खरीदा / आया','Production':'प्रोडक्शन','Production (made)':'प्रोडक्शन (बना)','Used in production':'प्रोडक्शन में लगा','Sample':'सैंपल','Sample given':'सैंपल दिया','Customer return':'ग्राहक से वापसी','Lost / missing':'गुम / नहीं मिला','Stock correction':'गिनती सुधार','Correction':'सुधार','Opening stock':'शुरुआती स्टॉक','Transfer':'ट्रांसफर','Restock':'रीस्टॉक','Adjustment':'एडजस्टमेंट','Other':'अन्य','Return':'वापसी','Received':'मिल गया','Picked':'निकाला','Low':'कम','Need':'चाहिए',
-'Scan using the barcode scanner':'बारकोड स्कैनर से स्कैन करें','Point at a barcode or QR code':'बारकोड या QR कोड पर कैमरा रखें','Or enter code manually':'या कोड खुद टाइप करें','Code not found':'कोड नहीं मिला','No item matches':'कोई आइटम नहीं मिला','Keep scanning':'स्कैन करते रहें','Scan a code':'कोड स्कैन करें','Scan SKU':'SKU स्कैन करें','Code type':'कोड का टाइप','QR code':'QR कोड','Size':'साइज़','Copies each':'हर एक की कॉपियाँ','Select all':'सब चुनें','Preview':'प्रीव्यू','Print':'प्रिंट','No items with a code':'कोड वाला कोई आइटम नहीं',
-'Pick lists':'पिक लिस्ट','Purchase orders':'परचेज़ ऑर्डर','No pick lists yet':'अभी कोई पिक लिस्ट नहीं','No purchase orders yet':'अभी कोई परचेज़ ऑर्डर नहीं','Rename list':'लिस्ट का नाम बदलें','Lines':'लाइनें','Which items':'कौन से आइटम','Vendor':'सप्लायर','Expected by':'कब तक आएगा','Unit cost':'एक की लागत','Amount':'रकम','Enter what arrived. Stock updates immediately.':'जो आया है वो भरें। स्टॉक तुरंत अपडेट होगा।','How were the good pieces handled?':'सही माल का क्या किया?','Stocked (check later)':'स्टॉक में रखा (बाद में जाँचेंगे)',
-'Settings':'सेटिंग','Company / shop name':'कंपनी / दुकान का नाम','Your name (shown in activity)':'आपका नाम (एक्टिविटी में दिखेगा)','Currency symbol':'करेंसी का निशान','Default min qty hint':'कम-से-कम मात्रा (डिफ़ॉल्ट)','Language / भाषा':'भाषा / Language','Team sync':'टीम सिंक','Team members':'टीम के लोग','Permissions':'परमिशन','Sign out':'लॉग आउट','Signed in as':'लॉग इन:','Connected — realtime':'जुड़ा हुआ — लाइव','Connecting…':'जुड़ रहा है…','Offline — will sync later':'ऑफ़लाइन — बाद में सिंक होगा','Trash':'ट्रैश','Help & FAQ':'मदद और सवाल-जवाब','Report a problem':'दिक्कत बताएँ','What happened?':'क्या हुआ?','Screenshot (optional)':'स्क्रीनशॉट (ज़रूरी नहीं)','Dashboard':'डैशबोर्ड','Recovery points':'बैकअप','Approvals':'अप्रूवल','Admin approval needed':'एडमिन की मंज़ूरी चाहिए','Export all items':'सारे आइटम एक्सपोर्ट करें','Export':'एक्सपोर्ट','Include':'शामिल करें','Current items only':'सिर्फ अभी के आइटम','Also include Trash':'ट्रैश भी शामिल करें',
-'Sign in':'लॉग इन करें','Sign up':'नया अकाउंट','Create your account':'नया अकाउंट बनाएँ','Create account':'अकाउंट बनाएँ','You stay signed in on this device.':'इस फोन पर आप लॉग इन रहेंगे।','Email':'ईमेल','Phone':'फोन','Phone (India +91)':'फोन (भारत +91)','Password':'पासवर्ड','Current password':'अभी का पासवर्ड','Full name':'पूरा नाम','User ID':'यूज़र ID','Forgot password?':'पासवर्ड भूल गए?','Send code & sign in':'कोड भेजें और लॉग इन करें','Send code & create account':'कोड भेजें और अकाउंट बनाएँ','Sending code…':'कोड भेज रहे हैं…','Verify your email':'ईमेल वेरिफ़ाई करें','Add a recovery email':'रिकवरी ईमेल जोड़ें','Enter your name':'अपना नाम भरें','Pick a user ID':'यूज़र ID चुनें','Could not connect':'कनेक्ट नहीं हो पाया',
-'Moved':'मूव हो गया','Deleted':'डिलीट हो गया','Restored':'वापस आ गया','Cloned':'कॉपी बन गई','Imported':'इम्पोर्ट हो गया','Exported':'एक्सपोर्ट हो गया','Quantity changed':'मात्रा बदली','Stock in':'माल आया','Stock out':'माल गया','Edited':'बदला गया','Reports':'रिपोर्ट','Last 7 days':'पिछले 7 दिन','Last 15 days':'पिछले 15 दिन','Last 30 days':'पिछले 30 दिन','Last 1 day':'पिछला 1 दिन','Last 2 days':'पिछले 2 दिन','Inventory Adjustment':'स्टॉक एडजस्टमेंट','Stock value (sell price)':'स्टॉक की कीमत (बेचने के भाव)','No sales recorded in this period.':'इस दौरान कोई बिक्री दर्ज नहीं।','Running out fast':'तेज़ी से खत्म हो रहा','Nothing at risk at current speed.':'अभी कुछ भी खतरे में नहीं।','Should be ordered (below min)':'ऑर्डर करना चाहिए (मिनिमम से कम)','Nothing below minimum.':'कुछ भी मिनिमम से कम नहीं।','No dispatches in this period.':'इस दौरान कोई डिस्पैच नहीं।','No quantity changes in this period':'इस दौरान मात्रा में कोई बदलाव नहीं','In':'आया','Out':'गया','Net':'नेट','SKU / code':'SKU / कोड','Location':'लोकेशन','Locations':'लोकेशन','Rack':'रैक','Racks':'रैक','Shelf':'शेल्फ़','Bin':'बिन','same location':'वही जगह','Skip them':'छोड़ दें','Machine':'मशीन','Rules':'नियम','If':'अगर','Click':'क्लिक करें','Choose':'चुनें','Upload File':'फ़ाइल अपलोड करें','No recovery points yet':'अभी कोई बैकअप नहीं','Tap the button above to create the first one.':'पहला बैकअप बनाने के लिए ऊपर का बटन दबाएँ।','HIGH':'ज़्यादा','AUTO':'ऑटो','Low priority':'कम ज़रूरी'
-};
-const HI_RX=[
-[/^Only ([\d.,]+) in stock$/,m=>'स्टॉक में सिर्फ '+m[1]+' हैं'],
-[/^Only ([\d.,]+) in (.+)$/,m=>m[2]+' में सिर्फ '+m[1]+' हैं'],
-[/^Added ([\d.,]+) in (.+) — now ([\d.,]+)$/,m=>m[2]+' में '+m[1]+' जोड़े — अब कुल '+m[3]],
-[/^Removed ([\d.,]+) in (.+) — now ([\d.,]+)$/,m=>m[2]+' से '+m[1]+' घटाए — अब कुल '+m[3]],
-[/^Enter how many to add$/,()=>'कितने जोड़ने हैं, वो भरें'],
-[/^Enter how many to remove$/,()=>'कितने घटाने हैं, वो भरें'],
-[/^Enter a quantity up to ([\d.,]+)(.*)$/,m=>m[1]+' तक की मात्रा भरें'+m[2]],
-[/^Quantity to move \(have ([\d.,]+) ?(.*)\)$/,m=>'कितना मूव करना है (कुल '+m[1]+' '+m[2]+' हैं)'],
-[/^(\d+) items?$/,m=>m[1]+' आइटम'],
-[/^(\d+) here$/,m=>'यहाँ '+m[1]],
-[/^([\d.,]+) here$/,m=>'यहाँ '+m[1]],
-[/^(\d+) low$/,m=>m[1]+' कम'],
-[/^just now$/,()=>'अभी'],
-[/^(\d+)m ago$/,m=>m[1]+' मिनट पहले'],
-[/^(\d+)h ago$/,m=>m[1]+' घंटे पहले'],
-[/^(\d+)d ago$/,m=>m[1]+' दिन पहले'],
-[/^adding$/,()=>'जोड़ रहे हैं'],[/^removing$/,()=>'घटा रहे हैं'],
-[/^Move (\d+) items$/,m=>m[1]+' आइटम मूव करें'],
-[/^(\d+) clones? created$/,m=>m[1]+' कॉपी बन गई'],
-[/^Screen error: (.*)$/,m=>'स्क्रीन में गड़बड़: '+m[1]]
-];
-Object.assign(HI,{
-'Inventory':'इन्वेंटरी','Select':'चुनें','Sort':'क्रम','Clear':'हटाएँ','Back':'पीछे','Go':'जाएँ','Rename':'नाम बदलें','Value':'कीमत','Today':'आज','All time':'पूरा समय','When':'कब','By':'किसने','By name':'नाम से','Main':'मुख्य','Min':'मिनिमम','Less':'कम','More':'ज़्यादा','Good':'सही','Have':'मौजूद','Direction':'दिशा','Inward':'अंदर आया','Outward':'बाहर गया','In stock':'स्टॉक में','In stock:':'स्टॉक में:','Toggle view':'व्यू बदलें','About':'ऐप के बारे में','Account':'अकाउंट','Theme':'थीम','English':'English','pcs':'पीस',
-'Search name, SKU, code, tag…':'नाम, SKU, कोड या टैग खोजें…','Search name, SKU or tag…':'नाम, SKU या टैग खोजें…','Search product name or SKU':'प्रोडक्ट का नाम या SKU खोजें','Filter items…':'आइटम छाँटें…','Type to search your catalog.':'खोजने के लिए टाइप करें।','or type a SKU and press Enter':'या SKU टाइप करके Enter दबाएँ','or type the number':'या नंबर टाइप करें','Waiting for scan…':'स्कैन का इंतज़ार…','Scan or type a code':'कोड स्कैन करें या टाइप करें','SKU or barcode value':'SKU या बारकोड','Which rack?':'कौन सा रैक?','New location':'नई जगह','Warehouse created':'गोदाम बन गया','Added':'जोड़ा','Removed':'घटाया','Added to':'यहाँ जोड़ा:','Loading…':'लोड हो रहा है…','Loading Invento':'Invento खुल रहा है',
-'Add item by name':'नाम से आइटम जोड़ें','Name is required':'नाम भरना ज़रूरी है','Name required':'नाम भरना ज़रूरी है','Enter a name':'नाम भरें','Fill all fields':'सारे खाने भरें','Item not found':'आइटम नहीं मिला','Moved to trash':'ट्रैश में गया','Trash is empty':'ट्रैश खाली है','Delete forever':'हमेशा के लिए डिलीट','Only admins can restore or permanently delete.':'सिर्फ एडमिन वापस ला सकते हैं या हमेशा के लिए डिलीट कर सकते हैं।','Photo added':'फोटो जुड़ गई','Remove photo':'फोटो हटाएँ','Could not read photo':'फोटो नहीं पढ़ पाए','Tag added':'टैग जुड़ गया','Supplier, dimensions, leather type…':'सप्लायर, साइज़, लेदर का टाइप…','duffle, bestseller (comma separated)':'duffle, bestseller (कॉमा लगाकर)','e.g. Leather Duffle — Vintage Brown':'जैसे: Leather Duffle — Vintage Brown','e.g. Shelf A, Export stock, Jodhpur unit':'जैसे: Shelf A, एक्सपोर्ट स्टॉक','e.g. Export rack, Workshop':'जैसे: एक्सपोर्ट रैक, वर्कशॉप','e.g. sale, export, b-grade':'जैसे: sale, export, b-grade',
-'Dispatch orders':'ऑर्डर डिस्पैच करें','Items in this dispatch':'इस डिस्पैच के आइटम','Items sent':'भेजे गए आइटम','Items being returned':'वापस आ रहे आइटम','Dispatched':'डिस्पैच हो गया','Dispatch saved · stock updated':'डिस्पैच सेव — स्टॉक अपडेट हो गया','Return saved · stock updated':'वापसी सेव — स्टॉक अपडेट हो गया','Return done':'वापसी हो गई','Dispatch not found':'डिस्पैच नहीं मिला','Dispatches and returns will appear here.':'डिस्पैच और वापसी यहाँ दिखेंगे।','Order ID':'ऑर्डर ID','New order ID':'नया ऑर्डर ID','Enter an order ID':'ऑर्डर ID भरें','No orders':'कोई ऑर्डर नहीं','Repeat order':'वही ऑर्डर दोबारा','Duplicate order — not dispatched':'डुप्लीकेट ऑर्डर — डिस्पैच नहीं हुआ','Linked to order':'ऑर्डर से जुड़ा','Returned / Sent for this order':'इस ऑर्डर की वापसी / भेजा गया','Scan or photograph items going out':'बाहर जा रहे आइटम स्कैन करें या फोटो लें','Bring items back into stock':'आइटम वापस स्टॉक में लें','Marked done':'पूरा हो गया','List completed — stock updated':'लिस्ट पूरी — स्टॉक अपडेट हो गया','Nothing to receive':'लेने को कुछ नहीं','PO closed':'PO बंद हो गया','PO not found':'PO नहीं मिला','Pick list not found':'पिक लिस्ट नहीं मिली','on PO':'PO में','Supplier name':'सप्लायर का नाम','Reorder soon':'जल्दी ऑर्डर करें','Auto-add to purchase order when stock falls below min':'स्टॉक मिनिमम से कम होते ही परचेज़ ऑर्डर में अपने आप जुड़े',
-'Scan AWBs being dispatched':'डिस्पैच हो रहे AWB स्कैन करें','Scan AWBs taken from office':'ऑफिस से लिए AWB स्कैन करें','Returned to office':'ऑफिस वापस आया','Return overdue AWBs first':'पहले पुराने AWB वापस करें','Over-return blocked — needs admin approval':'ज़्यादा वापसी रुकी — एडमिन की मंज़ूरी चाहिए','New scans use the selected condition.':'नए स्कैन चुनी हुई हालत से होंगे।','photo only':'सिर्फ फोटो',
-'No permission':'परमिशन नहीं है','Sign-in required':'पहले लॉग इन करें','Admins only':'सिर्फ एडमिन के लिए','Not allowed — admin permission needed':'मना है — एडमिन की परमिशन चाहिए','You do not have permission to add items':'आपको आइटम जोड़ने की परमिशन नहीं है','You do not have permission to edit items':'आपको आइटम बदलने की परमिशन नहीं है','You do not have permission to save items':'आपको आइटम सेव करने की परमिशन नहीं है','You do not have permission to delete':'आपको डिलीट करने की परमिशन नहीं है','You do not have permission to dispatch':'आपको डिस्पैच की परमिशन नहीं है','You do not have permission to import':'आपको इम्पोर्ट की परमिशन नहीं है','You do not have permission to export':'आपको एक्सपोर्ट की परमिशन नहीं है','You do not have permission for returns':'आपको वापसी की परमिशन नहीं है','You do not have permission for locations':'आपको लोकेशन बदलने की परमिशन नहीं है','You do not have permission for AWBs':'आपको AWB की परमिशन नहीं है','No permission to accept AWBs':'AWB लेने की परमिशन नहीं','No permission to dispatch AWBs':'AWB डिस्पैच की परमिशन नहीं','No permission to return AWBs':'AWB वापसी की परमिशन नहीं','No permission to delete AWBs':'AWB डिलीट की परमिशन नहीं','Sent for admin approval':'एडमिन की मंज़ूरी के लिए भेजा','No pending approvals':'कोई अप्रूवल बाकी नहीं','Recent decisions':'हाल के फैसले','Approved':'मंज़ूर','Rejected':'नामंज़ूर','check pending':'मंज़ूरी बाकी है',
-'Add user':'यूज़र जोड़ें','Make admin':'एडमिन बनाएँ','Make user':'यूज़र बनाएँ','Revoke':'हटाएँ','Reactivate':'फिर चालू करें','Access revoked':'एक्सेस हट गया','User deleted':'यूज़र डिलीट हो गया','regular user':'आम यूज़र','sign up themselves':'खुद साइन अप कर सकते हैं','Permissions saved':'परमिशन सेव हो गईं','These switches control what a':'ये बटन तय करते हैं कि एक','Admin user ID':'एडमिन का यूज़र ID','Admin password':'एडमिन का पासवर्ड','Enter admin ID and password':'एडमिन ID और पासवर्ड भरें','Not an admin account, or wrong password':'एडमिन अकाउंट नहीं, या पासवर्ड गलत',
-'Change my password':'पासवर्ड बदलें','Confirm new password':'नया पासवर्ड दोबारा','New password (min 6 characters)':'नया पासवर्ड (कम से कम 6 अक्षर)','New password must be 6+ characters':'नया पासवर्ड 6+ अक्षर का हो','New passwords do not match':'दोनों पासवर्ड मेल नहीं खाते','Password updated':'पासवर्ड बदल गया','Password must be 6+ characters':'पासवर्ड 6+ अक्षर का हो','Password must be at least 6 characters':'पासवर्ड कम से कम 6 अक्षर का हो','Password (min 6)':'पासवर्ड (कम से कम 6)','Enter your password':'अपना पासवर्ड भरें','Enter your current password':'अभी का पासवर्ड भरें','Enter your email/ID and password':'ईमेल/ID और पासवर्ड भरें','Enter your user ID':'अपना यूज़र ID भरें','Your email':'आपका ईमेल','Your password':'आपका पासवर्ड','Your user ID':'आपका यूज़र ID','Forgot password':'पासवर्ड भूल गए','Request sent — the admin will set a new password':'रिक्वेस्ट भेज दी — एडमिन नया पासवर्ड सेट करेंगे','Add email & password':'ईमेल और पासवर्ड जोड़ें','My account has no email (old account)':'मेरे अकाउंट में ईमेल नहीं है (पुराना अकाउंट)','Enter a valid email':'सही ईमेल भरें','Enter a real email address':'सही ईमेल पता भरें','Enter a valid phone number':'सही फोन नंबर भरें','Link phone number':'फोन नंबर जोड़ें','Phone linked — you can now sign in by SMS too':'फोन जुड़ गया — अब SMS से भी लॉग इन कर सकते हैं','SMS code':'SMS कोड','Enter the code':'कोड भरें','Enter the 6-digit code':'6 अंकों का कोड भरें','Code sent again':'कोड दोबारा भेजा','Check your inbox':'अपना इनबॉक्स देखें','Verification email sent — check inbox/spam':'वेरिफ़िकेशन ईमेल भेजा — इनबॉक्स/स्पैम देखें','At least 6 characters':'कम से कम 6 अक्षर','Pick a user ID (letters/numbers)':'यूज़र ID चुनें (अक्षर/नंबर)','Delete my account':'मेरा अकाउंट डिलीट करें','Delete account':'अकाउंट डिलीट करें','Sign out':'लॉग आउट',
-'Import items from CSV':'CSV से आइटम लाएँ','Choose a CSV file':'CSV फ़ाइल चुनें','or drop it here':'या यहाँ छोड़ें','Ready to import':'इम्पोर्ट के लिए तैयार','Valid rows':'सही लाइनें','Skipped rows':'छोड़ी गई लाइनें','Show skipped rows':'छोड़ी गई लाइनें दिखाएँ','Create as new item':'नया आइटम बनाएँ','Create as new items anyway':'फिर भी नए आइटम बनाएँ','Update existing items (qty &amp; details)':'पुराने आइटम अपडेट करें (मात्रा और जानकारी)','Could not read file':'फ़ाइल नहीं पढ़ पाए','Could not find Name and Quantity columns':'Name और Quantity कॉलम नहीं मिले','File needs a header row and at least one data row':'फ़ाइल में हेडर और कम से कम एक लाइन चाहिए','Not sure of the format?':'फॉर्मेट समझ नहीं आ रहा?','download this file':'यह फ़ाइल डाउनलोड करें','Template downloaded — fill it and import':'टेम्पलेट डाउनलोड हुआ — भरकर इम्पोर्ट करें','Minimum columns:':'कम से कम कॉलम:','CSV downloaded':'CSV डाउनलोड हो गई','No items to export':'एक्सपोर्ट के लिए कुछ नहीं','Sample data loaded':'सैंपल डेटा आ गया','Load sample leather-goods data':'लेदर सामान का सैंपल डेटा भरें','Imported —':'इम्पोर्ट हुआ —','Review import results':'इम्पोर्ट का नतीजा देखें',
-'Sales & reorder':'बिक्री और री-ऑर्डर','Best sellers':'सबसे ज़्यादा बिके','No sales data yet':'अभी बिक्री का डेटा नहीं','No activity in this period':'इस दौरान कोई एक्टिविटी नहीं','No movements in this period':'इस दौरान कोई मूवमेंट नहीं','No stock changes in that period':'उस दौरान स्टॉक में बदलाव नहीं','Nothing is low':'कुछ भी कम नहीं है','In &amp; out':'आया और गया','Total in':'कुल आया','Total out':'कुल गया','Stock in only':'सिर्फ आया','Stock out only':'सिर्फ गया','All actions':'सारे काम','Last 30 days (full history)':'पिछले 30 दिन (पूरी हिस्ट्री)','Adjustments, picks and receipts will show up here.':'एडजस्टमेंट, पिक और आवक यहाँ दिखेंगे।','Changes to items, folders and stock counts will show up here.':'आइटम, फ़ोल्डर और स्टॉक के बदलाव यहाँ दिखेंगे।',
-'Barcode &amp; QR labels':'बारकोड और QR लेबल','Restock labels':'रीस्टॉक लेबल','Allow pop-ups to print':'प्रिंट के लिए पॉप-अप चालू करें','Code library offline — labels show text only':'कोड लाइब्रेरी ऑफ़लाइन — लेबल पर सिर्फ टेक्स्ट दिखेगा','Barcode machine':'बारकोड मशीन','Content':'क्या छापें','Quick command':'झटपट कमांड','New location':'नई जगह','Edit location':'जगह बदलें','Type of place':'किस तरह की जगह','Box no. (optional)':'बॉक्स नं. (ज़रूरी नहीं)','Return to office':'ऑफिस वापस','Overview':'कारोबार','Full dashboard':'पूरा डैशबोर्ड','Sold / out':'बिका / गया','Stocked in':'आया','Need to order':'ऑर्डर करना है','Top sellers':'सबसे ज़्यादा बिके','Pending':'बाकी','History':'हिस्ट्री','Cancelled':'रद्द','Cancel PO':'PO रद्द करें','Pending order nos. — e.g. #1043, #1051':'पेंडिंग ऑर्डर नं. — जैसे #1043, #1051','AI assistant':'AI असिस्टेंट','Ask anything about your stock — in Hindi or English':'स्टॉक के बारे में कुछ भी पूछें — हिंदी या English में','One line: item, quantity, rack. Add the word remove to take stock out.':'एक लाइन में: आइटम, मात्रा, रैक। स्टॉक घटाने के लिए remove या निकालो लिखें।','Which item?':'कौन सा आइटम?','Quick command':'झटपट कमांड','Code + text':'कोड + टेक्स्ट','Only barcode / QR':'सिर्फ बारकोड / QR','Only text':'सिर्फ टेक्स्ट','Border':'बॉर्डर','Printed by (3 letters) *':'किसने छापा (3 अक्षर) *','Enter your 3-letter initials first':'पहले अपने 3 अक्षर डालें',
-'Settings saved':'सेटिंग सेव हो गई','Recovery point saved':'बैकअप बन गया','Backup':'बैकअप','Backup downloaded':'बैकअप डाउनलोड हुआ','Backup restored':'बैकअप वापस आ गया','15-day recovery point saved automatically':'हर 15 दिन में बैकअप अपने आप बनता है','Not a valid backup file':'यह सही बैकअप फ़ाइल नहीं है','Could not read that recovery point':'वह बैकअप नहीं पढ़ पाए','All data erased':'सारा डेटा मिट गया','This device only':'सिर्फ इस फोन पर','Use on this device only (no sync)':'सिर्फ इस फोन पर (बिना सिंक)','Describe the problem first':'पहले दिक्कत लिखें','Describe what went wrong. A screenshot helps a lot.':'क्या गड़बड़ हुई, लिखें। स्क्रीनशॉट से बहुत मदद मिलती है।','Sent — the admin will see it in Help':'भेज दिया — एडमिन को मदद में दिखेगा','Could not send — tell the admin directly':'नहीं भेज पाए — एडमिन को सीधे बताएँ','Word for a place (singular)':'जगह के लिए शब्द (एकवचन)','…plural':'…बहुवचन','Which market?':'कौन सा मार्केट?','Choose market':'मार्केट चुनें','Switch market':'मार्केट बदलें',
-'Could not sync — retrying':'सिंक नहीं हुआ — दोबारा कोशिश','Could not save — storage error':'सेव नहीं हुआ — स्टोरेज की दिक्कत','Check internet on this device':'इस फोन का इंटरनेट देखें','Could not run action':'यह काम नहीं हो पाया'
-});
-HI_RX.push(
-[/^(\d+) products?$/,m=>m[1]+' प्रोडक्ट'],
-[/^([\d.,]+) ?(pcs|pc)$/,m=>m[1]+' पीस'],
-[/^of ([\d.,]+)$/,m=>'कुल '+m[1]+' में से'],
-[/^Value (.+)$/,m=>'कीमत '+m[1]],
-[/^Have ([\d.,]+)(.*)$/,m=>'मौजूद '+m[1]+m[2]],
-[/^In stock: ?(.+)$/,m=>'स्टॉक में: '+m[1]],
-[/^Imported — (.+)$/,m=>'इम्पोर्ट हुआ — '+m[1]],
-[/^Your role is now (.+)$/,m=>'अब आपका रोल है: '+m[1]],
-[/^Resend code \((\d+)\)$/,m=>'कोड फिर भेजें ('+m[1]+')'],
-[/^We sent a 6-digit code by SMS to (.+)$/,m=>'हमने SMS से 6 अंकों का कोड भेजा है: '+m[1]],
-[/^Email added — verification sent to (.+)$/,m=>'ईमेल जुड़ गया — वेरिफ़िकेशन भेजा: '+m[1]],
-[/^Enter a quantity up to ([\d.,]+)$/,m=>m[1]+' तक की मात्रा भरें'],
-[/^(Failed|Erase failed|Not allowed|Could not send|Could not clear): ?(.*)$/,m=>'नहीं हो पाया: '+m[2]]
-);
-
-
-/* Devanagari transliteration for item names & any remaining English (codes stay Latin) */
-const HIW={'leather':'लेदर','bag':'बैग','bags':'बैग्स','backpack':'बैकपैक','satchel':'सैचल','briefcase':'ब्रीफ़केस','messenger':'मैसेंजर','duffle':'डफ़ल','duffel':'डफ़ल','tote':'टोट','wallet':'वॉलेट','purse':'पर्स','belt':'बेल्ट','pouch':'पाउच','sling':'स्लिंग','laptop':'लैपटॉप','camera':'कैमरा','travel':'ट्रैवल','vintage':'विंटेज','classic':'क्लासिक','classy':'क्लासी','luxury':'लग्ज़री','premium':'प्रीमियम','handmade':'हैंडमेड','genuine':'जेन्युइन','pure':'प्योर','full':'फुल','grain':'ग्रेन','crazy':'क्रेज़ी','horse':'हॉर्स','buffalo':'बफ़ेलो','goat':'गोट','hide':'हाइड','tanned':'टैन्ड','tan':'टैन','brown':'ब्राउन','dark':'डार्क','light':'लाइट','black':'ब्लैक','green':'ग्रीन','blue':'ब्लू','red':'रेड','olive':'ऑलिव','walnut':'वॉलनट','chocolate':'चॉकलेट','distressed':'डिस्ट्रेस्ड','rustic':'रस्टिक','antique':'एंटीक','brass':'ब्रास','buckle':'बकल','zipper':'ज़िपर','strap':'स्ट्रैप','pocket':'पॉकेट','inch':'इंच','size':'साइज़','large':'लार्ज','small':'स्मॉल','medium':'मीडियम','mini':'मिनी','men':'मेन','mens':'मेन्स',"men's":'मेन्स','women':'विमेन',"women's":'विमेंस','unisex':'यूनिसेक्स','kids':'किड्स','gift':'गिफ़्ट','set':'सेट','combo':'कॉम्बो','prime':'प्राइम','pro':'प्रो','plus':'प्लस','new':'न्यू','old':'ओल्ड','style':'स्टाइल','design':'डिज़ाइन','printed':'प्रिंटेड','block':'ब्लॉक','cylindrical':'सिलिंड्रिकल','round':'राउंड','square':'स्क्वेयर','italian':'इटैलियन','indian':'इंडियन','american':'अमेरिकन','transit':'ट्रांज़िट','voyager':'वॉयेजर','denver':'डेनवर','shannon':'शैनन','alvarado':'अल्वाराडो','hunter':'हंटर','urban':'अर्बन','nomad':'नोमैड','explorer':'एक्सप्लोरर','weekender':'वीकेंडर','overnight':'ओवरनाइट','office':'ऑफ़िस','business':'बिज़नेस','executive':'एग्ज़िक्यूटिव','portfolio':'पोर्टफ़ोलियो','cover':'कवर','case':'केस','holder':'होल्डर','organizer':'ऑर्गेनाइज़र','journal':'जर्नल','diary':'डायरी','notebook':'नोटबुक','apron':'एप्रन','toiletry':'टॉयलेट्री','dopp':'डॉप','kit':'किट','shaving':'शेविंग','watch':'वॉच','roll':'रोल','tool':'टूल','key':'की','chain':'चेन','card':'कार्ड','passport':'पासपोर्ट','luggage':'लगेज','trolley':'ट्रॉली','suitcase':'सूटकेस','handbag':'हैंडबैग','shoulder':'शोल्डर','crossbody':'क्रॉसबॉडी','hobo':'होबो','clutch':'क्लच','bucket':'बकेट','saddle':'सैडल','vertical':'वर्टिकल','horizontal':'हॉरिज़ॉन्टल','slim':'स्लिम','the':'द','and':'एंड','with':'विद','for':'फ़ॉर','misc':'अन्य','apparel':'कपड़े','vanity':'वैनिटी','wash':'वॉश','laundry':'लॉन्ड्री','garment':'गारमेंट','shopper':'शॉपर','basket':'बास्केट','tray':'ट्रे','coaster':'कोस्टर','mat':'मैट','desk':'डेस्क','pad':'पैड','mouse':'माउस','phone':'फ़ोन','mobile':'मोबाइल','tablet':'टैबलेट','sleeve':'स्लीव','folio':'फ़ोलियो','money':'मनी','coin':'कॉइन','cheque':'चेक','book':'बुक','photo':'फ़ोटो','frame':'फ़्रेम','box':'बॉक्स','trunk':'ट्रंक','vintage-brown':'विंटेज-ब्राउन'};
-const KEEPW=new Set(['AWB','SKU','QR','PO','ID','CSV','PDF','USD','INR','GST','OK','INVENTO','Invento','AM','PM','No','no']);
-function tlWord(w0){
-  let w=w0.toLowerCase();
-  const C={b:'ब',c:'क',d:'ड',f:'फ़',g:'ग',h:'ह',j:'ज',k:'क',l:'ल',m:'म',n:'न',p:'प',q:'क',r:'र',s:'स',t:'ट',v:'व',w:'व',x:'क्स',y:'य',z:'ज़'};
-  const VI={a:'ऐ',e:'ए',i:'इ',o:'ओ',u:'अ'},VM={a:'ै',e:'े',i:'ि',o:'ो',u:''};
-  w=w.replace(/tion$/,'शन').replace(/([a-z])e$/,'$1');
-  const D=[['ch','च'],['sh','श'],['th','थ'],['ph','फ़'],['wh','व'],['ck','क'],['kn','न'],['wr','र'],['qu','क्व'],['ee','ी@'],['oo','ू@'],['ea','ी@'],['ai','ै@'],['ay','े@'],['au','ॉ@'],['aw','ॉ@'],['ou','ाउ@'],['ow','ो@'],['oa','ो@'],['oi','ॉय@'],['oy','ॉय@'],['ie','ी@'],['ei','े@'],['ue','ू@'],['ui','ुई@']];
-  let out='',i=0,prevCons=false;
-  while(i<w.length){
-    let hit=null;
-    for(const d of D){if(w.startsWith(d[0],i)){hit=d;break}}
-    if(hit){
-      const dev=hit[1],isV=dev.endsWith('@');
-      if(isV){out+=prevCons?dev.slice(0,-1):('अ'+dev.slice(0,-1));prevCons=false}
-      else{out+=dev;prevCons=true}
-      i+=hit[0].length;continue;
-    }
-    const ch=w[i];
-    if(C[ch]){out+=C[ch];prevCons=true;i++;continue}
-    if(VM[ch]!==undefined){out+=prevCons?VM[ch]:VI[ch];prevCons=false;i++;continue}
-    out+=ch;prevCons=false;i++;
-  }
-  return out;
-}
-function trNameHi(s){
-  return s.replace(/[A-Za-z][A-Za-z']*/g,(w,off)=>{
-    const before=s[off-1]||'',after=s[off+w.length]||'';
-    const adjDigit=/\d/.test(before)||/\d/.test(after);
-    if(KEEPW.has(w)||KEEPW.has(w.toUpperCase()))return w;
-    if(adjDigit&&w.length<=2)return w;               /* rack codes: R11C4 */
-    if(/^[A-Z0-9]{2,6}$/.test(w)&&w===w.toUpperCase())return w; /* code-like tokens */
-    return HIW[w.toLowerCase()]||tlWord(w);
-  });
-}
-
-function trHi(s){
-  if(!s)return s;const t=s.trim();if(!t||/^[\d.,:%₹$+\-—·]*$/.test(t))return s;
-  let out=HI[t];
-  if(out===undefined){for(const r of HI_RX){const m=t.match(r[0]);if(m){out=r[1](m);break}}}
-  if(out===undefined){const t2=trNameHi(t);return t2===t?s:s.replace(t,t2)}
-  return s.replace(t,out);
-}
-function i18nWalk(root){
-  if(!langHi()||!root)return;
-  const bad={SCRIPT:1,STYLE:1,TEXTAREA:1,INPUT:1};
-  const skip=el=>{for(let e=el;e&&e.nodeType===1;e=e.parentElement){if(bad[e.tagName]||e.classList&&(e.classList.contains('num')||e.classList.contains('mono'))||e.hasAttribute&&e.hasAttribute('data-noi18n'))return true}return false};
-  const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null);
-  const nodes=[];let n;while(n=w.nextNode())nodes.push(n);
-  nodes.forEach(nd=>{if(skip(nd.parentElement))return;const v=nd.nodeValue,t2=trHi(v);if(t2!==v)nd.nodeValue=t2});
-  (root.querySelectorAll?[root].concat(Array.from(root.querySelectorAll('[placeholder],[title],[aria-label]'))):[]).forEach(el=>{
-    if(!el.getAttribute)return;
-    ['placeholder','title','aria-label'].forEach(a=>{const v=el.getAttribute&&el.getAttribute(a);if(v){const t2=trHi(v);if(t2!==v)el.setAttribute(a,t2)}});
-  });
-}
-function i18nBoot(){
-  if(!document.body)return;
-  if(langHi()){document.documentElement.lang='hi';i18nWalk(document.body)}
-  const mo=new MutationObserver(muts=>{
-    if(!langHi())return;
-    muts.forEach(m=>m.addedNodes&&m.addedNodes.forEach(nd=>{
-      if(nd.nodeType===3){const v=nd.nodeValue,t2=trHi(v);if(t2!==v)nd.nodeValue=t2}
-      else if(nd.nodeType===1)i18nWalk(nd);
-    }));
-  });
-  mo.observe(document.body,{childList:true,subtree:true});
-  document.addEventListener('change',e=>{
-    if(e.target&&e.target.id==='st-lang'){setLang(e.target.value);location.reload()}
-  });
-  document.addEventListener('click',e=>{
-    const b=e.target&&e.target.closest&&e.target.closest('#lang-flip');
-    if(b){setLang(langHi()?'en':'hi');location.reload()}
-  });
-}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',i18nBoot);else i18nBoot();
-
 /* ============================================================
    ROUTER + NAV
    ============================================================ */
-const NAV=[['home','Home','home'],['stock','Stock','box'],['dispatch','Dispatch','truck'],['scan','Scan','scan'],['ai','AI','spark'],['flows','Workflows','flows'],['labels','Labels','label'],['reports','Reports','report'],['more','More','more']];
+const NAV=[['home','Home','home'],['stock','Stock','box'],['dispatch','Dispatch','truck'],['scan','Scan','scan'],['flows','Workflows','flows'],['labels','Labels','label'],['reports','Reports','report'],['more','More','more']];
 function paintNav(){
   NAV.forEach(([k,label,icon])=>{
     const sn=$('#sn-'+k);if(sn)sn.innerHTML=ico(icon)+'<span>'+label+'</span>'+(k==='home'?'<span class="navbadge" id="sbadge" style="display:none"></span>':'');
@@ -1237,6 +1096,7 @@ function refreshAcctMenu(){
   h+='<div class="seg2"><button data-th="light" class="'+(th!=='dark'?'on':'')+'">'+ico('sun')+'Light</button><button data-th="dark" class="'+(th==='dark'?'on':'')+'">'+ico('moon')+'Dark</button></div>';
   h+='<div class="sep"></div>';
   h+='<button id="acct-scanner">'+ico('scan')+'Barcode machine: <b style="margin-left:4px;color:'+(hwScanner()?'var(--green)':'var(--muted)')+'">'+(hwScanner()?'ON':'OFF')+'</b></button>';
+  h+='<button id="acct-voice">'+ico('check')+'Scan voice: <b style="margin-left:4px;color:'+(voiceOn()?'var(--green)':'var(--muted)')+'">'+(voiceOn()?'ON':'OFF')+'</b></button>';
   h+='<button id="acct-settings">'+ico('gear')+'Settings</button>';
   if(MODE==='cloud'&&fbUser&&(fbUser.email||'').indexOf('@invento.app')>=0)h+='<button id="acct-mig">'+ico('lock')+'Add recovery email</button>';
   if(MODE==='cloud'&&fbUser&&fbUser.email)h+='<button id="acct-pw">'+ico('lock')+'Change my password</button>';
@@ -1247,6 +1107,7 @@ function refreshAcctMenu(){
   m.innerHTML=h;
   $$('#acct-menu [data-th]').forEach(b=>b.onclick=()=>{applyTheme(b.dataset.th);refreshAcctMenu()});
   const sc=$('#acct-scanner');if(sc)sc.onclick=()=>{setHwScanner(!hwScanner());refreshAcctMenu();toast('Barcode machine '+(hwScanner()?'ON — scans add instantly':'OFF — camera scanning'),'ok')};
+  const vo=$('#acct-voice');if(vo)vo.onclick=()=>{setVoiceOn(!voiceOn());refreshAcctMenu();if(voiceOn()){voiceTest();toast('Scan voice ON — the phone speaks each scan','ok')}else toast('Scan voice OFF — beeps only','ok')};
   const st=$('#acct-settings');if(st)st.onclick=()=>{closeAcct();go('#more')};
   const pw=$('#acct-pw');if(pw)pw.onclick=()=>{closeAcct();changeMyPassword()};
   const mg=$('#acct-mig');if(mg)mg.onclick=()=>{closeAcct();attachEmailFlow()};
@@ -1270,48 +1131,12 @@ function topTitle(title,backHash,extra){
   '<div class="tb-title">'+esc(title)+'</div>'+(extra||'')+acctButtonHTML());
 }
 
-
-/* Torch / flashlight for camera scanners. Shows a button only if the device supports it. */
-function addTorchBtn(stream,videoEl){
-  try{
-    const track=stream.getVideoTracks()[0];if(!track)return;
-    const caps=track.getCapabilities?track.getCapabilities():{};
-    if(!caps.torch)return;
-    const wrap=videoEl&&videoEl.closest('.scanwrap');if(!wrap||wrap.querySelector('.torchbtn'))return;
-    const b=document.createElement('button');
-    b.className='torchbtn';b.setAttribute('data-noi18n','');b.setAttribute('aria-label','Torch');
-    b.style.cssText='position:absolute;top:10px;right:10px;z-index:5;width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.45);color:#fff;font-size:22px;display:grid;place-items:center;cursor:pointer;backdrop-filter:blur(3px)';
-    b.textContent='🔦';
-    let on=false;
-    b.onclick=async e=>{e.preventDefault();e.stopPropagation();
-      on=!on;
-      try{await track.applyConstraints({advanced:[{torch:on}]})}
-      catch(err){on=false;toast(langHi()?'टॉर्च चालू नहीं हो पाई':'Torch not available','err');b.remove();return}
-      b.style.background=on?'var(--saddle,#a8703d)':'rgba(0,0,0,.45)';
-      b.style.borderColor=on?'var(--saddle,#a8703d)':'rgba(255,255,255,.35)';
-    };
-    wrap.appendChild(b);
-  }catch(e){}
-}
-
 let scannerStop=null; // active camera teardown
 const view={sel:new Set(),q:'',tag:'',low:false,warehouse:null};
 function go(h){location.hash=h}
 window.addEventListener('hashchange',route);
 
-let _ldT=null;
-function loadStart(){const b=document.getElementById('ldbar');if(!b)return;
-  clearTimeout(_ldT);b.classList.add('on');b.style.width='12%';
-  setTimeout(()=>{b.style.width='68%'},60)}
-function loadEnd(){const b=document.getElementById('ldbar');if(!b)return;
-  b.style.width='100%';
-  _ldT=setTimeout(()=>{b.classList.remove('on');setTimeout(()=>{b.style.width='0'},260)},180)}
-function bgBusy(on){let c=document.querySelector('.bgchip');
-  if(!c){c=document.createElement('div');c.className='bgchip';c.setAttribute('data-noi18n','');
-    c.innerHTML='<i></i><span>'+(langHi()?'बाकी डेटा आ रहा है…':'Loading the rest…')+'</span>';document.body.appendChild(c)}
-  c.classList.toggle('on',!!on)}
 function route(){
-  loadStart();setTimeout(loadEnd,300);
   if(!bootDone)return;
   if(scannerStop){try{scannerStop()}catch(e){};scannerStop=null}
   view.sel.clear();renderBulk();
@@ -1319,7 +1144,7 @@ function route(){
   const h=(location.hash||'#home').slice(1);
   const [p,a,b]=h.split('/');
   const main=$('#main');main.scrollTop=0;window.scrollTo(0,0);
-  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),ai:vAI,flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals,awb:()=>vAwb(a||null,b||null),uniexport:()=>{vMore();setTimeout(exportUnicommerce,30)},backups:vBackups,dash:()=>vDash(30),help:vHelp,exportall:()=>{vMore();setTimeout(exportAllItems,30)}};
+  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals,awb:()=>vAwb(a||null,b||null),uniexport:()=>{vMore();setTimeout(exportUnicommerce,30)},backups:vBackups,dash:()=>vDash(30),help:vHelp,exportall:()=>{vMore();setTimeout(exportAllItems,30)}};
   setActiveNav(p==='item'||p==='edit'||p==='folders'?'stock':(p==='list'||p==='po'?'flows':(p==='trash'||p==='import'?'more':((p==='return'||p==='awb')?'dispatch':p))));
   try{(map[p]||vHome)();}
   catch(e){
@@ -1333,56 +1158,6 @@ function route(){
 /* ============================================================
    HOME / DASHBOARD
    ============================================================ */
-
-/* ---------------- tiny inline SVG charts (no library, works offline) ---------------- */
-const CH_COL=['#C9884B','#8FA98F','#B4645A','#7C93B0','#C2A25A','#9A7BA8','#6FA3A0','#A88C6E'];
-function chartBars(rows,opts){
-  opts=opts||{};
-  const w=opts.w||320,h=opts.h||96,n=rows.length||1;
-  const max=Math.max(1,...rows.map(r=>r.v));
-  const bw=w/n, pad=Math.min(4,bw*0.22);
-  let s='<svg viewBox="0 0 '+w+' '+h+'" style="width:100%;height:96px;display:block" preserveAspectRatio="none">';
-  rows.forEach((r,i)=>{
-    const bh=Math.max(r.v>0?2:0,Math.round(r.v/max*h));
-    s+='<rect x="'+(i*bw+pad).toFixed(1)+'" y="'+(h-bh)+'" width="'+(bw-pad*2).toFixed(1)+'" height="'+bh+'" rx="2" fill="'+(opts.color||'#C9884B')+'" opacity="'+(r.hi?1:.8)+'"><title>'+esc(r.k)+': '+fmtQty(r.v)+'</title></rect>';
-  });
-  s+='</svg>';
-  const lbl='<div class="row" style="justify-content:space-between;font-size:10.5px;opacity:.6;margin-top:3px"><span>'+esc(rows[0]?rows[0].k:'')+'</span><span>'+esc(rows[n-1]?rows[n-1].k:'')+'</span></div>';
-  return '<div>'+s+lbl+'</div>';
-}
-function chartDonut(slices){
-  const tot=slices.reduce((a,x)=>a+x.v,0);
-  if(!(tot>0))return '<div class="sub">'+(langHi()?'दिखाने को कुछ नहीं':'Nothing to show')+'</div>';
-  const R=54,C=2*Math.PI*R;let off=0;
-  let s='<svg viewBox="0 0 140 140" style="width:130px;height:130px;flex:0 0 auto"><g transform="translate(70,70) rotate(-90)">';
-  slices.forEach((x,i)=>{
-    const len=C*(x.v/tot);
-    s+='<circle r="'+R+'" fill="none" stroke="'+CH_COL[i%CH_COL.length]+'" stroke-width="22" stroke-dasharray="'+len.toFixed(2)+' '+(C-len).toFixed(2)+'" stroke-dashoffset="'+(-off).toFixed(2)+'"><title>'+esc(x.k)+'</title></circle>';
-    off+=len;
-  });
-  s+='</g></svg>';
-  const leg='<div class="grow" style="min-width:130px">'+slices.map((x,i)=>'<div class="row" style="gap:7px;align-items:center;padding:2.5px 0;font-size:12.5px"><span style="width:10px;height:10px;border-radius:3px;background:'+CH_COL[i%CH_COL.length]+';flex:0 0 auto"></span><span class="grow ellip">'+esc(x.k)+'</span><b class="num">'+Math.round(x.v/tot*100)+'%</b></div>').join('')+'</div>';
-  return '<div class="row" style="gap:14px;align-items:center;flex-wrap:wrap">'+s+leg+'</div>';
-}
-function homeMetrics(days){
-  const since=Date.now()-days*86400000;
-  const OUT=['out','dispatch','pick'];
-  const t=(S.txns||[]).filter(x=>x.ts>=since);
-  const soldU=t.filter(x=>OUT.indexOf(x.act)>=0).reduce((a,x)=>a+(+x.qty||0),0);
-  const inU=t.filter(x=>x.act==='in'||x.act==='received').reduce((a,x)=>a+(+x.qty||0),0);
-  const disp=t.filter(x=>x.act==='dispatch').length;
-  const soldV=t.filter(x=>OUT.indexOf(x.act)>=0).reduce((a,x)=>{const i=iById(x.itemId);return a+((+x.qty||0)*(i?+i.price||0:0))},0);
-  const day=[],map={};
-  for(let d=days-1;d>=0;d--){const dt=new Date(Date.now()-d*86400000);const k=dt.toISOString().slice(0,10);map[k]=0;day.push({key:k,lbl:dt.getDate()+'/'+(dt.getMonth()+1)})}
-  t.forEach(x=>{if(OUT.indexOf(x.act)<0)return;const k=new Date(x.ts).toISOString().slice(0,10);if(map[k]!==undefined)map[k]+=(+x.qty||0)});
-  const series=day.map((d,ix)=>({k:d.lbl,v:map[d.key]||0,hi:ix===day.length-1}));
-  const per={};t.forEach(x=>{if(OUT.indexOf(x.act)>=0&&x.itemId)per[x.itemId]=(per[x.itemId]||0)+(+x.qty||0)});
-  const best=Object.entries(per).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id,q])=>({i:iById(id),q})).filter(x=>x.i);
-  const reord=S.items.filter(i=>(+i.min>0)&&((+i.qty||0)<=(+i.min))).map(i=>({i,short:Math.max(1,round4((+i.min)-(+i.qty||0))),onPO:itemOnOpenPO(i.id)}));
-  const orderVal=reord.reduce((a,x)=>a+x.short*(+x.i.cost||0),0);
-  return {soldU,inU,disp,soldV,series,best,reord,orderVal};
-}
-
 function vHome(){
   topbar('<div class="brand"><span class="bx">'+LOGO+'</span><span style="font-size:15px">INVENTO<small>'+esc(S.meta.company||'by Trishal')+'</small></span></div>'+acctButtonHTML());
   const st=deepStats(null);const low=lowItems();
@@ -1396,34 +1171,6 @@ function vHome(){
     '<a href="#folders" class="stat" style="text-decoration:none;color:inherit"><div class="eyebrow">Folders</div><div class="v num">'+S.folders.length+'</div></a>'+
     '<div class="stat"><div class="eyebrow">Stock value</div><div class="v num">'+fmtMoney(st.value,0)+'</div></div>'+
     '<a href="#reports/low" class="stat'+(low.length?' alert':'')+'" style="text-decoration:none;color:inherit"><div class="eyebrow">Low stock</div><div class="v num">'+low.length+'</div></a></div>';
-  if(!fresh){
-    let days=30;try{days=+localStorage.getItem('invento_homedays')||30}catch(e){}
-    const m=homeMetrics(days);
-    h+='<div class="section-h"><h2>'+(langHi()?'कारोबार':'Overview')+'</h2>'+(isAdminU()?'<a href="#dash">'+(langHi()?'पूरा डैशबोर्ड':'Full dashboard')+'</a>':'')+'</div>';
-    h+='<div class="seg mb" id="hm-p">'+[7,30,90].map(d=>'<button data-hd="'+d+'" class="'+(d===days?'on':'')+'">'+d+(langHi()?' दिन':' days')+'</button>').join('')+'</div>';
-    h+='<div class="row wrap mb" style="gap:9px">'+
-      '<div class="card pad" style="flex:1 1 44%"><div class="eyebrow">'+(langHi()?'बिका / गया':'Sold / out')+'</div><div class="num" style="font-weight:800;font-size:21px">'+fmtQty(m.soldU)+'</div><div class="small muted">'+fmtMoney(m.soldV,0)+' · '+m.disp+(langHi()?' डिस्पैच':' dispatches')+'</div></div>'+
-      '<div class="card pad" style="flex:1 1 44%"><div class="eyebrow">'+(langHi()?'आया':'Stocked in')+'</div><div class="num" style="font-weight:800;font-size:21px">'+fmtQty(m.inU)+'</div><div class="small muted">'+(langHi()?'पिछले ':'last ')+days+(langHi()?' दिन':' days')+'</div></div>'+
-      '<a href="#reports/low" class="card pad" style="flex:1 1 44%;text-decoration:none;color:inherit'+(m.reord.length?';border-color:var(--amber)':'')+'"><div class="eyebrow"'+(m.reord.length?' style="color:var(--amber)"':'')+'>'+(langHi()?'ऑर्डर करना है':'Need to order')+'</div><div class="num" style="font-weight:800;font-size:21px">'+m.reord.length+'</div><div class="small muted">'+(langHi()?'लगभग ':'approx ')+fmtMoney(m.orderVal,0)+'</div></a>'+
-      '<div class="card pad" style="flex:1 1 44%"><div class="eyebrow">'+(langHi()?'स्टॉक की कीमत':'Stock value')+'</div><div class="num" style="font-weight:800;font-size:21px">'+fmtMoney(st.value,0)+'</div><div class="small muted">'+fmtQty(st.qty)+(langHi()?' यूनिट':' units')+'</div></div>'+
-      '</div>';
-    h+='<div class="card pad mb"><div class="eyebrow mb">'+(langHi()?'रोज़ बाहर गया':'Units going out')+' · '+days+(langHi()?' दिन':'d')+'</div>'+chartBars(m.series,{color:'#C9884B'})+'</div>';
-    const whs=S.folders.filter(f=>!f.parent);
-    let slices=whs.map(f=>{const ids=descFolderIds(f.id);return {k:f.name,v:S.items.filter(i=>ids.indexOf(i.folder)>=0).reduce((a,i)=>a+((+i.qty||0)*(+i.price||0)),0)}}).filter(x=>x.v>0).sort((a,b)=>b.v-a.v);
-    if(slices.length>7){const rest=slices.slice(6).reduce((a,x)=>a+x.v,0);slices=slices.slice(0,6).concat([{k:langHi()?'बाकी':'Others',v:rest}])}
-    if(slices.length)h+='<div class="card pad mb"><div class="eyebrow mb">'+(langHi()?'स्टॉक की कीमत — जगह के हिसाब से':'Stock value by location')+'</div>'+chartDonut(slices)+'</div>';
-    if(m.best.length){
-      const mx=m.best[0].q||1;
-      h+='<div class="card pad mb"><div class="eyebrow mb">'+(langHi()?'सबसे ज़्यादा बिके':'Top sellers')+' · '+days+(langHi()?' दिन':'d')+'</div>'+
-        m.best.map((x,n)=>'<div style="padding:5px 0"><div class="row" style="gap:8px"><span class="grow ellip" style="font-weight:600;font-size:13px">'+esc(x.i.name)+'</span><b class="num">'+fmtQty(x.q)+'</b></div><div style="height:6px;border-radius:4px;background:var(--line2);margin-top:4px;overflow:hidden"><i style="display:block;height:100%;width:'+Math.max(4,Math.round(x.q/mx*100))+'%;background:'+CH_COL[n%CH_COL.length]+'"></i></div></div>').join('')+'</div>';
-    }
-    if(m.reord.length){
-      const top=m.reord.slice().sort((a,b)=>b.short*(+b.i.cost||0)-a.short*(+a.i.cost||0)).slice(0,5);
-      h+='<div class="card pad mb" style="border-left:4px solid var(--amber)"><div class="row mb" style="align-items:center"><b class="grow" style="color:var(--amber)">'+(langHi()?'ऑर्डर करना है':'Need to order')+'</b><span class="small muted num">'+fmtMoney(m.orderVal,0)+'</span></div>'+
-        top.map(x=>'<div class="row" style="padding:5px 0;border-bottom:1px solid var(--line2);gap:8px"><span class="grow ellip" style="font-weight:600;font-size:13px">'+esc(x.i.name)+'</span>'+(x.onPO?'<span class="pill info" style="font-size:10px">'+(langHi()?'PO में':'on PO')+'</span>':'')+'<b class="num">'+fmtQty(x.short)+'</b></div>').join('')+
-        (m.reord.length>5?'<div class="hint mt">+'+(m.reord.length-5)+(langHi()?' और':' more')+'</div>':'')+'</div>';
-    }
-  }
   // email recovery: legacy accounts get a migration nudge; unverified real emails get a verify nudge
   if(MODE==='cloud'&&fbUser){
     const legacy=(fbUser.email||'').indexOf('@invento.app')>=0;
@@ -1451,12 +1198,10 @@ function vHome(){
   else h+='<div class="empty">'+ico('report')+'<div class="t">No activity yet</div><div class="s">Changes to items, folders and stock counts will show up here.</div></div>';
   $('#main').innerHTML=h;
   maybePoOverduePopup();
-  startAwbNag();
   const mig=$('#mig-email');if(mig)mig.onclick=()=>attachEmailFlow();
   const ver=$('#ver-email');if(ver)ver.onclick=async()=>{const g=emailCool('ver');if(g){toast(g,'err');return}try{await fbUser.sendEmailVerification();toast('Verification email sent — check inbox/spam','ok');ver.disabled=true}catch(e){toast(authErrMsg(e),'err')}};
 
   const ls=$('#loadSample');if(ls)ls.onclick=async()=>{ls.disabled=true;await loadSample();toast('Sample data loaded','ok');route()};
-  $$('#hm-p [data-hd]').forEach(b=>b.onclick=()=>{try{localStorage.setItem('invento_homedays',b.dataset.hd)}catch(e){}vHome()});
 }
 function txHTML(t){
   let d=ACT_LABEL[t.act]||t.act;
@@ -1470,7 +1215,7 @@ function txHTML(t){
 /* ============================================================
    STOCK BROWSER
    ============================================================ */
-function matches(i,q){q=q.toLowerCase();const locs=(typeof isMultiRack==='function'&&isMultiRack(i))?pilesOf(i).map(p=>shelfName(p.f)).join(' '):shelfName(i.folder);return [i.name,skusOf(i).join(' '),(i.tags||[]).join(' '),i.notes,locs].some(v=>v&&String(v).toLowerCase().includes(q))}
+function matches(i,q){q=q.toLowerCase();return [i.name,skusOf(i).join(' '),(i.tags||[]).join(' '),i.notes].some(v=>v&&String(v).toLowerCase().includes(q))}
 function sortItems(arr){
   const s=S.meta.sort;
   const c={updated:(a,b)=>b.updatedAt-a.updatedAt,name:(a,b)=>a.name.localeCompare(b.name),qty:(a,b)=>(+b.qty||0)-(+a.qty||0),value:(a,b)=>itemValue(b)-itemValue(a)}[s]||((a,b)=>b.updatedAt-a.updatedAt);
@@ -1547,7 +1292,7 @@ function vProducts(){
   let h='';
   if(can('dispatch'))h+=modeSlider('inv');
   h+='<div class="crumbs mb"><a href="#stock">Stock</a>'+ico('chev')+'<span>Items'+(view.warehouse?' · '+esc(whName(view.warehouse)):'')+'</span></div>';
-  h+='<div class="row mb"><div class="searchbar grow">'+ico('search')+'<input id="q" type="search" enterkeyhint="search" placeholder="Search name, SKU, code, tag…" value="'+esc(view.q)+'" autocomplete="off">'+(view.q?'<button class="icobtn ghost" id="clrq" style="width:30px;height:30px" aria-label="Clear">'+ico('x')+'</button>':'')+'</div><button class="icobtn" id="goq" aria-label="Search" style="background:var(--saddle);border-color:var(--saddle);color:#fff">'+ico('search')+'</button><button class="icobtn" id="sortBtn" aria-label="Sort">'+ico('sort')+'</button><button class="icobtn" id="viewBtn" aria-label="Toggle view">'+ico(S.meta.view==='grid'?'listv':'grid')+'</button></div>';
+  h+='<div class="row mb"><div class="searchbar grow">'+ico('search')+'<input id="q" type="search" enterkeyhint="search" placeholder="Search name, SKU, code, tag…" value="'+esc(view.q)+'" autocomplete="off">'+(view.q?'<button class="icobtn ghost" id="clrq" style="width:30px;height:30px" aria-label="Clear">'+ico('x')+'</button>':'')+'</div><button class="icobtn" id="sortBtn" aria-label="Sort">'+ico('sort')+'</button><button class="icobtn" id="viewBtn" aria-label="Toggle view">'+ico(S.meta.view==='grid'?'listv':'grid')+'</button></div>';
   const tags=allTags().slice(0,12);
   h+='<div class="chips mb"><button class="chip'+(view.low?' on':'')+'" id="chipLow">Low stock</button>';
   tags.forEach(t=>{h+='<button class="chip'+(view.tag===t?' on':'')+'" data-tag="'+esc(t)+'">'+esc(t)+'</button>'});
@@ -1558,10 +1303,9 @@ function vProducts(){
   else h+='<div class="ilist">'+pool.map(i=>rowHTML(i,{selectable:true})).join('')+'</div>';
   $('#main').innerHTML=h;
   if(can('dispatch'))wireModeSlider();
-  const q=$('#q');
-  const runQ=()=>{view.q=q.value;vProducts()};
-  q.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();runQ()}};
-  if($('#goq'))$('#goq').onclick=runQ;
+  const q=$('#q');let qt=null;
+  q.oninput=()=>{view.q=q.value;clearTimeout(qt);qt=setTimeout(()=>{const pos=q.selectionStart;vProducts();const nq=$('#q');if(nq){nq.focus();try{nq.setSelectionRange(pos,pos)}catch(e){}}},220)};
+  q.onkeydown=e=>{if(e.key==='Enter')q.blur()};
   if($('#clrq'))$('#clrq').onclick=()=>{view.q='';vProducts()};
   $('#viewBtn').onclick=()=>{S.meta.view=S.meta.view==='grid'?'list':'grid';save('meta');vProducts()};
   $('#sortBtn').onclick=()=>sortMenu(()=>vProducts());
@@ -1627,10 +1371,8 @@ function vStockFolders(fid){
   $('#main').innerHTML=h;
   // wire
   if(!fid)wireModeSlider();
-  const q=$('#q');
-  const runQ=()=>{view.q=q.value;rerenderStockBody(fid)};
-  q.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();runQ()}};
-  if($('#goq'))$('#goq').onclick=runQ;
+  const q=$('#q');q.oninput=()=>{view.q=q.value;rerenderStockBody(fid)};
+  q.onkeydown=e=>{if(e.key==='Enter')q.blur()};
   if($('#clrq'))$('#clrq').onclick=()=>{view.q='';vStockFolders(fid)};
   $('#viewBtn').onclick=()=>{S.meta.view=S.meta.view==='grid'?'list':'grid';save('meta');vStockFolders(fid)};
   $('#sortBtn').onclick=()=>sortMenu(()=>vStockFolders(fid));
@@ -1706,7 +1448,7 @@ function vItem(id){
   h+='<div class="card pad mb"><div class="eyebrow" style="margin-bottom:7px">Quantity on hand</div>'+
     '<div class="row" style="justify-content:space-between;align-items:baseline"><div class="num" id="qbig" style="font-size:34px;font-weight:800;letter-spacing:-.01em">'+fmtQty(i.qty)+'<span class="muted" style="font-size:15px;font-weight:600"> '+esc(i.unit||'')+'</span></div><span class="num muted" id="qval" style="font-size:13px">Value '+fmtMoney(itemValue(i))+'</span></div>'+
     (i.min!==''&&i.min!=null?'<div class="small muted" style="margin-top:2px">Low-stock alert at '+fmtQty(i.min)+'</div>':'')+
-    (can('adjqty')?'<div class="row mt" style="gap:8px;flex-wrap:wrap"><input id="adj-n" class="in num" inputmode="decimal" placeholder="0" style="max-width:110px;flex:0 0 auto;text-align:center;font-weight:800;font-size:19px">'+
+    (can('adjqty')?'<div class="row mt" style="gap:8px;flex-wrap:wrap"><div class="stepper" style="max-width:150px;flex:0 0 auto"><button id="adj-m" aria-label="Less">−</button><input id="adj-n" class="num" inputmode="decimal" value="1"><button id="adj-p" aria-label="More">+</button></div>'+
     '<select class="in" id="adj-r" style="flex:1;min-width:120px;padding:9px 10px">'+ADJ_REASONS.map(r=>'<option>'+r+'</option>').join('')+'</select></div>':'')+
     (can('adjqty')?'<div class="row mt" style="gap:8px"><button class="btn grow danger" id="adj-out" style="font-weight:800">− Remove</button><button class="btn grow pri" id="adj-in" style="font-weight:800">+ Add</button></div>'+
     '<div class="hint" style="margin-top:7px">Stock only moves by adding or removing — every change lands in the movement history with its reason.</div>':'<div class="hint" style="margin-top:7px">You do not have permission to change stock quantity.</div>')+'</div>';
@@ -1741,10 +1483,11 @@ function vItem(id){
   getPhotos(i.id).then(ps=>{if(!ps.length)return;const g=$('#gal');if(!g)return;g.innerHTML=(i.img?'<div class="g"><img src="'+esc(i.img)+'" alt="" referrerpolicy="no-referrer"></div>':'')+ps.map(p=>'<div class="g"><img src="'+p+'" alt=""></div>').join('')});
   // qty controls — delta only
   const an=$('#adj-n');
+  if($('#adj-m'))$('#adj-m').onclick=()=>{an.value=fmtQty(Math.max(1,round4((parseFloat(an.value)||1)-1)))};
+  if($('#adj-p'))$('#adj-p').onclick=()=>{an.value=fmtQty(round4((parseFloat(an.value)||0)+1))};
   const adj=async dir=>{
     let n=round4(parseFloat(an.value));
     if(!(n>0)){toast('Enter how many to '+(dir>0?'add':'remove'),'err');return}
-    if(dir>0&&guardPOBeforeAdd(i,()=>adj(dir)))return;
     const old=+i.qty||0;
     if(dir<0&&n>old){toast('Only '+fmtQty(old)+' in stock','err');return}
     const reason=$('#adj-r').value;
@@ -1759,7 +1502,7 @@ function vItem(id){
     updateBadges();beep(true);
     toast((dir>0?'Added ':'Removed ')+fmtQty(n)+' in '+shelfName(pf)+' — now '+fmtQty(nv),'ok');
     if(wasMulti||isMultiRack(i))route();
-    else{const qb=$('#qbig');if(qb)qb.innerHTML=fmtQty(nv)+'<span class="muted" style="font-size:15px;font-weight:600"> '+esc(i.unit||'')+'</span>';const qv=$('#qval');if(qv)qv.textContent='Value '+fmtMoney(itemValue(i));const an2=$('#adj-n');if(an2)an2.value=''}
+    else{const qb=$('#qbig');if(qb)qb.innerHTML=fmtQty(nv)+'<span class="muted" style="font-size:15px;font-weight:600"> '+esc(i.unit||'')+'</span>';const qv=$('#qval');if(qv)qv.textContent='Value '+fmtMoney(itemValue(i));const an2=$('#adj-n');if(an2)an2.value='1'}
   };
   if($('#adj-out'))$('#adj-out').onclick=()=>adj(-1);
   if($('#adj-in'))$('#adj-in').onclick=()=>adj(1);
@@ -1778,7 +1521,7 @@ function vEdit(id,folderArg){
   topTitle(isNew?'New item':'Edit item','#'+(isNew?('stock'+(i.folder?'/'+i.folder:'')):('item/'+i.id)));
   const prefillCode=sessionStorage.getItem('newcode')||'';if(isNew&&prefillCode){i.code=prefillCode;sessionStorage.removeItem('newcode')}
   let h='<div class="card pad">';
-  h+='<div class="field"><label>Item name *</label><input class="in" id="f-name" value="'+esc(i.name)+'" placeholder="e.g. Leather Duffle — Vintage Brown">'+(langHi()?'<div class="hint" data-noi18n style="margin-top:4px">नाम English (ABC) में ही लिखें — लिस्ट में अपने आप हिंदी में दिखेगा</div>':'')+'</div>';
+  h+='<div class="field"><label>Item name *</label><input class="in" id="f-name" value="'+esc(i.name)+'" placeholder="e.g. Leather Duffle — Vintage Brown"></div>';
   h+='<div class="f2"><div class="field"><label>'+(isNew?'Opening quantity':'Quantity')+'</label><input class="in num" id="f-qty" inputmode="decimal" inputmode="decimal" value="'+fmtQty(i.qty)+'" '+(isNew?'':'readonly style="background:var(--bg);color:var(--muted)"')+'>'+(isNew?'':'<div class="hint">Adjust stock from the item page (Add / Remove) so every movement is tracked.</div>')+'</div>'+
      '<div class="field"><label>Unit</label><select class="in" id="f-unit">'+UNITS.map(u=>'<option'+(i.unit===u?' selected':'')+'>'+u+'</option>').join('')+'</select></div></div>';
   h+=locPickerHTML('f',i.folder);
@@ -1810,7 +1553,6 @@ function vEdit(id,folderArg){
     if(!can('additem')){toast('You do not have permission to save items','err');return}
     const d=readForm();
     if(!d.name){toast('Name is required','err');$('#f-name').focus();return}
-    if(/[\u0900-\u097F]/.test(d.name)){toast(langHi()?'नाम English में ही लिखें':'Type the item name in English','err');$('#f-name').focus();return}
     // resolve R/C or new-location picker selections into a folder id
     const locRes=await resolveLocPicker('f');
     if(!locRes)return;
@@ -1991,36 +1733,24 @@ function addToDlg(i){
   h+='<button class="btn block" style="justify-content:flex-start" data-po="new">'+ico('plus')+'New purchase order</button>';
   openModal(h);
   $$('#modal [data-pl]').forEach(b=>b.onclick=async()=>{closeModal();const id=b.dataset.pl==='new'?await createList():b.dataset.pl;const l=S.lists.find(x=>x.id===id);addLineToList(l,i,1);save('lists');toast('Added to '+l.name,'ok');go('#list/'+id)});
-  $$('#modal [data-po]').forEach(b=>b.onclick=async()=>{closeModal();
-    const dup=openPOFor(i.id);
-    if(dup&&b.dataset.po!==dup.id){toast((langHi()?'पहले से ':'Already on ')+dup.number+(langHi()?' पर है':''),'err');go('#po/'+dup.id);return}
-    const id=b.dataset.po==='new'?await createPO():b.dataset.po;const p=S.pos.find(x=>x.id===id);if(!addLineToPO(p,i,1))return;save('pos');toast('Added to '+p.number,'ok');go('#po/'+id)});
+  $$('#modal [data-po]').forEach(b=>b.onclick=async()=>{closeModal();const id=b.dataset.po==='new'?await createPO():b.dataset.po;const p=S.pos.find(x=>x.id===id);addLineToPO(p,i,1);save('pos');toast('Added to '+p.number,'ok');go('#po/'+id)});
 }
 
 /* ============================================================
    FOLDERS
    ============================================================ */
-const LOC_KINDS=[['rack','Rack','रैक'],['shelf','Shelf','शेल्फ़'],['column','Column','कॉलम'],['box','Box','बॉक्स'],['room','Room','कमरा'],['area','Area / custom','जगह (अपनी)']];
-function locKindLabel(k){const r=LOC_KINDS.find(x=>x[0]===k);return r?(langHi()?r[2]:r[1]):''}
-function folderLabel(f){if(!f)return '';return (f.box?'📦 ':'')+f.name+(f.box?' · '+f.box:'')}
 function folderDlg(parentId,editId){
   const f=editId?fById(editId):null;
-  const T=(hi,en)=>langHi()?hi:en;
-  openModal('<h3>'+(f?T('जगह बदलें','Edit location'):T('नई जगह','New location'))+'</h3>'+
-    '<div class="field"><label>'+T('किस तरह की जगह','Type of place')+'</label><select class="in" id="fd-k">'+
-      LOC_KINDS.map(k=>'<option value="'+k[0]+'"'+((f&&f.kind===k[0])||(!f&&k[0]==='rack')?' selected':'')+'>'+(langHi()?k[2]:k[1])+'</option>').join('')+
-    '</select></div>'+
-    '<div class="field"><label>'+T('नाम','Name')+'</label><input class="in" id="fd-n" value="'+esc(f?f.name:'')+'" placeholder="'+T('जैसे: R11, ऊपर वाला कमरा, शेल्फ़ A','e.g. R11, Upper room, Shelf A')+'"></div>'+
-    '<div class="field"><label>'+T('बॉक्स नं. (ज़रूरी नहीं)','Box no. (optional)')+'</label><input class="in" id="fd-b" value="'+esc(f&&f.box?f.box:'')+'" placeholder="'+T('जैसे: BOX-14','e.g. BOX-14')+'"></div>'+
-    (!f?'<div class="field"><label>'+T('किसके अंदर','Inside')+'</label><select class="in" id="fd-p">'+folderSelect(parentId||null)+'</select></div>':'')+
-    '<button class="btn pri block" id="fd-go">'+(f?T('सेव करें','Save'):T('बनाएँ','Create'))+'</button>');
+  openModal('<h3>'+(f?'Rename folder':'New folder')+'</h3>'+
+    '<div class="field"><label>Folder name</label><input class="in" id="fd-n" value="'+esc(f?f.name:'')+'" placeholder="e.g. Shelf A, Export stock, Jodhpur unit"></div>'+
+    (!f?'<div class="field"><label>Inside</label><select class="in" id="fd-p">'+folderSelect(parentId||null)+'</select></div>':'')+
+    '<button class="btn pri block" id="fd-go">'+(f?'Save':'Create folder')+'</button>');
   const inp=$('#fd-n');inp.focus();
   $('#fd-go').onclick=()=>{
     const n=inp.value.trim();if(!n){toast('Name required','err');return}
-    const kind=$('#fd-k').value, box=$('#fd-b').value.trim();
-    if(f){logTx('folder',{detail:'Renamed “'+f.name+'” → “'+n+'”'});f.name=n;f.kind=kind;f.box=box}
-    else{const nf={id:uid('f'),name:n,kind:kind,box:box,parent:$('#fd-p').value||null,createdAt:Date.now()};S.folders.push(nf);logTx('folder',{detail:'Created '+kind+' “'+n+'”'+(box?' ('+box+')':'')})}
-    save('folders');closeModal();toast(f?'Saved':'Created','ok');route();
+    if(f){logTx('folder',{detail:'Renamed “'+f.name+'” → “'+n+'”'});f.name=n}
+    else{const nf={id:uid('f'),name:n,parent:$('#fd-p').value||null,createdAt:Date.now()};S.folders.push(nf);logTx('folder',{detail:'Created folder “'+n+'”'})}
+    save('folders');closeModal();toast(f?'Renamed':'Folder created','ok');route();
   };
   inp.onkeydown=e=>{if(e.key==='Enter')$('#fd-go').click()};
 }
@@ -2058,79 +1788,13 @@ function vScan(mode,arg){
     // Barcode machine ON — no camera, just the always-focused scanner input
     h+='<div class="card pad mb" style="text-align:center;border:2px solid var(--saddle)"><div style="width:54px;height:54px;border-radius:50%;background:var(--saddle-bg);color:var(--saddle);display:grid;place-items:center;margin:0 auto 10px">'+ico('scan')+'</div><h2 style="margin:0 0 4px">Scan using the barcode scanner</h2><div class="sub">Point the machine and scan — items pop up instantly. No camera needed.</div></div>';
     h+='<div class="card pad"><div class="row"><input class="in mono grow" id="man" placeholder="Waiting for scan…" autocomplete="off" autocapitalize="off" autocorrect="off"><button class="btn pri" id="mango">Go</button></div><div class="hint">Tip: turn the barcode machine off in the menu to use the phone camera instead.</div></div>';
-  h+='<div class="card pad mt"><div class="eyebrow" style="margin-bottom:6px">Quick command</div>'+
-    '<div class="row"><input class="in grow" id="qc" placeholder="SKU / name + qty + rack — e.g. MTWL0099 5 R11C4" autocomplete="off" autocapitalize="off" autocorrect="off"><button class="btn pri" id="qc-go">Go</button></div>'+
-    '<div class="hint">One line: item, quantity, rack. Add the word remove to take stock out.</div><div id="qc-out" class="mt"></div></div>';
-
   } else {
     h+='<div class="scanwrap mb"><video id="cam" playsinline muted autoplay></video><div class="scanbox"><div class="frame"><div class="laser"></div></div></div><div class="scanmsg" id="scanmsg">Point at a barcode or QR code</div></div>';
     h+='<div class="card pad"><div class="eyebrow" style="margin-bottom:6px">Or enter code manually</div><div class="row"><input class="in mono grow" id="man" placeholder="SKU or barcode value" autocomplete="off"><button class="btn pri" id="mango">Go</button></div><div class="hint" id="camnote"></div></div>';
-  h+='<div class="card pad mt"><div class="eyebrow" style="margin-bottom:6px">Quick command</div>'+
-    '<div class="row"><input class="in grow" id="qc" placeholder="SKU / name + qty + rack — e.g. MTWL0099 5 R11C4" autocomplete="off" autocapitalize="off" autocorrect="off"><button class="btn pri" id="qc-go">Go</button></div>'+
-    '<div class="hint">One line: item, quantity, rack. Add the word remove to take stock out.</div><div id="qc-out" class="mt"></div></div>';
-
   }
   $('#main').innerHTML=h;
   const man=$('#man');
   $('#mango').onclick=()=>{const v=man.value.trim();if(v)handleCode(v)};
-
-  /* ---- Quick command: "<sku|name> <qty> <rack>" one-line stocking ---- */
-  function qcRender(msg){$('#qc-out').innerHTML=msg||''}
-  function qcParse(raw){
-    const toks=raw.trim().split(/\s+/).filter(Boolean);if(!toks.length)return null;
-    let dir=1,qty=null,rackF,rest=[];
-    const findF=t=>S.folders.find(f=>String(f.name||'').toLowerCase()===t.toLowerCase());
-    const OUTW=['remove','out','minus','nikalo','nikaal','निकालो','घटाओ','घटाएँ','माइनस'];
-    const INW=['add','in','stock','put','jodo','जोड़ो','जोड़ें','रखो'];
-    toks.forEach(t=>{
-      const lw=t.toLowerCase();
-      if(rackF===undefined){const f=findF(t);if(f){rackF=f.id;return}}
-      if(qty===null&&/^[+\-]?\d+(\.\d+)?$/.test(t)){if(t[0]==='-')dir=-1;qty=Math.abs(parseFloat(t));return}
-      if(OUTW.indexOf(lw)>=0){dir=-1;return}
-      if(INW.indexOf(lw)>=0){dir=1;return}
-      rest.push(t);
-    });
-    return {dir:dir,qty:qty,rackF:rackF,q:rest.join(' ')};
-  }
-  function qcConfirm(it,dir,n,rackF){
-    const pf=rackF!==undefined?rackF:(it.folder||null);
-    const pp=pilesOf(it).find(p=>String(p.f||'')===String(pf||''));
-    const here=pp?pp.q:0;
-    qcRender('<div class="card pad" style="border:2px solid var(--saddle)">'+
-      '<div style="font-weight:800">'+esc(it.name)+'</div>'+
-      '<div class="sub"><span class="num">'+(dir>0?'+':'−')+fmtQty(n)+'</span> → '+esc(shelfName(pf))+' · '+(langHi()?'यहाँ अभी ':'here now ')+'<span class="num">'+fmtQty(here)+'</span></div>'+
-      '<div class="row mt"><button class="btn grow" id="qc-no">Cancel</button><button class="btn pri grow" id="qc-yes">'+(dir>0?'Add':'Remove')+'</button></div></div>');
-    $('#qc-no').onclick=()=>qcRender('');
-    $('#qc-yes').onclick=()=>{
-      if(dir>0&&guardPOBeforeAdd(it,()=>{const b=$('#qc-yes');if(b)b.click()}))return;
-      const old=+it.qty||0;
-      if(dir<0){const cap=here;if(n>cap+1e-9){beep(false);toast('Only '+fmtQty(cap)+' in '+shelfName(pf),'err');return}}
-      if(dir>0)pileAdd(it,pf,n);else pileDrain(it,n,pf);
-      const nv=+it.qty||0;save('items');
-      logTx(dir>0?'in':'out',{itemId:it.id,itemName:it.name,fromQ:old,toQ:nv,qty:n,reason:'Quick command',detail:'Command · '+shelfName(pf)});
-      updateBadges();beep(true);qcRender('');$('#qc').value='';
-      toast((dir>0?'Added ':'Removed ')+fmtQty(n)+' in '+shelfName(pf)+' — now '+fmtQty(nv),'ok');
-    };
-  }
-  function qcGo(){
-    if(!can('adjqty')){toast(langHi()?'आपको स्टॉक बदलने की परमिशन नहीं है':'No permission','err');return}
-    const p=qcParse($('#qc').value||'');
-    if(!p||!p.q){qcRender('');toast(langHi()?'आइटम का नाम या SKU भी लिखें':'Include an item name or SKU','err');return}
-    if(!(p.qty>0)){toast(langHi()?'मात्रा भी लिखें — जैसे: MTWL0099 5 R11C4':'Include a quantity — e.g. MTWL0099 5 R11C4','err');return}
-    let it=findByCode(p.q);
-    if(!it){
-      const cands=S.items.filter(i=>matches(i,p.q)).slice(0,6);
-      if(!cands.length){beep(false);toast(langHi()?'यह आइटम नहीं मिला':'No item matches','err');return}
-      if(cands.length===1)it=cands[0];
-      else{
-        qcRender('<div class="hint mb">'+(langHi()?'कौन सा आइटम?':'Which item?')+'</div>'+cands.map((c,ix)=>'<button class="btn block mb" data-qc="'+ix+'" style="text-align:left">'+esc(c.name)+' <span class="num sub">· '+fmtQty(c.qty)+'</span></button>').join(''));
-        $$('#qc-out [data-qc]').forEach(b=>b.onclick=()=>qcConfirm(cands[+b.dataset.qc],p.dir,p.qty,p.rackF));
-        return;
-      }
-    }
-    qcConfirm(it,p.dir,p.qty,p.rackF);
-  }
-  if($('#qc')){$('#qc-go').onclick=qcGo;$('#qc').addEventListener('keydown',e=>{if(e.key==='Enter')qcGo()})}
   man.onkeydown=e=>{if(e.key==='Enter')$('#mango').click()};
   if(hw){
     setTimeout(()=>{try{man.focus()}catch(e){}},80);
@@ -2148,7 +1812,7 @@ function vScan(mode,arg){
     if(mode==='pick'&&list){scanPick(list,code);return}
     const it=findByCode(code);
     if(it){beep(true);quickScanModal(it)}
-    else{beep(false);openModal('<h3>Code not found</h3><p class="sub mb">No item matches <span class="mono">'+esc(code)+'</span>.</p><button class="btn pri block mb" id="ns-add">'+ico('plus')+'Add new item with this code</button><button class="btn block" id="ns-x">Keep scanning</button>');
+    else{beep(false);say('Not found. This item is not in stock list.',{rate:1});openModal('<h3>Code not found</h3><p class="sub mb">No item matches <span class="mono">'+esc(code)+'</span>.</p><button class="btn pri block mb" id="ns-add">'+ico('plus')+'Add new item with this code</button><button class="btn block" id="ns-x">Keep scanning</button>');
       $('#ns-add').onclick=()=>{closeModal();sessionStorage.setItem('newcode',code);go('#edit/new')};
       $('#ns-x').onclick=closeModal;}
   }
@@ -2156,20 +1820,21 @@ function vScan(mode,arg){
     openModal('<div class="mhead"><span class="th" style="width:46px;height:46px;border-radius:9px;overflow:hidden;display:grid;place-items:center;background:var(--saddle-bg)">'+((it.img||it.thumb)?'<img src="'+esc(it.img||it.thumb)+'" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover">':ico('box'))+'</span><h3 class="ellip">'+esc(it.name)+'</h3></div>'+
       '<div class="sub mb num">In stock: <b id="qs-cur">'+fmtQty(it.qty)+'</b> '+esc(it.unit||'')+' · '+esc(pileSummary(it))+'</div>'+
 
-      '<div class="row mb" style="gap:8px"><input id="qs-q" class="in num" inputmode="decimal" placeholder="0" style="max-width:110px;flex:0 0 auto;text-align:center;font-weight:800;font-size:19px">'+
+      '<div class="row mb" style="gap:8px"><div class="stepper" style="max-width:150px;flex:0 0 auto"><button id="qs-m" aria-label="Less">−</button><input id="qs-q" class="num" inputmode="decimal" value="1"><button id="qs-p" aria-label="More">+</button></div>'+
       '<select class="in" id="qs-r" style="flex:1;min-width:110px;padding:9px 10px">'+ADJ_REASONS.map(r=>'<option>'+r+'</option>').join('')+'</select></div>'+
 
       '<div class="row mb" style="gap:8px"><button class="btn grow danger" id="qs-out" style="font-weight:800">− Remove</button><button class="btn pri grow" id="qs-in" style="font-weight:800">+ Add</button></div>'+
       (can('dispatch')?'<div class="row mb" style="gap:8px"><button class="btn grow" id="qs-dispatch">'+ico('send')+'Dispatch</button><button class="btn grow" id="qs-return">'+ico('undo')+'Return</button></div>':'')+
       '<button class="btn block" id="qs-open">Open item</button>');
     const q=$('#qs-q');
+    $('#qs-m').onclick=()=>{q.value=fmtQty(Math.max(1,round4((parseFloat(q.value)||1)-1)))};
+    $('#qs-p').onclick=()=>{q.value=fmtQty(round4((parseFloat(q.value)||0)+1))};
     $('#qs-open').onclick=()=>{closeModal();go('#item/'+it.id)};
     const dsb=$('#qs-dispatch');if(dsb)dsb.onclick=()=>{closeModal();ensureMarketThen(()=>startDispatch(it))};
     const rtb=$('#qs-return');if(rtb)rtb.onclick=()=>{closeModal();ensureMarketThen(()=>startReturn(it))};
     const apply=async dir=>{
       let n=round4(parseFloat(q.value));
       if(!(n>0)){toast('Enter how many','err');return}
-      if(dir>0&&guardPOBeforeAdd(it,()=>apply(dir)))return;
       const old=+it.qty||0;
       if(dir<0&&n>old){beep(false);toast('Only '+fmtQty(old)+' in stock','err');return}
       const reason=$('#qs-r').value;
@@ -2181,6 +1846,7 @@ function vScan(mode,arg){
       const nv=+it.qty||0;save('items');
       logTx(dir>0?'in':'out',{itemId:it.id,itemName:it.name,fromQ:old,toQ:nv,qty:n,reason:reason,detail:'Scan · '+reason+' · '+shelfName(pf)});
       updateBadges();beep(true);closeModal();
+      say(dir>0?('Yes. Added '+fmtQty(n)):('Yes. Removed '+fmtQty(n)));
       toast((dir>0?'Added ':'Removed ')+fmtQty(n)+' in '+shelfName(pf)+' — '+it.name+' now '+fmtQty(nv),'ok');
     };
     $('#qs-out').onclick=()=>apply(-1);
@@ -2207,7 +1873,6 @@ function vScan(mode,arg){
       if(closed){stream.getTracks().forEach(t=>t.stop());return}
       video.srcObject=stream;
       scannerStop=()=>{closed=true;try{stream.getTracks().forEach(t=>t.stop())}catch(e){}};
-      addTorchBtn(stream,video);
       if(!Detector){note.textContent='Live decoding is not supported in this browser — camera is on for reference, but type the code manually or use Chrome on Android for auto-detect.';return}
       let formats=['qr_code','ean_13','ean_8','code_128','code_39','upc_a','upc_e','itf','codabar','data_matrix'];
       try{const sup=await Detector.getSupportedFormats();formats=formats.filter(f=>sup.includes(f))}catch(e){}
@@ -2237,13 +1902,10 @@ function vLabels(){
   const sel=new Set(pre.filter(id=>iById(id)));
   let h='<h1 class="page">Barcode &amp; QR labels</h1>';
   h+='<div class="card pad mb">'+
-    '<div class="f3"><div class="field"><label>Content</label><select class="in" id="lb-mode"><option value="both" selected>Code + text</option><option value="code">Only barcode / QR</option><option value="text">Only text</option></select></div>'+
-    '<div class="field"><label>Code type</label><select class="in" id="lb-type"><option value="qr">QR code</option><option value="bar">Barcode (Code 128)</option></select></div>'+
-    '<div class="field"><label>Size</label><select class="in" id="lb-size"><option value="s">Small · 48×24 mm</option><option value="m" selected>Medium · 62×30 mm</option><option value="l">Large · 96×46 mm</option><option value="x">XL · 100×60 mm</option></select></div>'+
-    '<div class="field"><label>Copies each</label><input class="in num" id="lb-n" inputmode="numeric" value="1"></div>'+
-    '<div class="field"><label>Printed by (3 letters) *</label><input class="in mono" id="lb-by" maxlength="3" autocapitalize="characters" spellcheck="false" placeholder="e.g. TRI" required value="'+esc(lblByDefault())+'" style="text-transform:uppercase;letter-spacing:.15em"></div></div>'+
+    '<div class="f3"><div class="field"><label>Code type</label><select class="in" id="lb-type"><option value="qr">QR code</option><option value="bar">Barcode (Code 128)</option></select></div>'+
+    '<div class="field"><label>Size</label><select class="in" id="lb-size"><option value="s">Small · 48×24 mm</option><option value="m" selected>Medium · 62×30 mm</option><option value="l">Large · 96×46 mm</option></select></div>'+
+    '<div class="field"><label>Copies each</label><input class="in num" id="lb-n" inputmode="numeric" value="1"></div></div>'+
     '<div class="row wrap" style="gap:14px">'+
-      '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-border"> Border</label>'+
       '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-name" checked> Name</label>'+
       '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-sku" checked> SKU under code</label>'+
       '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-price"> Price</label>'+
@@ -2265,20 +1927,15 @@ function vLabels(){
   }
   function syncBtns(){const on=sel.size>0;$('#lb-prev').disabled=!on;$('#lb-print').disabled=!on;$('#lb-prev').innerHTML=ico('label')+'Preview'+(on?' ('+sel.size+')':'')}
   $('#lb-q').oninput=paintList;
-  $('#lb-by').oninput=e=>{const v=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,3);if(v!==e.target.value)e.target.value=v};
   $('#lb-all').onclick=()=>{const q=($('#lb-q').value||'').trim().toLowerCase();S.items.filter(i=>skusOf(i).length&&(!q||matches(i,q))).forEach(i=>sel.add(i.id));paintList()};
   paintList();
 
-  const QRDIM={s:46,m:58,l:90,x:120};const BARH={s:34,m:44,l:66,x:88};const QRDIM2={s:64,m:88,l:130,x:170};const BARH2={s:52,m:70,l:110,x:150};
+  const QRDIM={s:46,m:58,l:90};const BARH={s:34,m:44,l:66};
   async function buildSheet(target){
     const type=$('#lb-type').value,size=$('#lb-size').value,n=clamp(parseInt($('#lb-n').value)||1,1,100);
-    const mode=$('#lb-mode').value,withBorder=$('#lb-border').checked;
-    const by=($('#lb-by').value||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,3);
-    if(by.length!==3){const el=$('#lb-by');el.style.borderColor='var(--red)';el.focus();toast('Enter your 3-letter initials first','err');return false}
-    $('#lb-by').style.borderColor='';try{localStorage.setItem('lbl_by',by)}catch(e){}
     const showName=$('#lb-name').checked,showSku=$('#lb-sku').checked,showPrice=$('#lb-price').checked,showTags=$('#lb-tags').checked,showLoc=$('#lb-loc').checked;
     let libOK=true;
-    if(mode!=='text')try{
+    try{
       if(type==='qr')await lazyScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js');
       else await lazyScript('https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js');
     }catch(e){libOK=false}
@@ -2289,15 +1946,12 @@ function vLabels(){
       const codes=skusOf(i);const list=codes.length?codes:[''];
       list.forEach(code=>{ if(!code)return;
         for(let k=0;k<n;k++){ nLabels++;
-          const cls='lbl s-'+size+(withBorder?' bordered':'')+(mode==='code'?' codeonly':mode==='text'?' textonly':'');
-          const codeHtml=(mode==='text')?'':'<div class="code" data-code="'+esc(code)+'" data-type="'+type+'"></div>';
-          const txHtml=(mode==='code')?'':'<div class="tx">'+
+          sheet+='<div class="lbl s-'+size+'"><div class="code" data-code="'+esc(code)+'" data-type="'+type+'"></div><div class="tx">'+
             (showName?'<div class="tn">'+esc(i.name)+'</div>':'')+
-            (showSku?'<div class="ts">'+esc(code)+'</div>':'')+(by?'<div class="ts by">'+esc(by)+'</div>':'')+
+            (showSku?'<div class="ts">'+esc(code)+'</div>':'')+
             (showLoc?'<div class="ts" style="font-weight:600">'+esc(folderPath(i.folder))+'</div>':'')+
             (showTags&&(i.tags||[]).length?'<div class="ts" style="font-weight:600">'+esc((i.tags||[]).join(', '))+'</div>':'')+
-            (showPrice&&+i.price?'<div class="tp num">'+fmtMoney(+i.price)+'</div>':'')+'</div>';
-          sheet+='<div class="'+cls+'">'+codeHtml+txHtml+(mode==='code'&&by?'<div class="byc">'+esc(by)+'</div>':'')+'</div>';
+            (showPrice&&+i.price?'<div class="tp num">'+fmtMoney(+i.price)+'</div>':'')+'</div></div>';
         }
       });
     });
@@ -2306,17 +1960,15 @@ function vLabels(){
     $$('.lbl .code',target).forEach(el=>{
       const code=el.dataset.code;
       if(!libOK){el.innerHTML='<div class="mono" style="font-weight:700;font-size:1.1em;writing-mode:vertical-rl;transform:rotate(180deg)">'+esc(code)+'</div>';return}
-      const QD=(mode==='code')?QRDIM2:QRDIM, BH=(mode==='code')?BARH2:BARH;
-      if(type==='qr'){new QRCode(el,{text:code,width:QD[size],height:QD[size],correctLevel:QRCode.CorrectLevel.M})}
-      else{const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');el.appendChild(svg);try{JsBarcode(svg,code,{format:'CODE128',displayValue:mode!=='code'||showSku,fontSize:(size==='s'?9:size==='x'?14:11)+(mode==='code'?2:0),height:BH[size],width:(size==='l'||size==='x'?2:1.4)+(mode==='code'?0.6:0),margin:2,textMargin:1})}catch(e){el.innerHTML='<div class="mono small">'+esc(code)+'</div>'}}
+      if(type==='qr'){new QRCode(el,{text:code,width:QRDIM[size],height:QRDIM[size],correctLevel:QRCode.CorrectLevel.M})}
+      else{const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');el.appendChild(svg);try{JsBarcode(svg,code,{format:'CODE128',displayValue:true,fontSize:size==='s'?9:11,height:BARH[size],width:size==='l'?2:1.4,margin:2,textMargin:1})}catch(e){el.innerHTML='<div class="mono small">'+esc(code)+'</div>'}}
     });
     if(!libOK)toast('Code library offline — labels show text only','err');
-    logTx('label',{detail:nLabels+' label'+(nLabels===1?'':'s')+' for '+its.length+' item'+(its.length>1?'s':'')+(by?' · by '+by:'')});
+    logTx('label',{detail:nLabels+' label'+(nLabels===1?'':'s')+' for '+its.length+' item'+(its.length>1?'s':'')});
   }
   $('#lb-prev').onclick=()=>buildSheet($('#lb-stage'));
-  $('#lb-print').onclick=async()=>{if(await buildSheet($('#printArea'))===false)return;printNow()};
+  $('#lb-print').onclick=async()=>{await buildSheet($('#printArea'));printNow()};
 }
-function lblByDefault(){try{const v=localStorage.getItem('lbl_by');if(v)return v}catch(e){}const nm=(MODE==='cloud'?userName():S.meta.user)||'';return nm.replace(/[^A-Za-z]/g,'').slice(0,3).toUpperCase()}
 function printNow(){
   document.body.classList.add('printing');
   setTimeout(()=>{window.print();setTimeout(()=>{document.body.classList.remove('printing')},400)},120);
@@ -2326,7 +1978,7 @@ function printNow(){
    WORKFLOWS HUB — PICK LISTS + PURCHASE ORDERS
    ============================================================ */
 const PL_STATUS={draft:['Draft','gray'],progress:['In progress','info'],completed:['Completed','ok']};
-const PO_STATUS={draft:['Draft','gray'],ordered:['Ordered','info'],partial:['Partially received','warn'],received:['Received','ok'],cancelled:['Cancelled','danger']};
+const PO_STATUS={draft:['Draft','gray'],ordered:['Ordered','info'],partial:['Partially received','warn'],received:['Received','ok']};
 function plPill(s){const x=PL_STATUS[s]||PL_STATUS.draft;return '<span class="pill '+x[1]+'">'+x[0]+'</span>'}
 function poPill(s){const x=PO_STATUS[s]||PO_STATUS.draft;return '<span class="pill '+x[1]+'">'+x[0]+'</span>'}
 
@@ -2350,7 +2002,7 @@ function vFlows(tab){
     if(!S.pos.length)h+='<div class="empty">'+ico('po')+'<div class="t">No purchase orders yet</div><div class="s">Raise a PO on a vendor, then receive goods against it — received quantities add straight into stock.</div></div>';
     else{
       const ps=S.pos.slice().sort((a,b)=>{
-        const ao=!poClosed(a),bo=!poClosed(b);
+        const ao=a.status!=='received',bo=b.status!=='received';
         if(ao!==bo)return ao?-1:1;
         const ah=a.priority==='high'?1:0,bh=b.priority==='high'?1:0;
         if(ah!==bh)return bh-ah;
@@ -2360,16 +2012,12 @@ function vFlows(tab){
         const total=sum(p.items,x=>(+x.qty||0)*(+x.cost||0));
         const recd=sum(p.items,x=>+x.received||0),ordq=sum(p.items,x=>+x.qty||0);
         const late=poIsOverdue(p);
-        const cls=poClosed(p)?'done':(late?'late':(p.priority==='high'?'hi':'lo'));
+        const cls=p.status==='received'?'done':(late?'late':(p.priority==='high'?'hi':'lo'));
         h+='<button class="pocard '+cls+'" data-open="po/'+p.id+'">'+
           '<div class="po-t">'+esc(p.number)+(p.priority==='high'?'<span class="pill danger">HIGH</span>':'')+(p.auto?'<span class="pill info">AUTO</span>':'')+poPill(p.status)+'</div>'+
           '<div class="po-m">'+(p.vendor?esc(p.vendor)+' · ':'')+'<span class="num">'+p.items.length+' lines · '+fmtUSD(total,0)+'</span>'+
             (p.expected?' · <span class="po-due'+(late?' over':'')+'">'+(late?'was due '+poDaysLate(p)+'d ago':'due '+esc(p.expected))+'</span>':'')+'</div>'+
-          (()=>{const nms=p.items.map(x=>{const it=iById(x.itemId);return it?it.name:''}).filter(Boolean);
-            return nms.length?'<div class="po-m ellip" style="opacity:.75">'+esc(nms.slice(0,3).join(', '))+(nms.length>3?' +'+(nms.length-3):'')+'</div>':''})()+
-          (()=>{const pend=p.items.map(x=>x.pending).filter(Boolean).join(', ');
-            return pend?'<div class="po-m ellip" style="color:var(--amber);font-weight:600">⏳ '+esc(pend)+'</div>':''})()+
-          (p.status!=='draft'&&p.status!=='cancelled'&&ordq>0?'<div class="prog"><i style="width:'+Math.min(100,Math.round(recd/ordq*100))+'%"></i></div>':'')+
+          (p.status!=='draft'&&ordq>0?'<div class="prog"><i style="width:'+Math.min(100,Math.round(recd/ordq*100))+'%"></i></div>':'')+
           '</button>';
       });
     }
@@ -2589,55 +2237,6 @@ function vList(id){
 }
 
 /* ---------- purchase orders ---------- */
-
-/* -------- Out-of-stock → PO prompt (only at the moment it hits zero) -------- */
-let _soQ=[],_soT=null;
-function queueStockoutPrompt(itemId){
-  if(!can('additem')&&!isAdminU())return;
-  _soQ.push(itemId);clearTimeout(_soT);_soT=setTimeout(showStockoutPrompt,700);
-}
-function showStockoutPrompt(){
-  const ids=Array.from(new Set(_soQ));_soQ=[];
-  const items=ids.map(iById).filter(Boolean).filter(i=>(+i.qty||0)<=0);
-  if(!items.length)return;
-  const fresh=items.filter(i=>!openPOFor(i.id));
-  const onpo=items.filter(i=>openPOFor(i.id));
-  if(!fresh.length){
-    if(onpo.length){const p0=openPOFor(onpo[0].id);toast(onpo[0].name+(langHi()?' खत्म — पहले से ':' out of stock — already on ')+p0.number,'warn')}
-    return;
-  }
-  openModal('<h3>'+(langHi()?'स्टॉक खत्म':'Out of stock')+'</h3><p class="sub mb">'+(langHi()?'ये आइटम अभी खत्म हुए हैं। परचेज़ ऑर्डर में जोड़ें?':'These items just ran out. Add them to a purchase order?')+'</p>'+
-    fresh.map((i,ix)=>'<label class="row" style="gap:9px;margin-bottom:8px;align-items:center;cursor:pointer"><input type="checkbox" data-soc="'+ix+'" checked style="width:19px;height:19px;accent-color:var(--saddle)"><span class="grow ellip" style="font-weight:600">'+esc(i.name)+'</span></label>').join('')+
-    (onpo.length?'<div class="hint mb">'+onpo.map(i=>{const p0=openPOFor(i.id);return esc(i.name)+(langHi()?' — पहले से ':' — already on ')+p0.number}).join('<br>')+'</div>':'')+
-    '<div class="row mt" style="gap:9px"><button class="btn grow" onclick="closeModal()">'+(langHi()?'छोड़ें':'Skip')+'</button><button class="btn pri grow" id="so-add">'+(langHi()?'PO में जोड़ें':'Add to PO')+'</button></div>');
-  const sb=$('#so-add');if(sb)sb.onclick=async()=>{
-    const chosen=fresh.filter((i,ix)=>{const c=$('#modal [data-soc="'+ix+'"]');return c&&c.checked});
-    closeModal();if(!chosen.length)return;
-    let p=S.pos.find(x=>x.status==='draft');
-    if(!p){const id=await createPO();p=S.pos.find(x=>x.id===id)}
-    let n=0;chosen.forEach(i=>{const need=Math.max(round4((+i.min||0)-(+i.qty||0)),1);if(addLineToPO(p,i,need))n++});
-    if(n){p.updatedAt=Date.now();await saveNow('pos');logTx('po',{detail:n+' out-of-stock item'+(n>1?'s':'')+' added to '+p.number});toast(n+(langHi()?' आइटम '+p.number+' में जुड़े':' item'+(n>1?'s':'')+' added to '+p.number),'ok')}
-  };
-}
-/* -------- Manual stock-in guard: acknowledge the open PO first -------- */
-function guardPOBeforeAdd(it,retry){
-  const p=openPOFor(it.id);
-  if(!p)return false;
-  if(p.status==='draft'){toast((langHi()?'नोट: यह आइटम ड्राफ्ट ':'Note: also on draft ')+p.number+(langHi()?' पर भी है':''),'warn');return false}
-  openModal('<h3>'+(langHi()?'पहले PO निपटाएँ':'PO pending for this item')+'</h3><p class="sub mb">'+esc(it.name)+(langHi()?' पहले से ':' is already on ')+'<b>'+esc(p.number)+'</b> ('+(PO_STATUS[p.status]||['?'])[0]+'). '+(langHi()?'पहले उस PO को receive या cancel करें, तभी स्टॉक जोड़ें — ताकि PO का हिसाब बना रहे।':'Receive or cancel that PO first so it stays acknowledged, then add stock.')+'</p>'+
-    '<button class="btn pri block mb" id="gpo-open">'+(langHi()?'खोलें ':'Open ')+esc(p.number)+'</button>'+
-    (isAdminU()?'<button class="btn block mb" id="gpo-cancel">'+(langHi()?'इसकी PO लाइन cancel करके जोड़ें':'Cancel its PO line & add anyway')+'</button>':'')+
-    '<button class="btn block" onclick="closeModal()">'+(langHi()?'वापस':'Back')+'</button>');
-  const go1=$('#gpo-open');if(go1)go1.onclick=()=>{closeModal();go('#po/'+p.id)};
-  const gc=$('#gpo-cancel');if(gc)gc.onclick=()=>{closeModal();
-    p.items=(p.items||[]).filter(x=>x.itemId!==it.id);
-    if(!p.items.length)p.status='cancelled';
-    p.updatedAt=Date.now();save('pos');
-    logTx('po',{detail:p.number+': line for '+it.name+' cancelled before manual stock-in'});
-    if(retry)setTimeout(retry,60)};
-  return true;
-}
-
 /* -------- Auto purchase orders (min-stock reorder) --------
    Items ticked "auto-add to PO" that fall to/below their min are
    collected into one draft PO named by AUTO_PO flag. An item already
@@ -2660,9 +2259,7 @@ function maybePoOverduePopup(){
 }
 let _apoT=null;
 function scheduleAutoPO(){clearTimeout(_apoT);_apoT=setTimeout(()=>{autoPOSweep().catch(()=>{})},900)}
-function poClosed(p){return p.status==='received'||p.status==='cancelled'}
-function openPOFor(itemId){return S.pos.find(p=>!poClosed(p)&&(p.items||[]).some(x=>x.itemId===itemId))||null}
-function itemOnOpenPO(itemId){return !!openPOFor(itemId)}
+function itemOnOpenPO(itemId){return S.pos.some(p=>p.status!=='received'&&(p.items||[]).some(x=>x.itemId===itemId))}
 async function autoPOSweep(){
   if(!can('additem')&&!isAdminU())return; // needs write perms to create POs
   const due=S.items.filter(i=>i.autoPO&&(+i.min>0)&&((+i.qty||0)<=(+i.min))&&!itemOnOpenPO(i.id));
@@ -2858,19 +2455,17 @@ async function createPO(){
   return p.id;
 }
 function addLineToPO(p,i,n){
-  if(!p)return false;
-  const other=S.pos.find(o=>o.id!==p.id&&!poClosed(o)&&(o.items||[]).some(x=>x.itemId===i.id));
-  if(other){toast((langHi()?'पहले से ':'Already on ')+other.number+(langHi()?' पर है — डुप्लीकेट रोका':' — duplicate blocked'),'err');return false}
+  if(!p)return;
   const ex=p.items.find(x=>x.itemId===i.id);
   if(ex)ex.qty=round4((+ex.qty||0)+(n||1));
   else p.items.push({itemId:i.id,qty:n||1,cost:+i.cost||0,received:0});
-  p.updatedAt=Date.now();return true;
+  p.updatedAt=Date.now();
 }
 function poVendors(){const m={};S.pos.forEach(p=>{if(p.vendor)m[p.vendor.trim()]=1});return Object.keys(m).sort()}
 function vPO(id){
   const p=S.pos.find(x=>x.id===id);
   if(!p){toast('PO not found','err');go('#flows/po');return}
-  const ro=poClosed(p);
+  const ro=p.status==='received';
   const editable=p.status==='draft';
   topTitle(p.number,'#flows/po');
   const total=sum(p.items,x=>(+x.qty||0)*(+x.cost||0));
@@ -2892,9 +2487,7 @@ function vPO(id){
           (editable
             ?'<span class="row" style="gap:7px;margin-top:5px">Qty <input class="in num" data-poq="'+ix+'" inputmode="decimal" value="'+fmtQty(x.qty)+'" style="width:70px;padding:7px 8px;text-align:right"> @ <input class="in num" data-poc="'+ix+'" inputmode="decimal" value="'+esc(x.cost)+'" style="width:84px;padding:7px 8px;text-align:right"></span>'
             :fmtQty(x.qty)+' @ '+fmtUSD(+x.cost||0)+(p.status!=='draft'?' · received '+fmtQty(x.received)+((+x.damaged||0)?' · <span style=\"color:var(--red);font-weight:700\">'+fmtQty(x.damaged)+' dmg</span>':'')+((+x.received||0)>0?(x.checked?' · <span style=\"color:var(--green);font-weight:700\">✓ checked</span>':' · <span style=\"color:var(--amber);font-weight:700\">check pending</span>'):''):''))+
-        '</div>'+
-          '<input class="in" data-pop="'+ix+'" value="'+esc(x.pending||'')+'" placeholder="'+(langHi()?'पेंडिंग ऑर्डर नं. — जैसे #1043, #1051':'Pending order nos. — e.g. #1043, #1051')+'" style="margin-top:6px;font-size:12.5px;padding:7px 9px;width:100%" '+(ro?'disabled':'')+'>'+
-        '</div>'+
+        '</div></div>'+
         '<div style="text-align:right;flex:0 0 auto"><div class="num" style="font-weight:800">'+fmtUSD((+x.qty||0)*(+x.cost||0),0)+'</div>'+
         (editable?'<button class="icobtn ghost" data-porm="'+ix+'" aria-label="Remove" style="margin-top:5px;width:30px;height:30px">'+ico('x')+'</button>':'')+
         '</div></div>';
@@ -2905,7 +2498,7 @@ function vPO(id){
   if(p.status==='draft')h+='<button class="btn pri grow" id="po-order" '+(p.items.length?'':'disabled')+'>'+ico('check')+'Mark as ordered</button>';
   if(p.status==='ordered'||p.status==='partial')h+='<button class="btn pri grow" id="po-recv">'+ico('down')+'Receive items</button>';
   h+='</div>';
-  h+='<div class="row wrap" style="gap:9px"><button class="btn grow" id="po-print">'+ico('print')+'Print PO</button><button class="btn grow" id="po-csv">'+ico('csv')+'CSV</button>'+(!ro&&isAdminU()?'<button class="btn" id="po-cancel" style="color:var(--red);border-color:var(--red-bg)">'+ico('x')+(langHi()?'PO रद्द करें':'Cancel PO')+'</button>':'')+(!ro&&isAdminU()?'<button class="btn danger" id="po-del">'+ico('trash')+'</button>':'')+'</div>';
+  h+='<div class="row wrap" style="gap:9px"><button class="btn grow" id="po-print">'+ico('print')+'Print PO</button><button class="btn grow" id="po-csv">'+ico('csv')+'CSV</button>'+(!ro&&isAdminU()?'<button class="btn danger" id="po-del">'+ico('trash')+'</button>':'')+'</div>';
   $('#main').innerHTML=h;
 
   const vIn=$('#po-v');if(vIn&&editable)vIn.onchange=()=>{p.vendor=vIn.value.trim();p.updatedAt=Date.now();save('pos')};
@@ -2918,18 +2511,12 @@ function vPO(id){
       const pool=sortItems(S.items.filter(i=>matches(i,v))).slice(0,8);
       res.innerHTML=pool.length?pool.map(i=>'<div class="irow" data-add="'+i.id+'"><span class="th">'+(i.thumb?'<img src="'+i.thumb+'" alt="">':ico('box'))+'</span><div class="grow"><div class="nm ellip">'+esc(i.name)+'</div><div class="meta num">cost '+fmtMoney(+i.cost||0)+(i.sku?' · '+esc(i.sku):'')+'</div></div>'+ico('plus','muted')+'</div>').join(''):'<div class="sub" style="padding:10px 4px">No matches.</div>';
       res.style.display='block';
-      $$('#po-res [data-add]').forEach(r=>r.onclick=()=>{const it=iById(r.dataset.add);if(!it)return;if(!addLineToPO(p,it,1))return;save('pos');toast('Added '+it.name,'ok');route()});
+      $$('#po-res [data-add]').forEach(r=>r.onclick=()=>{const it=iById(r.dataset.add);if(!it)return;addLineToPO(p,it,1);save('pos');toast('Added '+it.name,'ok');route()});
     };
   }
   $$('#main [data-poq]').forEach(inp=>inp.onchange=()=>{const x=p.items[+inp.dataset.poq];const v=round4(parseFloat(inp.value));if(!(v>0)){inp.value=fmtQty(x.qty);return}x.qty=v;p.updatedAt=Date.now();save('pos');route()});
   $$('#main [data-poc]').forEach(inp=>inp.onchange=()=>{const x=p.items[+inp.dataset.poc];const v=parseFloat(inp.value);x.cost=isNaN(v)?0:round4(v);p.updatedAt=Date.now();save('pos');route()});
   $$('#main [data-porm]').forEach(b=>b.onclick=()=>{p.items.splice(+b.dataset.porm,1);p.updatedAt=Date.now();save('pos');route()});
-  $$('#main [data-pop]').forEach(inp=>inp.onchange=()=>{const x=p.items[+inp.dataset.pop];if(!x)return;x.pending=inp.value.trim();p.updatedAt=Date.now();save('pos')});
-  const pc=$('#po-cancel');if(pc)pc.onclick=()=>{
-    openModal('<h3 style="color:var(--red)">'+(langHi()?p.number+' रद्द करें?':'Cancel '+p.number+'?')+'</h3><p class="sub mb">'+(langHi()?'रद्द करने के बाद इसमें कुछ नहीं आएगा। आइटम फिर से नए PO या स्टॉक-इन के लिए खुल जाएँगे।':'Nothing can be received against a cancelled PO. Its items become free for new POs and manual stock-in.')+'</p>'+
-      '<div class="row" style="gap:9px"><button class="btn grow" onclick="closeModal()">'+(langHi()?'वापस':'Back')+'</button><button class="btn grow" id="pc-yes" style="color:var(--red);border-color:var(--red-bg)">'+(langHi()?'हाँ, रद्द करें':'Yes, cancel it')+'</button></div>');
-    $('#pc-yes').onclick=async()=>{closeModal();p.status='cancelled';p.updatedAt=Date.now();await saveNow('pos');logTx('po',{detail:p.number+' cancelled'});toast(p.number+(langHi()?' रद्द हो गया':' cancelled'),'ok');route()};
-  };
 
   const od=$('#po-order');if(od)od.onclick=()=>{p.status='ordered';p.updatedAt=Date.now();save('pos');logTx('po',{detail:p.number+' → ordered'+(p.vendor?' from '+p.vendor:'')});route()};
   const rc=$('#po-recv');if(rc)rc.onclick=()=>{
@@ -3413,89 +3000,6 @@ function vImport(){
 /* ============================================================
    MORE / SETTINGS / TRASH
    ============================================================ */
-
-/* ============================================================
-   AI ASSISTANT — inventory chatbot via Firebase AI Logic (Gemini)
-   Read-only: it can look at items/movements and answer; it never writes.
-   ============================================================ */
-let AIC=[];  /* chat history for this session */
-async function aiModelGet(){
-  if(aiModelGet.m)return aiModelGet.m;
-  const V='12.16.0';
-  const [appM,aiM]=await Promise.all([
-    import('https://www.gstatic.com/firebasejs/'+V+'/firebase-app.js'),
-    import('https://www.gstatic.com/firebasejs/'+V+'/firebase-ai.js')
-  ]);
-  const cfg=(typeof fbApp!=='undefined'&&fbApp&&fbApp.options)?fbApp.options:FB_CONFIG;
-  const app=appM.getApps().find(a=>a.name==='aiapp')||appM.initializeApp(cfg,'aiapp');
-  const ai=aiM.getAI(app,{backend:new aiM.VertexAIBackend()});
-  aiModelGet.m=aiM.getGenerativeModel(ai,{model:'gemini-2.5-flash'});
-  return aiModelGet.m;
-}
-function aiContext(){
-  let lines=S.items.map(i=>{
-    const racks=isMultiRack(i)?pilesOf(i).map(p=>shelfName(p.f)+':'+fmtQty(p.q)).join('|'):shelfName(i.folder);
-    return [i.name,(skusOf(i)[0]||''),fmtQty(i.qty),racks,(i.min||''),(i.price||'')].join(' ~ ');
-  }).join('\n');
-  if(lines.length>220000)lines=lines.slice(0,220000)+'\n…(truncated)';
-  const tx=S.txns.slice(0,150).map(t=>[new Date(t.ts).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}),t.act,(t.itemName||''),(t.qty!=null?fmtQty(t.qty):''),(t.detail||t.reason||''),(t.user||'')].join(' ~ ')).join('\n');
-  const low=lowItems().length,units=fmtQty(sum(S.items,i=>+i.qty||0));
-  return 'You are the inventory assistant inside "Invento", the warehouse app of '+(S.meta.company||'this business')+' (leather goods, Udaipur, India). Today: '+new Date().toDateString()+'.\n'+
-  'Rules: answer ONLY from the DATA below with exact numbers; if the answer is not in the data, say you do not know; be short and practical for warehouse staff; reply in the same language the user writes (use Devanagari Hindi for Hindi'+(langHi()?'; the app is currently in Hindi mode, so prefer Hindi':'')+'); match loosely-written item names to the closest item and say which one you matched; never invent items, quantities or racks; you cannot change stock — if asked to, explain how to do it in the app (Scan page, Quick command, or item page).\n\n'+
-  'DATA\nTOTALS: '+S.items.length+' items · '+units+' units · '+low+' low-stock.\n'+
-  'ITEMS (name ~ sku ~ total qty ~ location/racks ~ min ~ price):\n'+lines+'\n\n'+
-  'RECENT MOVEMENTS (newest first · time ~ action ~ item ~ qty ~ detail ~ by):\n'+tx;
-}
-function aiPaint(){
-  const box=$('#ai-log');if(!box)return;
-  box.innerHTML=AIC.map(m=>{
-    const me=m.role==='user';
-    const t=esc(m.text).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');
-    return '<div style="max-width:88%;padding:10px 13px;border-radius:14px;line-height:1.45;'+(me
-      ?'align-self:flex-end;background:var(--saddle);color:#fff;border-bottom-right-radius:4px'
-      :'align-self:flex-start;background:var(--card);border:1px solid var(--line2);border-bottom-left-radius:4px')+'">'+t+'</div>';
-  }).join('')+($('#ai-log').dataset.busy?'<div class="sub" style="align-self:flex-start;padding:6px 13px">'+(langHi()?'सोच रहा है…':'Thinking…')+'</div>':'');
-  box.scrollTop=box.scrollHeight;
-}
-async function aiSend(){
-  const inp=$('#ai-q');const q=(inp.value||'').trim();if(!q)return;
-  inp.value='';AIC.push({role:'user',text:q});
-  $('#ai-log').dataset.busy='1';aiPaint();$('#ai-send').disabled=true;
-  try{
-    const model=await aiModelGet();
-    const res=await model.generateContent({
-      systemInstruction:{role:'system',parts:[{text:aiContext()}]},
-      contents:AIC.map(m=>({role:m.role==='user'?'user':'model',parts:[{text:m.text}]}))
-    });
-    const out=(res&&res.response&&res.response.text&&res.response.text())||'';
-    AIC.push({role:'model',text:out||(langHi()?'AI जवाब नहीं दे पाया':'No answer')});
-  }catch(e){
-    console.error('ai',e);
-    const msg=String(e&&e.message||e).replace(/https:\/\/[^\s:]+[^\s]*/g,'<api>');
-    AIC.push({role:'model',text:(langHi()?'AI जवाब नहीं दे पाया। ':'AI could not answer. ')+
-      (/403|permission|not.*enabled|api.*disabled|SERVICE_DISABLED|has not been used/i.test(msg)
-        ?(langHi()?'Firebase console → AI Logic → Settings में Vertex AI Gemini API चालू करें, फिर दोबारा कोशिश करें।':'Enable it once: Firebase console → AI Logic → Settings → enable Vertex AI Gemini API, then try again.')
-        :(langHi()?'इंटरनेट देखें और दोबारा कोशिश करें।':'Check the connection and try again.'))+
-      '\n\n[' + msg.slice(0,500) + ']'});
-  }
-  delete $('#ai-log').dataset.busy;$('#ai-send').disabled=false;aiPaint();
-}
-function vAI(){
-  topTitle('AI','#home');
-  let h='<h1 class="page">AI</h1>';
-  h+='<div class="card pad mb"><div class="row" style="align-items:flex-start;gap:10px"><span class="th" style="background:var(--saddle-bg);color:var(--saddle);flex:0 0 auto">'+ico('spark')+'</span><div class="sub">'+
-    (langHi()?'अपने स्टॉक के बारे में कुछ भी पूछें — जैसे: "शैनन टोट कितने बचे हैं?", "R11C4 में क्या-क्या रखा है?", "आज किसने क्या निकाला?", "कौन से आइटम कम हो रहे हैं?"'
-    :'Ask anything about your stock — e.g. "How many Shannon Totes are left?", "What is in R11C4?", "What went out today?", "What is running low?"')+'</div></div></div>';
-  h+='<div id="ai-log" data-noi18n style="display:flex;flex-direction:column;gap:10px;margin-bottom:12px;min-height:120px;max-height:52vh;overflow-y:auto"></div>';
-  h+='<div class="row" data-noi18n><input class="in grow" id="ai-q" placeholder="'+(langHi()?'अपने स्टॉक के बारे में पूछें…':'Ask about your inventory…')+'" autocomplete="off"><button class="btn pri" id="ai-send">'+(langHi()?'पूछें':'Ask')+'</button></div>';
-  h+='<div class="row mt"><button class="btn sm" id="ai-clr">'+(langHi()?'चैट साफ़ करें':'Clear chat')+'</button></div>';
-  $('#main').innerHTML=h;
-  aiPaint();
-  $('#ai-send').onclick=aiSend;
-  $('#ai-q').addEventListener('keydown',e=>{if(e.key==='Enter')aiSend()});
-  $('#ai-clr').onclick=()=>{AIC=[];aiPaint()};
-}
-
 function vMore(){
   topTitle('More','#home');
   let h='<h1 class="page">More</h1>';
@@ -3506,7 +3010,6 @@ function vMore(){
   rows.push(['#trash',ico('trash'),'Trash','Restore deleted items ('+S.trash.length+')']);
   if(can('dispatch')){const od=awbOverdue().length;rows.push(['#awb',ico('ticket'),'AWB / Shipments'+(od?' ('+od+')':''),'Accept, dispatch & track shipping labels'+(od?' — '+od+' overdue':'')]);}
   if(isAdminU())rows.push(['#orders',ico('truck'),'Dispatch orders','Review orders, SKUs, photos & data used']);
-  rows.push(['#ai',ico('spark'),'AI assistant','Ask anything about your stock — in Hindi or English']);
   rows.push(['#help',ico('inbox'),'Help & FAQ','How-to guides · report a problem']);
   if(isAdminU())rows.push(['#dash',ico('chart'),'Dashboard','Sales, best sellers, reorder & risk analysis']);
   if(isAdminU())rows.push(['#backups',ico('undo'),'Recovery points','Auto snapshot every 15 days · restore anytime']);
@@ -3519,7 +3022,6 @@ function vMore(){
   h+='<div class="section-h"><h2>Settings</h2></div><div class="card pad mb">'+
     '<div class="field"><label>Company / shop name</label><input class="in" id="st-co" value="'+esc(S.meta.company)+'" placeholder="Classy Leather Bags" '+(isAdminU()?'':'disabled')+'></div>'+
     '<div class="field"><label>Your name (shown in activity)</label><input class="in" id="st-us" value="'+esc(MODE==='cloud'?userName():S.meta.user)+'" placeholder="Trishal"></div>'+
-    '<div class="field"><label>Language / भाषा</label><select class="in" id="st-lang"><option value="en"'+(langHi()?'':' selected')+'>English</option><option value="hi"'+(langHi()?' selected':'')+'>हिंदी</option></select></div>'+
     '<div class="f2"><div class="field" style="margin-bottom:0"><label>Currency symbol</label><input class="in" id="st-cur" value="'+esc(S.meta.currency)+'" maxlength="4" '+(isAdminU()?'':'disabled')+'></div>'+
     '<div class="field" style="margin-bottom:0"><label>Default min qty hint</label><input class="in num" id="st-low" inputmode="numeric" value="'+esc(S.meta.lowDefault)+'"></div></div>'+
     '<div class="f2"><div class="field" style="margin-bottom:0"><label>Word for a place (singular)</label><input class="in" id="st-loc" value="'+esc(S.meta.locTerm||'Location')+'" placeholder="Location" '+(isAdminU()?'':'disabled')+'></div>'+
@@ -4021,53 +3523,6 @@ async function runApproval(req){
   if(req.type==='delLocation'){
     await deleteFolder(req.payload.folderId,true); // skip its own approval (already approved)
   }
-  if(req.type==='awbReturnBulk'){
-    await doBulkReturn((req.payload&&req.payload.ids)||[]);
-  }
-}
-async function doBulkReturn(ids){
-  const list=(S.awbs||[]).filter(a=>a.status==='accepted'&&(!ids.length||ids.indexOf(a.id)>=0));
-  if(!list.length){toast(langHi()?'कुछ बाकी नहीं':'Nothing pending','err');return 0}
-  const now=Date.now(),by=userName();
-  list.forEach(a=>{a.status='returned';a.resolvedBy=by;a.resolvedAt=now});
-  await saveNow('awbs');
-  logTx('list',{detail:list.length+' AWB'+(list.length>1?'s':'')+' returned to office (bulk)'});
-  toast(list.length+(langHi()?' AWB ऑफिस वापस':' AWBs returned to office'),'ok');
-  updateBadges();
-  return list.length;
-}
-async function awbBulkReturnFlow(){
-  const pend=(S.awbs||[]).filter(a=>a.status==='accepted');
-  if(!pend.length){toast(langHi()?'कुछ बाकी नहीं':'Nothing pending','err');return}
-  const T=(hi,en)=>langHi()?hi:en;
-  const mine=pend.filter(a=>(a.acceptedBy||'')===userName());
-  openModal('<h3>'+T('सब ऑफिस वापस','Return all to office')+'</h3>'+
-    '<p class="sub mb">'+T('कौन से AWB ऑफिस वापस दर्ज करने हैं?','Which AWBs should be marked returned to office?')+'</p>'+
-    '<button class="btn pri block mb" id="br-all">'+T('सारे बाकी AWB ('+pend.length+')','All pending ('+pend.length+')')+'</button>'+
-    (mine.length&&mine.length!==pend.length?'<button class="btn block mb" id="br-mine">'+T('सिर्फ मेरे ('+mine.length+')','Only mine ('+mine.length+')')+'</button>':'')+
-    '<button class="btn block mb" id="br-pick">'+T('चुनकर करें','Pick individually')+'</button>'+
-    '<button class="btn block" onclick="closeModal()">'+T('रद्द करें','Cancel')+'</button>');
-  const ask=async(list,lbl)=>{
-    closeModal();
-    const res=await requestOrApprove('awbReturnBulk',{ids:list.map(a=>a.id)},
-      'Return '+list.length+' AWBs to office',
-      'Marking <b>'+list.length+'</b> AWB'+(list.length>1?'s':'')+' as returned to office needs admin approval.');
-    if(res==='approved')await doBulkReturn(list.map(a=>a.id));
-    vAwb();
-  };
-  const a1=$('#br-all');if(a1)a1.onclick=()=>ask(pend);
-  const a2=$('#br-mine');if(a2)a2.onclick=()=>ask(mine);
-  const a3=$('#br-pick');if(a3)a3.onclick=()=>{
-    closeModal();
-    openModal('<h3>'+T('चुनें','Pick AWBs')+'</h3><div style="max-height:46dvh;overflow:auto" id="br-list">'+
-      pend.map((a,ix)=>'<label class="row" style="gap:9px;padding:7px 2px;border-bottom:1px solid var(--line2);align-items:center;cursor:pointer"><input type="checkbox" data-brc="'+ix+'" checked style="width:18px;height:18px;accent-color:var(--saddle)"><span class="grow"><span class="mono" style="font-weight:700">'+esc(a.awb)+'</span><div class="sub">'+esc(a.acceptedBy||'—')+' · '+awbAgeDays(a)+'d</div></span></label>').join('')+
-      '</div><button class="btn pri block mt" id="br-go">'+T('आगे बढ़ें','Continue')+'</button>');
-    $('#br-go').onclick=()=>{
-      const sel=pend.filter((a,ix)=>{const c=$('#modal [data-brc="'+ix+'"]');return c&&c.checked});
-      if(!sel.length){toast(T('कोई नहीं चुना','Nothing selected'),'err');return}
-      ask(sel);
-    };
-  };
 }
 
 function vDispatch(sub,arg){
@@ -4079,28 +3534,10 @@ function vDispatch(sub,arg){
   topTitle('Dispatch','#home');
   let h=modeSlider('dispatch')+marketBar();
   h+='<button class="dbig" id="d-go">'+ico('send')+'<div>Dispatch</div><div class="sub">Scan or photograph items going out</div></button>';
-  h+='<button class="btn block mt" id="d-pack" style="border-color:var(--saddle);color:var(--saddle);font-weight:700">'+ico('camera')+(langHi()?'पैकिंग मोड — स्कैनर + कैमरा':'Packing mode — scanner + camera')+'</button>';
   h+='<div class="row mt" style="gap:9px"><button class="btn grow" onclick="location.hash=\'#dispatch/sales\'">'+ico('trend')+'Sales & reorder</button></div>';
   $('#main').innerHTML=h;
   wireModeSlider();wireMarketBar();
   $('#d-go').onclick=()=>ensureMarketThen(()=>startDispatch());
-  $('#d-pack').onclick=()=>ensureMarketThen(()=>parcelCamFlow({
-    title:(langHi()?'पैकिंग · ':'Packing · ')+marketLabel(),
-    intl:getMarket()==='intl',
-    validate:async code=>{const a=awbByNo(code);
-      if(a&&a.status==='dispatched')return {ok:false,msg:(langHi()?'पहले ही डिस्पैच · ':'Already dispatched · ')+ago(a.resolvedAt)};
-      if(a&&a.status==='returned')return {ok:false,msg:langHi()?'ऑफिस वापस जा चुका':'Was returned to office'};
-      return {ok:true}},
-    onDone:async(code,med)=>{
-      const a=awbByNo(code);
-      if(a&&a.status==='accepted'){await dispatchAwbByNo(code,{sku:med.sku,photo:med.photo});return {created:false}}
-      S.awbs.unshift({id:uid('awb'),awb:code,status:'dispatched',acceptedBy:userName(),acceptedAt:Date.now(),resolvedBy:userName(),resolvedAt:Date.now(),sku:med.sku||'',photo:med.photo||'',market:getMarket()});
-      await saveNow('awbs');
-      logTx('dispatch',{detail:'Packed · '+code+(med.sku?' · '+med.sku:'')});
-      return {created:true};
-    },
-    onClose:()=>route()
-  }));
 }
 
 function startDispatch(seed){
@@ -4129,27 +3566,12 @@ function vDispatchNew(){
   topTitle('Dispatch · '+dDraft.orderId,'#dispatch');
   let h='<div class="row mb wrap"><h1 class="page" style="margin:0">'+esc(dDraft.orderId)+'</h1><span class="pill '+(dDraft.dest==='intl'?'info':'gray')+'">'+(dDraft.dest==='intl'?'International':'Domestic')+'</span></div>';
   h+='<div class="dcapture"><button class="dcapbtn scan" id="d-scan">'+ico('scan')+'Scan SKU</button><button class="dcapbtn photo" id="d-photo">'+ico('camera')+'Take photo</button></div>';
-  h+='<button class="btn block mb" id="d-cam">'+ico('camera')+(langHi()?'कैमरा पैकिंग मोड (स्कैनर)':'Camera packing mode (scanner)')+'</button>';
   h+='<input type="file" id="d-file" accept="image/*" capture="environment" style="display:none">';
   h+='<div class="section-h"><h2>Items in this dispatch</h2><span class="num" style="font-weight:800">'+sum(dDraft.lines,l=>+l.qty||0)+'</span></div>';
   h+='<div id="d-lines">'+dispatchLinesHTML()+'</div>';
   h+='<div class="row wrap mt" style="gap:9px"><button class="btn grow" id="d-cancel">Cancel</button><button class="btn pri grow" id="d-save" '+(dDraft.lines.length?'':'disabled')+'>'+ico('check')+'Save dispatch'+(dDraft.lines.length?' ('+dDraft.lines.length+')':'')+'</button></div>';
   $('#main').innerHTML=h;
   $('#d-scan').onclick=()=>dispatchScan();
-  $('#d-cam').onclick=()=>parcelCamFlow({
-    title:(langHi()?'पैकिंग · ':'Packing · ')+dDraft.orderId,
-    intl:dDraft.dest==='intl',
-    validate:async code=>{const a=awbByNo(code);
-      if(a&&a.status==='dispatched')return {ok:false,msg:(langHi()?'पहले ही डिस्पैच · ':'Already dispatched · ')+ago(a.resolvedAt)};
-      return {ok:true}},
-    onDone:async(code,med)=>{
-      dDraft.parcels=dDraft.parcels||[];
-      dDraft.parcels.push({code:code,sku:med.sku||'',photo:med.photo||'',video:med.video||'',at:Date.now()});
-      const a=awbByNo(code);
-      if(a&&a.status==='accepted'){await dispatchAwbByNo(code,{sku:med.sku,photo:med.photo,video:med.video})}
-    },
-    onClose:()=>route()
-  });
   $('#d-photo').onclick=()=>$('#d-file').click();
   $('#d-file').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(f)await dispatchAddPhoto(f);};
   wireDispatchLineEvents();
@@ -4185,7 +3607,15 @@ function addDispatchLineByCode(code){
   const existing=it?dDraft.lines.find(l=>l.itemId===it.id):dDraft.lines.find(l=>l.code===code&&!l.itemId);
   if(existing){existing.qty=round4((+existing.qty||0)+1);}
   else dDraft.lines.push({itemId:it?it.id:null,name:it?it.name:'',code:code,qty:1,thumb:it?it.thumb:''});
-  beep(true);
+  if(!it){ /* going out but not in the catalog at all */
+    alarm();say('Warning. Not in stock list.',{rate:.95});
+    toast('⚠ '+code+' is not in your item list — saved as a plain code','err');
+  }
+  else if(existing&&(+it.qty||0)<(+existing.qty||0)){ /* going out more than we hold */
+    alarm();say('Warning. Not enough stock.',{rate:.95});
+    toast('⚠ '+it.name+' — only '+fmtQty(it.qty)+' in stock','err');
+  }
+  else{beep(true);say('Yes');}
 }
 async function dispatchAddPhoto(file){
   try{
@@ -4257,7 +3687,6 @@ function dispatchScan(force){
     catch(e){feed.textContent='Camera blocked. Allow camera access, or type the SKU above.';return}
     const v=$('#dsv');if(!v){try{stream.getTracks().forEach(t=>t.stop())}catch(e){}return}
     v.srcObject=stream;await v.play().catch(()=>{});
-    addTorchBtn(stream,v);
     stop=()=>{try{stream.getTracks().forEach(t=>t.stop())}catch(e){}};
     if(!('BarcodeDetector' in window)){feed.innerHTML='Live scan isn’t supported on this browser — type SKUs above, or use the <b>Take photo</b> option instead.';return}
     let fmts;try{fmts=await BarcodeDetector.getSupportedFormats()}catch(e){fmts=[]}
@@ -4318,15 +3747,12 @@ async function saveDispatch(){
   }
   // store photos separately (keyed) to keep dispatch doc small
   const rec={id:uid('d'),number:no,orderId:dDraft.orderId,dest:dDraft.dest,ts:Date.now(),by:userName(),dupApproved:!!dDraft.dupApproved,
-    lines:dDraft.lines.map(l=>({itemId:l.itemId||null,name:l.name||'',code:l.code||'',qty:+l.qty||0,thumb:l.thumb||'',hasPhoto:!!l.photo})),
-    parcels:(dDraft.parcels||[]).map(p=>({code:p.code||'',sku:p.sku||'',video:p.video||'',at:p.at||Date.now()}))};
+    lines:dDraft.lines.map(l=>({itemId:l.itemId||null,name:l.name||'',code:l.code||'',qty:+l.qty||0,thumb:l.thumb||'',hasPhoto:!!l.photo}))};
   // save full photos under d:<id> (array aligned to lines that hasPhoto)
   const photos=dDraft.lines.filter(l=>l.photo).map(l=>l.photo);
-  const parcelPhotos=(dDraft.parcels||[]).map(p=>p.photo||'');
   S.dispatches.unshift(rec);
   await Promise.all([saveNow('items'),saveNow('dispatches')]);
   if(photos.length){try{await store.set('p:dsp_'+rec.id,photos)}catch(e){}}
-  if(parcelPhotos.some(Boolean)){try{await store.set('p:par_'+rec.id,parcelPhotos)}catch(e){}}
   logTx('dispatch',{detail:dDraft.orderId+' · '+dDraft.lines.length+' items'+(dDraft.dest==='intl'?' · Intl':' · Dom')});
   dDraft=null;
   updateBadges();
@@ -4340,14 +3766,6 @@ async function vDispatchView(id){
   topTitle(d.orderId||d.number,'#dispatch');
   let h='<div class="row mb wrap"><h1 class="page" style="margin:0">'+esc(d.orderId||d.number)+'</h1><span class="pill '+(d.dest==='intl'?'info':'gray')+'">'+(d.dest==='intl'?'International':'Domestic')+'</span></div>';
   h+='<div class="sub mb">'+esc(d.number)+' · '+fmtDT(d.ts)+(d.by?' · by '+esc(d.by):'')+'</div>';
-  if((d.parcels||[]).length){
-    h+='<div class="section-h"><h2>'+(langHi()?'पैकिंग (फोटो / वीडियो)':'Packing (photo / video)')+'</h2><span class="num" style="font-weight:800">'+d.parcels.length+'</span></div>';
-    h+='<div class="ilist mb">'+d.parcels.map((p,ix)=>'<div class="dline" style="align-items:flex-start"><span class="ph" id="dvpar-'+ix+'">'+ico('camera')+'</span>'+
-      '<div class="grow"><div class="mono" style="font-weight:700">'+esc(p.code||'')+'</div>'+
-      '<div class="sub">'+(p.sku?'SKU: <b>'+esc(p.sku)+'</b> · ':'')+fmtDT(p.at)+'</div>'+
-      (p.video?'<div class="sub" style="color:var(--saddle);font-weight:600">🎬 '+esc(p.video)+'</div>':'<div class="sub" style="opacity:.6">'+(langHi()?'वीडियो नहीं':'no video')+'</div>')+
-      '</div></div>').join('')+'</div>';
-  }
   h+='<div class="section-h"><h2>Items sent</h2><span class="num" style="font-weight:800">'+fmtQty(sum(d.lines||[],l=>+l.qty||0))+'</span></div>';
   h+='<div id="dv-lines"><div class="ilist">';
   (d.lines||[]).forEach((ln,ix)=>{
@@ -4367,12 +3785,9 @@ async function vDispatchView(id){
     $('#rp-oid').focus();
     $('#rp-go').onclick=()=>{const v=$('#rp-oid').value.trim();if(!v){toast('Enter an order ID','err');return}dDraft.orderId=v;closeModal();go('#dispatch/new')};
   };
-  const del=$('#dv-del');if(del)del.onclick=async()=>{if(!isAdminU()){toast(langHi()?'सिर्फ एडमिन डिस्पैच रिकॉर्ड डिलीट कर सकते हैं':'Only admins can delete dispatch records','err');return}const ok=await confirmDlg('Delete dispatch record?','This removes the record only — it does not add stock back.','Delete',true);if(!ok)return;S.dispatches=S.dispatches.filter(x=>x.id!==d.id);await saveNow('dispatches');try{await store.del('p:dsp_'+d.id)}catch(e){}go('#dispatch')};
+  const del=$('#dv-del');if(del)del.onclick=async()=>{const ok=await confirmDlg('Delete dispatch record?','This removes the record only — it does not add stock back.','Delete',true);if(!ok)return;S.dispatches=S.dispatches.filter(x=>x.id!==d.id);await saveNow('dispatches');try{await store.del('p:dsp_'+d.id)}catch(e){}go('#dispatch')};
   // lazy-load full photos only when the order is open; tap to view full-size
   const anyPhoto=(d.lines||[]).some(l=>l.hasPhoto);
-  if((d.parcels||[]).length){store.get('p:par_'+d.id).then(arr=>{if(!arr)return;
-    d.parcels.forEach((p,ix)=>{const full=arr[ix];const el=$('#dvpar-'+ix);
-      if(el&&full){el.innerHTML='<img src="'+full+'" alt="" style="width:46px;height:46px;border-radius:9px;object-fit:cover;cursor:zoom-in">';el.onclick=()=>showPhoto(full)}})}).catch(()=>{})}
   if(anyPhoto){store.get('p:dsp_'+d.id).then(arr=>{if(!arr)return;let pi=0;(d.lines||[]).forEach((l,ix)=>{if(l.hasPhoto){const full=arr[pi];const el=$('#dvph-'+ix);if(el&&full){el.innerHTML='<img src="'+full+'" alt="" style="width:46px;height:46px;border-radius:9px;object-fit:cover;cursor:zoom-in">';el.style.cursor='zoom-in';el.onclick=()=>showPhoto(full)}pi++}})}).catch(()=>{})}
 }
 
@@ -4625,7 +4040,6 @@ function returnScan(){
     let stream;try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});}catch(e){feed.textContent='Camera blocked. Allow access or type the SKU above.';return}
     const v=$('#rsv');if(!v){try{stream.getTracks().forEach(t=>t.stop())}catch(e){}return}
     v.srcObject=stream;await v.play().catch(()=>{});
-    addTorchBtn(stream,v);
     stop=()=>{try{stream.getTracks().forEach(t=>t.stop())}catch(e){}};
     if(!('BarcodeDetector' in window)){feed.innerHTML='Live scan not supported here — type SKUs above.';return}
     let fmts;try{fmts=await BarcodeDetector.getSupportedFormats()}catch(e){fmts=[]}
@@ -4764,86 +4178,42 @@ function vReturnView(id){
    AWB / SHIPMENTS — accountability for shipping labels
    ============================================================ */
 const AWB_OVERDUE_DAYS=7;
-const AWB_KEEP_DAYS=60;   // dispatched/returned docs are remembered this long, then aged out
-async function purgeOldAwbs(){
-  try{
-    const cut=Date.now()-AWB_KEEP_DAYS*86400000;
-    const old=(S.awbs||[]).filter(a=>(a.status==='dispatched'||a.status==='returned')&&(a.resolvedAt||0)<cut);
-    if(!old.length)return;
-    const gone=new Set(old.map(a=>a.id));
-    S.awbs=S.awbs.filter(a=>!gone.has(a.id));
-    if(MODE==='cloud'){for(const a of old){try{await db.collection('awbs').doc(a.id).delete()}catch(e){}}}
-    else await saveNow('awbs');
-  }catch(e){}
-}
 function awbPending(){return (S.awbs||[]).filter(a=>a.status==='accepted')}
 function awbOverdue(){const cut=Date.now()-AWB_OVERDUE_DAYS*86400000;return awbPending().filter(a=>(a.acceptedAt||0)<cut)}
 // overdue AWBs held specifically by the current user (governs the accept-block)
-
-/* ---- Overdue AWB reminder: repeats every 10 min until they go back to office ---- */
-let _awbNagT=null,_awbNagOn=false;
-function awbNagList(){return isAdminU()?awbOverdue():myOverdueAwbs()}
-function showAwbNag(){
-  if(_awbNagOn)return;
-  if(MODE==='cloud'&&!cloudReady)return;
-  const list=awbNagList();
-  if(!list.length)return;
-  const ov0=$('#ovl');
-  if(ov0&&ov0.classList.contains('show'))return;   // never interrupt a scan in progress
-  _awbNagOn=true;
-  const T=(hi,en)=>langHi()?hi:en;
-  const rows=list.slice(0,12).map(a=>'<div class="awbcard over"><div class="awb-no">'+esc(a.awb)+'</div><div class="awb-meta">'+awbAgeDays(a)+T(' दिन पुराना','d old')+' · '+esc(a.acceptedBy||'—')+'</div></div>').join('');
-  openModal('<h3 style="color:var(--red)">'+T(AWB_OVERDUE_DAYS+' दिन से पुराने AWB','AWBs older than '+AWB_OVERDUE_DAYS+' days')+'</h3>'+
-    '<p class="sub mb"><b>'+list.length+'</b> '+T('AWB अब तक डिस्पैच नहीं हुए। इन्हें तुरंत ऑफिस भेजें।','AWB'+(list.length>1?'s have':' has')+' still not been dispatched. Send '+(list.length>1?'them':'it')+' back to office right away.')+'</p>'+
-    '<div class="ilist mb" style="max-height:38dvh;overflow:auto">'+rows+(list.length>12?'<div class="hint">+'+(list.length-12)+T(' और','  more')+'</div>':'')+'</div>'+
-    (isAdminU()
-      ? '<button class="btn pri block mb" id="nag-ret">'+T('अभी ऑफिस वापस दर्ज करें','Return these to office now')+'</button>'
-      : '<div class="hint mb">'+T('ये AWB एडमिन ही वापस दर्ज कर सकते हैं — इन्हें ऑफिस भेजें और एडमिन से क्लियर कराएँ।','Only an admin can mark these returned — hand them to office and ask an admin to clear them.')+'</div>')+
-    '<button class="btn block" id="nag-ok">'+T('ठीक है','OK')+'</button>');
-  const r=$('#nag-ret');if(r)r.onclick=()=>{closeModal();_awbNagOn=false;go('#awb/return')};
-  const k=$('#nag-ok');if(k)k.onclick=()=>{closeModal();_awbNagOn=false};
-  const ov=$('#ovl');
-  const obs=new MutationObserver(()=>{if(!ov.classList.contains('show')){obs.disconnect();_awbNagOn=false}});
-  obs.observe(ov,{attributes:true,attributeFilter:['class']});
-}
-function startAwbNag(){
-  clearInterval(_awbNagT);
-  setTimeout(showAwbNag,4000);
-  _awbNagT=setInterval(showAwbNag,10*60000);
-}
-
 function myOverdueAwbs(){const me=userName();return awbOverdue().filter(a=>(a.acceptedBy||'')===me)}
 function awbByNo(no){const k=String(no||'').trim().toLowerCase();return (S.awbs||[]).find(a=>String(a.awb||'').trim().toLowerCase()===k)}
 function awbAgeDays(a){return Math.floor((Date.now()-(a.acceptedAt||Date.now()))/86400000)}
 // colour state by age: 'fresh' | 'aging' (5-6d) | 'over' (7d+)
-function awbAgeClass(a){const d=awbAgeDays(a);if(d>=AWB_OVERDUE_DAYS)return 'over';if(d>=AWB_OVERDUE_DAYS-1)return 'aging';return 'fresh'}
+function awbAgeClass(a){const d=awbAgeDays(a);if(d>=AWB_OVERDUE_DAYS)return 'over';if(d>=AWB_OVERDUE_DAYS-2)return 'aging';return 'fresh'}
 async function acceptAwb(no){
   no=String(no||'').trim();
   if(!no)return {ok:false,msg:'Empty'};
   const ex=awbByNo(no);
-  if(ex&&ex.status==='accepted')return {ok:false,msg:(langHi()?'पहले से लिस्ट में है':'Already scanned inward')+' ('+(ex.acceptedBy||'someone')+')'};
-  if(ex&&ex.status==='dispatched')return {ok:false,msg:(langHi()?'यह पहले ही डिस्पैच हो चुका है · ':'Already dispatched · ')+ago(ex.resolvedAt)};
-  if(ex&&ex.status==='returned')return {ok:false,msg:(langHi()?'यह ऑफिस वापस जा चुका है · ':'Already returned to office · ')+ago(ex.resolvedAt)};
+  if(ex&&ex.status==='accepted')return {ok:false,msg:'Already in list ('+(ex.acceptedBy||'someone')+')'};
+  if(ex&&ex.status==='dispatched')return {ok:false,msg:'Already dispatched'};
   const rec={id:uid('awb'),awb:no,status:'accepted',acceptedBy:userName(),acceptedAt:Date.now()};
   S.awbs.unshift(rec);
   await saveNow('awbs');
   logTx('list',{detail:'AWB accepted · '+no});
   return {ok:true,rec};
 }
-async function dispatchAwbByNo(no,extra){
+async function dispatchAwbByNo(no){
   no=String(no||'').trim();
   if(!no)return {ok:false,msg:'Empty'};
   let a=awbByNo(no);
-  if(a&&a.status==='dispatched')return {ok:false,msg:(langHi()?'यह पहले ही डिस्पैच हो चुका है · ':'Already dispatched · ')+ago(a.resolvedAt)+' · '+(a.resolvedBy||'')};
-  if(a&&a.status==='returned')return {ok:false,msg:(langHi()?'यह ऑफिस वापस जा चुका है · ':'Was returned to office · ')+ago(a.resolvedAt)};
-  if(!a)return {ok:false,msg:(langHi()?'पहले Inward स्कैन करें':'Scan it inward first')};
+  if(a&&a.status==='dispatched')return {ok:false,msg:'Already dispatched'};
+  if(a&&a.status==='returned')return {ok:false,msg:'Was returned to office'};
+  let neverIn=false;
+  if(!a){ // going OUT but it never came IN — record it, flag it, shout about it
+    neverIn=true;
+    a={id:uid('awb'),awb:no,status:'accepted',acceptedBy:userName(),acceptedAt:Date.now(),noInward:true};
+    S.awbs.unshift(a);
+  }
   a.status='dispatched';a.resolvedBy=userName();a.resolvedAt=Date.now();
-  if(extra&&extra.sku)a.sku=String(extra.sku).trim();
-  if(extra&&extra.photo)a.photo=extra.photo;
-  if(extra&&extra.video)a.video=extra.video;
   await saveNow('awbs');
-  logTx('dispatch',{detail:'AWB dispatched · '+no+(a.sku?' · '+a.sku:'')});
-  return {ok:true,rec:a};
+  logTx('dispatch',{detail:'AWB dispatched · '+no+(neverIn?' · ⚠ NEVER SCANNED INWARD':'')});
+  return {ok:true,rec:a,warn:neverIn,msg:neverIn?'Went out without being scanned in':''};
 }
 async function returnAwbRec(a){
   if(!a||a.status!=='accepted')return false;
@@ -4854,10 +4224,10 @@ async function returnAwbRec(a){
 }
 
 function vAwb(sub,arg){
-  if(!(can('awbAccept')||can('awbDispatch')||can('dispatch')||isAdminU())){toast('You do not have permission for AWBs','err');go('#home');return}
+  if(!(can('awbAccept')||can('awbDispatch')||can('awbReturn')||can('dispatch'))){toast('You do not have permission for AWBs','err');go('#home');return}
   if(sub==='in'){return awbScanFlow('in');}
-  if(sub==='out'){return awbOutwardFlow();}
-  if(sub==='return'){ if(!isAdminU()){toast(langHi()?'वापसी सिर्फ एडमिन कर सकते हैं':'Only admins can return AWBs','err');go('#awb');return} return awbReturnScanFlow();}
+  if(sub==='out'){return awbScanFlow('out');}
+  if(sub==='return'){return awbReturnScanFlow();}
   // hub: two big buttons + three columns
   topTitle('AWB / Shipments','#home');
   const pend=awbPending().slice().sort((a,b)=>(a.acceptedAt||0)-(b.acceptedAt||0)); // oldest first
@@ -4865,73 +4235,22 @@ function vAwb(sub,arg){
   const ret=(S.awbs||[]).filter(a=>a.status==='returned').sort((a,b)=>(b.resolvedAt||0)-(a.resolvedAt||0));
   const myOver=myOverdueAwbs();
   let h=modeSlider('awb');
-  if(myOver.length)h+='<div class="splitbox mb" style="background:var(--red-bg);border:1px solid var(--red)"><div class="row" style="gap:8px;align-items:center"><span style="color:var(--red)">'+ico('alert')+'</span><div><b style="color:var(--red)">Send to office: '+myOver.length+' overdue AWB'+(myOver.length>1?'s':'')+'</b><div class="small muted">They are '+AWB_OVERDUE_DAYS+'+ days old. Send them to office before accepting more.</div></div></div></div>';
+  if(myOver.length)h+='<div class="splitbox mb" style="background:var(--red-bg);border:1px solid var(--red)"><div class="row" style="gap:8px;align-items:center"><span style="color:var(--red)">'+ico('alert')+'</span><div><b style="color:var(--red)">You must return '+myOver.length+' overdue AWB'+(myOver.length>1?'s':'')+'</b><div class="small muted">They are 7+ days old. Return them to office before accepting more.</div></div></div></div>';
   // two big buttons
-  h+='<div class="bigbtns'+(isAdminU()?' three':'')+'" style="margin-bottom:14px">'+
+  h+='<div class="bigbtns" style="margin-bottom:14px">'+
     '<button class="bigbtn" id="aw-in">'+ico('download')+'<div>Inward</div><div class="sub">Scan AWBs taken from office</div></button>'+
     '<button class="bigbtn" id="aw-out">'+ico('truck')+'<div>Outward</div><div class="sub">Scan AWBs being dispatched</div></button>'+
-    (isAdminU()?'<button class="bigbtn" id="aw-ret">'+ico('undo')+'<div>'+(langHi()?'ऑफिस वापस':'Return to office')+'</div><div class="sub">'+(langHi()?'सिर्फ एडमिन · बिना इस्तेमाल हुए AWB':'Admin only · unused AWBs going back')+'</div></button>':'')+
     '</div>';
   // three columns
   h+='<div class="awbcols">';
-  h+=awbColHTML(langHi()?'बाकी':'Pending',pend,'accept');
+  h+=awbColHTML('Accept',pend,'accept');
+  h+=awbColHTML('Dispatch',disp.slice(0,40),'dispatch');
+  h+=awbColHTML('Return',ret.slice(0,40),'return');
   h+='</div>';
-  const hist=(S.awbs||[]).filter(a=>a.status==='dispatched'||a.status==='returned').sort((a,b)=>(b.resolvedAt||0)-(a.resolvedAt||0));
-  h+='<div class="card pad mt"><div class="row" style="align-items:center;gap:8px">'+
-     '<b class="grow">'+(langHi()?'हिस्ट्री':'History')+' <span class="muted num" style="font-weight:600">'+disp.length+(langHi()?' डिस्पैच · ':' dispatched · ')+ret.length+(langHi()?' वापस':' returned')+'</span></b>'+
-     '<button class="btn sm" id="aw-hist">'+(langHi()?'देखें':'View')+'</button><button class="btn sm" id="aw-csv">'+ico('csv')+'CSV</button></div>'+
-     (pend.length?'<button class="btn sm block mt" id="aw-bulkret" style="color:var(--saddle);border-color:var(--saddle);font-weight:700">'+ico('undo')+(langHi()?'सब ऑफिस वापस ('+pend.length+')':'Return all to office ('+pend.length+')')+'</button>':'')+
-     (isAdminU()&&pend.length?'<button class="btn sm block mt" id="aw-clear" style="color:var(--red);border-color:var(--red-bg)">'+ico('trash')+(langHi()?'सारे बाकी AWB हटाएँ ('+pend.length+')':'Clear all pending inward ('+pend.length+')')+'</button>':'')+
-     '<div class="hint" style="margin-top:6px">'+(langHi()?'डिस्पैच हो चुके नंबर यहाँ रहते हैं — '+AWB_KEEP_DAYS+' दिन तक दोबारा स्कैन नहीं होगा।':'Dispatched numbers live here — duplicate scans stay blocked for '+AWB_KEEP_DAYS+' days.')+'</div>'+
-     '<div id="aw-histbox" style="display:none;margin-top:10px"></div></div>';
   $('#main').innerHTML=h;
   wireModeSlider();
   $('#aw-in').onclick=()=>startInward();
   $('#aw-out').onclick=()=>{ if(!can('awbDispatch')){toast('No permission to dispatch AWBs','err');return} go('#awb/out'); };
-  const rb=$('#aw-ret');
-  if(rb)rb.onclick=()=>{ if(!isAdminU()){toast(langHi()?'वापसी सिर्फ एडमिन कर सकते हैं':'Only admins can return AWBs','err');return} go('#awb/return'); };
-  const hb=$('#aw-hist');
-  if(hb)hb.onclick=()=>{
-    const box=$('#aw-histbox');
-    if(box.style.display!=='none'){box.style.display='none';hb.textContent=langHi()?'देखें':'View';return}
-    box.style.display='block';hb.textContent=langHi()?'छिपाएँ':'Hide';
-    box.innerHTML='<div class="searchbar mb">'+ico('search')+'<input id="aw-hq" placeholder="'+(langHi()?'नंबर या SKU खोजें…':'Search number or SKU…')+'" autocomplete="off"></div><div id="aw-hlist"></div>';
-    const paint=()=>{
-      const el=$('#aw-hq');const q=((el&&el.value)||'').trim().toLowerCase();
-      const rows=hist.filter(a=>!q||String(a.awb||'').toLowerCase().indexOf(q)>=0||String(a.sku||'').toLowerCase().indexOf(q)>=0).slice(0,120);
-      $('#aw-hlist').innerHTML=rows.length?rows.map(a=>'<div class="awbmini"><div class="awb-no">'+esc(a.awb)+'</div><div class="awb-meta">'+
-        (a.status==='dispatched'?(langHi()?'डिस्पैच':'dispatched'):(langHi()?'वापस':'returned'))+' · '+ago(a.resolvedAt)+' · '+esc(a.resolvedBy||'—')+
-        (a.sku?' · <b>'+esc(a.sku)+'</b>':'')+(a.video?' · 🎬 '+esc(a.video):'')+'</div>'+
-        (a.photo?'<img src="'+esc(a.photo)+'" alt="" style="margin-top:6px;max-width:90px;border-radius:8px">':'')+'</div>').join('')
-        :'<div class="sub" style="padding:8px 2px">'+(langHi()?'कुछ नहीं मिला':'Nothing found')+'</div>';
-    };
-    paint();const hq=$('#aw-hq');if(hq)hq.oninput=paint;
-  };
-  const brb=$('#aw-bulkret');if(brb)brb.onclick=()=>awbBulkReturnFlow();
-  const clr=$('#aw-clear');
-  if(clr)clr.onclick=async()=>{
-    if(!isAdminU()){toast(langHi()?'सिर्फ एडमिन':'Admins only','err');return}
-    const list=(S.awbs||[]).filter(a=>a.status==='accepted');
-    if(!list.length){toast(langHi()?'कुछ बाकी नहीं':'Nothing pending','err');return}
-    const ok=await confirmDlg(
-      (langHi()?'सारे बाकी AWB हटाएँ?':'Delete all pending inward AWBs?'),
-      list.length+(langHi()?' AWB हमेशा के लिए हट जाएँगे। डिस्पैच और वापसी वाले रिकॉर्ड नहीं छुएँगे।':' records will be permanently removed. Dispatched and returned history is not touched.'),
-      (langHi()?'हटाएँ':'Delete all'),true);
-    if(!ok)return;
-    const ids=new Set(list.map(a=>a.id));
-    S.awbs=S.awbs.filter(a=>!ids.has(a.id));
-    if(MODE==='cloud'){for(const a of list){try{await db.collection('awbs').doc(a.id).delete()}catch(e){}}}
-    else await saveNow('awbs');
-    logTx('awb',{detail:'Cleared '+list.length+' pending inward AWBs'});
-    toast(list.length+(langHi()?' AWB हटाए':' pending AWBs cleared'),'ok');
-    updateBadges();vAwb();
-  };
-  const cb=$('#aw-csv');
-  if(cb)cb.onclick=()=>{
-    if(!hist.length){toast(langHi()?'कुछ नहीं है':'Nothing to export','err');return}
-    const rows=[['AWB','Status','Date','By','SKU']].concat(hist.map(a=>[a.awb,a.status,new Date(a.resolvedAt||0).toLocaleString('en-IN'),a.resolvedBy||'',a.sku||'']));
-    download('awb-history-'+new Date().toISOString().slice(0,10)+'.csv',buildCSV(rows),'text/csv');
-  };
   wireAwbColActions();
 }
 function startInward(){
@@ -4940,9 +4259,8 @@ function startInward(){
   if(myOver.length && !isAdminU()){
     openModal('<h3 style="color:var(--red)">Return overdue AWBs first</h3><p class="sub mb">You are holding '+myOver.length+' AWB'+(myOver.length>1?'s':'')+' older than '+AWB_OVERDUE_DAYS+' days. Return '+(myOver.length>1?'them':'it')+' to office before accepting any more.</p>'+
       '<div class="ilist mb">'+myOver.map(a=>'<div class="awbcard over"><div class="awb-no">'+esc(a.awb)+'</div><div class="awb-meta">'+awbAgeDays(a)+' days old</div></div>').join('')+'</div>'+
-      '<div class="hint mb">'+(langHi()?'ये AWB एडमिन ही ऑफिस वापस दर्ज कर सकते हैं — उन्हें दिखाएँ।':'Only an admin can mark these returned — hand them over and ask an admin to clear them.')+'</div>'+
-      '<button class="btn block" id="aw-fix">'+(langHi()?'ठीक है':'OK')+'</button>');
-    $('#aw-fix').onclick=()=>{closeModal();};
+      '<button class="btn pri block" id="aw-fix">'+ico('office')+'Return these now</button>');
+    $('#aw-fix').onclick=()=>{closeModal();awbReturnScanFlow();};
     return;
   }
   go('#awb/in');
@@ -4955,9 +4273,9 @@ function awbColHTML(title,list,kind){
     const cls=kind==='accept'?awbAgeClass(a):'';
     const od=cls==='over';
     h+='<div class="awbmini '+cls+'" data-awid="'+a.id+'">'+
-      '<div class="awb-no">'+esc(a.awb)+'</div>'+
+      '<div class="awb-no">'+esc(a.awb)+(a.noInward?' <span class="pill low" style="font-size:9px;vertical-align:middle">NO INWARD</span>':'')+'</div>'+
       '<div class="awb-meta">'+(kind==='accept'?('held by '+esc(a.acceptedBy||'—')+' · '+awbAgeDays(a)+'d'+(od?' · OVERDUE':'')):(kind==='dispatch'?'out · '+ago(a.resolvedAt):'returned · '+ago(a.resolvedAt)))+'</div>'+
-      (kind==='accept'?'<div class="row mt" style="gap:6px"><button class="btn sm pri grow" data-awdisp="'+a.id+'">Dispatch</button>'+(isAdminU()?'<button class="btn sm grow" data-awret="'+a.id+'">Return</button>':'')+(isAdminU()?'<button class="btn sm danger" data-awdel="'+a.id+'" style="flex:0 0 auto;padding:6px 9px">'+ico('trash')+'</button>':'')+'</div>':(isAdminU()?'<div class="row mt"><button class="btn sm danger" data-awdel="'+a.id+'">'+ico('trash')+'Delete</button></div>':''))+
+      (kind==='accept'?'<div class="row mt" style="gap:6px"><button class="btn sm pri grow" data-awdisp="'+a.id+'">Dispatch</button><button class="btn sm grow" data-awret="'+a.id+'">Return</button>'+(can('awbDelete')?'<button class="btn sm danger" data-awdel="'+a.id+'" style="flex:0 0 auto;padding:6px 9px">'+ico('trash')+'</button>':'')+'</div>':(can('awbDelete')?'<div class="row mt"><button class="btn sm danger" data-awdel="'+a.id+'">'+ico('trash')+'Delete</button></div>':''))+
       '</div>';
   });
   h+='</div>';
@@ -4967,11 +4285,13 @@ function wireAwbColActions(){
   $$('#main [data-awdisp]').forEach(b=>b.onclick=async()=>{
     if(!can('awbDispatch')){toast('No permission','err');return}
     const a=(S.awbs||[]).find(x=>x.id===b.dataset.awdisp);if(!a)return;
-    const r=await dispatchAwbByNo(a.awb);if(r.ok){toast('Dispatched','ok');vAwb();}
+    const r=await dispatchAwbByNo(a.awb);
+    if(r.ok&&r.warn){alarm();say('Warning. Not scanned in.',{rate:.95});toast('⚠ '+a.awb+' went out without an inward scan','err');vAwb();}
+    else if(r.ok){beep(true);say('Yes');toast('Dispatched','ok');vAwb();}
   });
   $$('#main [data-awret]').forEach(b=>b.onclick=()=>awbReturnOne(b.dataset.awret));
   $$('#main [data-awdel]').forEach(b=>b.onclick=async()=>{
-    if(!isAdminU()){toast(langHi()?'सिर्फ एडमिन AWB डिलीट कर सकते हैं':'Only admins can delete AWB records','err');return}
+    if(!can('awbDelete')){toast('No permission to delete AWBs','err');return}
     const a=(S.awbs||[]).find(x=>x.id===b.dataset.awdel);if(!a)return;
     const ok=await confirmDlg('Delete AWB?',esc(a.awb)+' will be permanently removed.','Delete',true);if(!ok)return;
     S.awbs=S.awbs.filter(x=>x.id!==a.id);await saveNow('awbs');toast('Deleted');vAwb();
@@ -4980,258 +4300,59 @@ function wireAwbColActions(){
 // Admin: tap to return. Regular user: must scan (handled by awbReturnScanFlow).
 async function awbReturnOne(awbId){
   const a=(S.awbs||[]).find(x=>x.id===awbId);if(!a||a.status!=='accepted')return;
-  if(!isAdminU()){toast(langHi()?'वापसी सिर्फ एडमिन कर सकते हैं':'Only admins can return AWBs','err');return}
-  const ok=await confirmDlg('Return to office?',esc(a.awb)+' will be marked returned.','Mark returned',false);
-  if(!ok)return;
-  await returnAwbRec(a);toast('Returned to office','ok');vAwb();
+  if(!can('awbReturn')){toast('No permission to return AWBs','err');return}
+  if(isAdminU()){
+    const ok=await confirmDlg('Return to office?',esc(a.awb)+' will be marked returned.','Mark returned',false);
+    if(!ok)return;
+    await returnAwbRec(a);toast('Returned to office','ok');vAwb();
+  } else {
+    // regular user must scan the AWB to confirm physical return
+    awbReturnScanFlow(a.awb);
+  }
 }
 
 /* scanner flow shared by inward / outward / return */
-
-/* ============================================================
-   PARCEL CAMERA FLOW  (scanner-driven, used by AWB Outward + Dispatch)
-   scan #1 -> 3s countdown -> auto photo | scan #2 -> record | scan #3 -> save & next
-   photo => Firebase | video => this PC: <folder>/YYYY-MM-DD/INTL|DOM/<code>.webm
-   ============================================================ */
-let _pcCam=null,_pcRec=null,_pcChunks=[],_pcDir=null,_pcIdle=null;
-const PC_IDLE_MS=6*60000;
-
-/* remember the chosen folder forever (IndexedDB) so it is asked only once */
-function pcIDB(){return new Promise(res=>{const r=indexedDB.open('invento-fs',1);
-  r.onupgradeneeded=()=>{try{r.result.createObjectStore('h')}catch(e){}};
-  r.onsuccess=()=>res(r.result);r.onerror=()=>res(null)})}
-async function pcDirGet(){
-  if(_pcDir)return _pcDir;
-  try{const db2=await pcIDB();if(!db2)return null;
-    const h=await new Promise(res=>{const t=db2.transaction('h','readonly').objectStore('h').get('dir');t.onsuccess=()=>res(t.result);t.onerror=()=>res(null)});
-    if(h){const p=await h.queryPermission({mode:'readwrite'});
-      if(p==='granted'){_pcDir=h;return h}
-      if(p==='prompt'){const q=await h.requestPermission({mode:'readwrite'});if(q==='granted'){_pcDir=h;return h}}}
-  }catch(e){}
-  return null;
-}
-async function pcDirPick(){
-  if(!window.showDirectoryPicker){toast(langHi()?'यह ब्राउज़र फ़ोल्डर सेव नहीं कर सकता — फ़ाइल डाउनलोड होगी':'This browser cannot save to a folder — files will download','warn');return null}
-  try{const d=await window.showDirectoryPicker({mode:'readwrite',startIn:'desktop'});
-    _pcDir=d;const db2=await pcIDB();
-    if(db2)db2.transaction('h','readwrite').objectStore('h').put(d,'dir');
-    return d;
-  }catch(e){return null}
-}
-async function pcCam(){
-  if(_pcCam&&_pcCam.active)return _pcCam;
-  _pcCam=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720}},audio:false});
-  return _pcCam;
-}
-function pcCamStop(){try{if(_pcCam)_pcCam.getTracks().forEach(t=>t.stop())}catch(e){}_pcCam=null}
-function pcShot(v){const c=document.createElement('canvas');const w=v.videoWidth||1280,hh=v.videoHeight||720,s=Math.min(1,900/Math.max(w,hh));
-  c.width=Math.round(w*s);c.height=Math.round(hh*s);c.getContext('2d').drawImage(v,0,0,c.width,c.height);return c.toDataURL('image/jpeg',.72)}
-async function pcSave(blob,code,intl){
-  const date=new Date().toISOString().slice(0,10),sub=intl?'INTL':'DOM';
-  const name=String(code||'parcel').replace(/[^A-Za-z0-9_-]/g,'')+'.webm';
-  const dir=await pcDirGet();
-  if(dir){try{
-    const dd=await dir.getDirectoryHandle(date,{create:true});
-    const sd=await dd.getDirectoryHandle(sub,{create:true});
-    const fh=await sd.getFileHandle(name,{create:true});
-    const w=await fh.createWritable();await w.write(blob);await w.close();
-    return date+'/'+sub+'/'+name;
-  }catch(e){}}
-  download(date+'_'+sub+'_'+name,blob,'video/webm');
-  return date+'/'+sub+'/'+name;
-}
-function pcRecStart(){try{
-  if(!_pcCam)return false;
-  _pcChunks=[];let mt='video/webm;codecs=vp8';
-  if(window.MediaRecorder&&!MediaRecorder.isTypeSupported(mt))mt='video/webm';
-  _pcRec=new MediaRecorder(_pcCam,{mimeType:mt,videoBitsPerSecond:900000});
-  _pcRec.ondataavailable=e=>{if(e.data&&e.data.size)_pcChunks.push(e.data)};
-  _pcRec.start(4000);return true;
-}catch(e){return false}}
-async function pcRecStop(code,intl){
-  clearTimeout(_pcIdle);
-  if(!_pcRec||_pcRec.state==='inactive'){_pcRec=null;return ''}
-  const rec=_pcRec;_pcRec=null;
-  await new Promise(res=>{rec.onstop=res;try{rec.stop()}catch(e){res()}});
-  if(!_pcChunks.length)return '';
-  const blob=new Blob(_pcChunks,{type:'video/webm'});_pcChunks=[];
-  return await pcSave(blob,code,intl);
-}
-
-/* opts: {title, intl, validate(code)->{ok,msg}, onDone(code,{sku,photo}), onClose()}
-   Dispatch parcel: scan AWB -> auto photo -> scan item SKU -> dispatched, stock -1, Revise available. */
-async function parcelCamFlow(opts){
-  let cam=null;try{cam=await pcCam()}catch(e){cam=null}
-  let stage='idle',cur='',photo='',n=0,busy=false,lastUndo=null;
-  const T=(hi,en)=>langHi()?hi:en;
-  const steps=[T('AWB','AWB'),T('फोटो','Photo'),T('SKU','SKU')];
-  const stepIx={idle:0,shot:1,sku:2};
-
-  const bar=()=>{const at=stepIx[stage]||0;
-    return '<div class="row mb" style="gap:5px">'+steps.map((s,k)=>'<div style="flex:1;text-align:center;padding:5px 2px;border-radius:8px;font-size:11.5px;font-weight:700;background:'+(k<at?'rgba(120,160,120,.25)':k===at?'var(--saddle)':'var(--line2)')+';color:'+(k===at?'#fff':'inherit')+'">'+s+'</div>').join('')+'</div>'};
-
-  const paint=()=>{
-    let h='<h3>'+esc(opts.title||T('डिस्पैच','Dispatch'))+'</h3>'+bar();
-    h+='<div class="row mb" style="gap:8px;align-items:center"><span class="pill '+(opts.intl?'info':'gray')+'">'+(opts.intl?T('इंटरनेशनल','International'):T('घरेलू','Domestic'))+'</span></div>';
-    if(!cam)h+='<div class="hint mb" style="color:var(--amber)">'+T('कैमरा नहीं मिला — फोटो के बिना चलेगा।','No camera — will run without photos.')+'</div>';
-    if(stage==='idle')h+='<div class="card pad mb" style="text-align:center;border:2px dashed var(--line2)"><div style="font-size:26px">'+ico('ticket')+'</div><b>'+T('AWB स्कैन करें','Scan the AWB')+'</b><div class="sub">'+T('नया पार्सल शुरू करने के लिए','to start the next parcel')+'</div></div>';
-    if(stage==='shot')h+='<div class="card pad mb" style="text-align:center;border:2px solid var(--saddle)"><div class="mono" style="font-weight:800">'+esc(cur)+'</div><b>'+T('फोटो ली जा रही है…','Taking photo…')+'</b></div>';
-    if(stage==='sku')h+='<div class="card pad mb" style="text-align:center;border:2px solid var(--green)"><div class="mono" style="font-weight:800">'+esc(cur)+'</div>'+(photo?'<img src="'+photo+'" style="max-width:150px;border-radius:10px;margin:8px auto;display:block">':'')+'<b>'+T('अब आइटम का SKU स्कैन करें','Now scan the item SKU')+'</b><div class="sub">'+T('स्कैन करते ही डिस्पैच होगा और स्टॉक घटेगा','scanning it dispatches the parcel and reduces stock')+'</div></div>';
-    if(cam&&(stage==='shot'||stage==='idle'))h+='<div class="scanwrap mb" style="max-height:30dvh"><video id="pc-v" playsinline muted autoplay></video></div>';
-    h+='<div class="searchbar mb" style="border-color:var(--saddle)">'+ico('scan')+'<input id="pc-in" placeholder="'+T('स्कैन का इंतज़ार…','Waiting for scan…')+'" autocomplete="off" autocapitalize="characters"></div>';
-    h+='<div id="pc-feed" class="sub" style="min-height:34px;margin-bottom:8px"></div>';
-    if(stage==='sku')h+='<button class="btn block mb" id="pc-skip">'+T('SKU छोड़ें (स्टॉक न घटाएँ)','Skip SKU (do not reduce stock)')+'</button>';
-    h+='<button class="btn pri block" id="pc-done">'+ico('check')+T('खत्म','Done')+(n?' · '+n:'')+'</button>';
-    $('#modal').innerHTML=h;wire();
-    const v=$('#pc-v');if(v&&cam){v.srcObject=cam;v.play().catch(()=>{})}
-  };
-  const feed=html=>{const f=$('#pc-feed');if(f)f.innerHTML=html};
-  const err=(c,m)=>{beep(false);feed('<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:10px;padding:9px 11px"><b style="color:var(--red)">'+esc(c)+'</b><div style="color:var(--red);font-weight:600;font-size:13px">'+esc(m)+'</div></div>')};
-
-  /* ---- undo the last parcel: put stock back, un-dispatch the AWB ---- */
-  const undoLast=async()=>{
-    const u=lastUndo;if(!u)return;
-    lastUndo=null;
-    if(u.itemId&&u.qty){const it=iById(u.itemId);
-      if(it){pileAdd(it,u.rack,u.qty);await saveNow('items');
-        logTx('in',{itemId:it.id,itemName:it.name,qty:u.qty,reason:'Dispatch reversed',detail:'Undo · '+u.awb});}}
-    const a=awbByNo(u.awb);
-    if(a&&u.created){S.awbs=S.awbs.filter(x=>x.id!==a.id);await saveNow('awbs')}
-    else if(a){a.status='accepted';a.resolvedBy='';a.resolvedAt=0;a.sku='';a.photo='';await saveNow('awbs')}
-    n=Math.max(0,n-1);
-    toast(T('वापस कर दिया','Reversed'),'ok');updateBadges();paint();
-    feed('<b>'+T('पिछला पार्सल वापस कर दिया','Last parcel reversed')+'</b>');
-  };
-
-  const finish=async(skuCode)=>{
-    let it=skuCode?findByCode(skuCode):null;
-    let took=null;
-    if(skuCode&&!it){err(skuCode,T('यह SKU नहीं मिला','No item with that SKU'));return}
-    if(it){
-      const avail=+it.qty||0;
-      if(avail<1){err(skuCode,T('स्टॉक खत्म है — घटाया नहीं','Out of stock — not reduced'));}
-      else{
-        const rack=(pilesOf(it)[0]||{}).f;
-        const old=avail;pileDrain(it,1,rack);await saveNow('items');
-        logTx('out',{itemId:it.id,itemName:it.name,fromQ:old,toQ:+it.qty||0,qty:1,reason:'Dispatched',detail:'Dispatch · '+cur});
-        took={itemId:it.id,qty:1,rack:rack};
-      }
-    }
-    const res=await opts.onDone(cur,{sku:skuCode||'',photo:photo,item:it||null});
-    lastUndo={awb:cur,itemId:took&&took.itemId,qty:took&&took.qty,rack:took&&took.rack,created:!!(res&&res.created)};
-    n++;beep(true);
-    const done=cur,nm=it?it.name:'';cur='';photo='';stage='idle';paint();
-    feed('<div class="row" style="gap:8px;align-items:center"><div class="grow"><b style="color:var(--green)">✓ '+esc(done)+'</b>'+
-      (nm?'<div class="sub">'+esc(nm)+' · −1'+(it?' · '+T('बचा ','left ')+fmtQty(it.qty):'')+'</div>':'<div class="sub">'+T('स्टॉक नहीं घटाया','stock not reduced')+'</div>')+
-      '</div><button class="btn sm" id="pc-undo" style="flex:0 0 auto;color:var(--red);border-color:var(--red-bg)">'+T('वापस करें','Revise')+'</button></div>');
-    const ub=$('#pc-undo');if(ub)ub.onclick=undoLast;
-  };
-
-  const onScan=async code=>{
-    code=String(code||'').trim();if(!code||busy)return;busy=true;
-    try{
-      if(stage==='idle'){
-        const v=await opts.validate(code);
-        if(!v||!v.ok){err(code,(v&&v.msg)||'skipped');return}
-        cur=code;photo='';stage='shot';paint();
-        await new Promise(r=>setTimeout(r,450));           // let the camera settle
-        const el=$('#pc-v');if(el&&cam)photo=pcShot(el);
-        beep(true);stage='sku';paint();
-        return;
-      }
-      if(stage==='sku'){
-        if(code===cur){err(code,T('आइटम का SKU स्कैन करें','Scan the item SKU, not the AWB'));return}
-        await finish(code);
-        return;
-      }
-    } finally { busy=false }
-  };
-
-  function wire(){
-    const sk=$('#pc-skip');if(sk)sk.onclick=()=>finish('');
-    const I=$('#pc-in');
-    if(I){
-      I.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();const v=I.value.trim();I.value='';if(v)onScan(v)}};
-      let t=null;I.oninput=()=>{clearTimeout(t);t=setTimeout(()=>{const v=I.value.trim();if(v.length>=4){I.value='';onScan(v)}},160)};
-      try{I.focus()}catch(e){}
-    }
-    const dn=$('#pc-done');
-    if(dn)dn.onclick=()=>{pcCamStop();closeModal();if(opts.onClose)opts.onClose()};
-  }
-  openModal('<div class="sub">…</div>');paint();
-  const foc=setInterval(()=>{const I=$('#pc-in');if(!I){clearInterval(foc);return}if(document.activeElement!==I){try{I.focus()}catch(e){}}},600);
-  const ov=$('#ovl');
-  const obs=new MutationObserver(()=>{if(!ov.classList.contains('show')&&!$('#pc-in')){obs.disconnect();clearInterval(foc);pcCamStop()}});
-  obs.observe(ov,{attributes:true,attributeFilter:['class']});
-}
-
-/* ---- AWB Outward: ONE scan per parcel, no packing, no camera ---- */
-async function awbOutwardFlow(){
-  if(!can('awbDispatch')){toast('No permission to dispatch AWBs','err');go('#awb');return}
-  awbScanModal(langHi()?'Outward — गोदाम से बाहर':'Outward — send out of warehouse',
-    langHi()?'हर AWB एक बार स्कैन करें। स्कैन करते ही वो बाहर भेजा हुआ मान लिया जाएगा।':'Scan each AWB once. That scan marks it sent out of the warehouse.',
-    async(code)=>await dispatchAwbByNo(code), ()=>vAwb(), false);
-}
-
 function awbScanFlow(mode){
   // mode: 'in' (accept) | 'out' (dispatch)
   const accept=mode==='in';
   if(accept && !can('awbAccept')){toast('No permission','err');go('#awb');return}
   if(!accept && !can('awbDispatch')){toast('No permission','err');go('#awb');return}
-  awbScanModal(accept?'Inward — accept AWBs':'Outward — dispatch AWBs',
-    accept?'Scan each label taken from office.':'Scan each AWB you are sending out. SKU or photo optional.',
-    async(code)=>accept?acceptAwb(code):dispatchAwbByNo(code,awbExtra()), ()=>vAwb(), !accept);
+  awbScanModal(accept?'Inward — accept AWBs':'Outward — dispatch AWBs', accept?'Scan each label taken from office.':'Scan each AWB you are sending out.',
+    async(code)=>accept?acceptAwb(code):dispatchAwbByNo(code), ()=>vAwb(), accept?'In':'Yes');
 }
 function awbReturnScanFlow(prefill){
-  if(!isAdminU()){toast(langHi()?'वापसी सिर्फ एडमिन कर सकते हैं':'Only admins can return AWBs','err');go('#awb');return}
-  awbScanModal(langHi()?'AWB ऑफिस वापस करें':'Return AWBs to office',
-    langHi()?'जो AWB इस्तेमाल नहीं हुए, उन्हें एक-एक स्कैन करें।':'Scan each unused AWB you are returning to office.',
-    async(code)=>{const a=awbByNo(code);
-      if(!a)return {ok:false,msg:langHi()?'यह आपकी लिस्ट में नहीं है':'Not in your pending list'};
-      if(a.status==='dispatched')return {ok:false,msg:(langHi()?'यह डिस्पैच हो चुका है · ':'Already dispatched · ')+ago(a.resolvedAt)};
-      if(a.status==='returned')return {ok:false,msg:(langHi()?'यह पहले ही वापस हो चुका है · ':'Already returned · ')+ago(a.resolvedAt)};
-      if(a.status!=='accepted')return {ok:false,msg:'status: '+a.status};
-      const okk=await returnAwbRec(a);return okk?{ok:true}:{ok:false,msg:langHi()?'नहीं हो पाया':'Failed'};},
-    ()=>vAwb());
+  if(!can('awbReturn')){toast('No permission','err');go('#awb');return}
+  awbScanModal('Return AWBs to office','Scan each AWB you are returning to office.',
+    async(code)=>{const a=awbByNo(code);if(!a||a.status!=='accepted')return {ok:false,msg:(a?('status: '+a.status):'not in your list')};const okk=await returnAwbRec(a);return okk?{ok:true}:{ok:false,msg:'Failed'};},
+    ()=>vAwb(),'Returned');
 }
 
 // Generic AWB scan modal: hardware-scanner field OR camera; onCode(code)->{ok,msg}; loops.
-let _awExtra={sku:'',photo:''};
-function awbExtra(){const e={sku:_awExtra.sku,photo:_awExtra.photo};_awExtra={sku:'',photo:''};
-  const s=$('#aw-sku');if(s)s.value='';const pv=$('#aw-pv');if(pv)pv.innerHTML='';return e}
-function awbScanModal(title,subtitle,onCode,onDone,withExtra){
+function awbScanModal(title,subtitle,onCode,onDone,okWord){
+  okWord=okWord||'Yes';
   const hw=hwScanner();
   let h='<h3>'+esc(title)+(hw?' <span class="pill ok" style="font-size:10px">Machine</span>':'')+'</h3>';
   h+='<p class="sub mb">'+esc(subtitle)+'</p>';
   if(!hw)h+='<div class="scanwrap mb" id="awsw" style="max-height:40dvh"><div class="scanbox"><div class="laser"></div></div><video id="awsv" playsinline muted></video></div>';
   h+='<div class="searchbar mb" style="border-color:var(--saddle)">'+ico('ticket')+'<input id="aw-in2" placeholder="'+(hw?'Waiting for scan…':'or type the number')+'" autocomplete="off" autocapitalize="characters"></div>';
-  if(withExtra){
-    h+='<div class="row mb" style="gap:8px;align-items:center">'+
-       '<input class="in grow" id="aw-sku" placeholder="'+(langHi()?'SKU / नोट (ज़रूरी नहीं)':'SKU / note (optional)')+'" autocomplete="off">'+
-       '<button class="btn" id="aw-cam" style="flex:0 0 auto">'+ico('camera')+'</button></div>'+
-       '<input type="file" id="aw-pf" accept="image/*" capture="environment" style="display:none"><div id="aw-pv" class="mb"></div>';
-  }
   h+='<div id="aw-feed2" class="sub" style="min-height:40px;margin-bottom:8px"></div>';
   h+='<button class="btn pri block" id="aw-done2">'+ico('check')+'Done</button>';
   openModal(h);
   const inp=$('#aw-in2'),feed=$('#aw-feed2');
-  if(withExtra){
-    _awExtra={sku:'',photo:''};
-    const sk=$('#aw-sku');if(sk)sk.oninput=()=>{_awExtra.sku=sk.value};
-    const cam=$('#aw-cam'),pf=$('#aw-pf');
-    if(cam&&pf){cam.onclick=e=>{e.preventDefault();pf.click()};
-      pf.onchange=()=>{const f=pf.files&&pf.files[0];if(!f)return;
-        const r=new FileReader();
-        r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');const s=Math.min(1,640/Math.max(im.width,im.height));c.width=im.width*s;c.height=im.height*s;c.getContext('2d').drawImage(im,0,0,c.width,c.height);_awExtra.photo=c.toDataURL('image/jpeg',.6);const pv=$('#aw-pv');if(pv)pv.innerHTML='<img src="'+_awExtra.photo+'" alt="" style="max-width:110px;border-radius:9px">'};im.src=r.result};
-        r.readAsDataURL(f);pf.value='';};
-    }
-  }
   let n=0;
   const handle=async(code)=>{
     code=String(code||'').trim();if(!code)return;
     const r=await onCode(code);
-    if(r&&r.ok){n++;feed.innerHTML='<b style="color:var(--green)">✓ '+esc(code)+'</b><div class="sub">'+n+' done</div>';beep(true);}
-    else{feed.innerHTML='<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:10px;padding:9px 11px"><b style="color:var(--red)">'+esc(code)+'</b><div style="color:var(--red);font-weight:600;font-size:13px">'+esc((r&&r.msg)||'skipped')+'</div></div>';beep(false);}
+    if(r&&r.ok&&r.warn){
+      /* went OUT but was never scanned IN — the one thing that must never pass quietly */
+      n++;
+      feed.innerHTML='<b style="color:var(--red)">⚠ '+esc(code)+' — NOT SCANNED IN</b>'+
+        '<div class="sub">Recorded and flagged. Check where this label came from.</div>';
+      alarm();say('Warning. Not scanned in.',{rate:.95});
+      toast('⚠ '+code+' went out without an inward scan','err');
+    }
+    else if(r&&r.ok){n++;feed.innerHTML='<b style="color:var(--green)">✓ '+esc(code)+'</b><div class="sub">'+n+' done</div>';beep(true);say(okWord);}
+    else{feed.innerHTML='<b style="color:var(--red)">'+esc(code)+' — '+esc((r&&r.msg)||'skipped')+'</b>';beep(false);say('No. '+((r&&r.msg)||'skipped'),{rate:1});}
     inp.value='';
   };
   inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();const v=inp.value.trim();if(v)handle(v)}};
@@ -5281,7 +4402,7 @@ document.addEventListener('click',e=>{
 /* ============================================================
    SETUP / CONNECT SCREENS
    ============================================================ */
-const FB_RULES="rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n\n    function uD() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }\n    function active() { return request.auth != null && uD().status == 'active'; }\n    function admin() { return active() && uD().role in ['admin','mainframe']; }\n    function mainframe() { return active() && uD().role == 'mainframe'; }\n    function perms() {\n      return exists(/databases/$(database)/documents/meta/app)\n        ? get(/databases/$(database)/documents/meta/app).data.get('perms', {})\n        : {};\n    }\n    function userCan(key) { return admin() || perms().get(key, true) == true; }\n\n    // Non-admins may only change numbering + view preferences in meta.\n    // perms, company, currency, tax settings and any FUTURE field are frozen by default.\n    function metaSafe() {\n      return request.resource.data.diff(resource.data).affectedKeys()\n             .hasOnly(['seq','view','sort','market','usdMig']);\n    }\n    // Defence-in-depth: cap top-level field count. (Firestore already caps each doc at 1MB.)\n    function okDoc() { return request.resource.data.size() <= 60; }\n\n    match /users/{uid} {\n      allow read: if request.auth != null && (request.auth.uid == uid || admin());\n      allow create: if request.auth != null && request.auth.uid == uid && (\n        (request.resource.data.role == 'user' && request.resource.data.status == 'pending') ||\n        (request.auth.token.email == 'trishal@invento.app' && request.resource.data.role == 'mainframe')\n      );\n      allow update: if mainframe()\n        || (admin() && resource.data.role == 'user' && request.resource.data.role == 'user')\n        || (request.auth != null && request.auth.uid == uid\n            && request.resource.data.role == resource.data.role\n            && request.resource.data.status == resource.data.status);\n      allow delete: if mainframe() || (request.auth != null && request.auth.uid == uid);\n    }\n\n    // \"Forgot password\" requests. The person is signed OUT, so create is public --\n    // but locked down hard: doc id MUST equal the userid (one request per user, no\n    // flooding), exactly two fields, tight types/length. Contains no private data.\n    // Only admins can read or clear them.\n    match /pwresets/{userid} {\n      allow read, update, delete: if admin();\n      allow create: if request.resource.data.keys().hasOnly(['userid','ts'])\n        && request.resource.data.userid is string\n        && request.resource.data.userid == userid\n        && request.resource.data.userid.size() >= 2\n        && request.resource.data.userid.size() <= 40\n        && request.resource.data.userid.matches('^[a-z0-9._-]+$')\n        && request.resource.data.ts is number;\n    }\n\n    match /support/{id}     { allow read, update, delete: if admin(); allow create: if active() && request.resource.data.keys().hasOnly(['id','ts','by','text','img','status']) && request.resource.data.text is string && request.resource.data.text.size() <= 2000; }\n    match /txns/{id}        { allow read: if active(); allow create: if active() && okDoc(); allow update: if false; allow delete: if admin(); }\n    match /trash/{id}       { allow read: if active(); allow create, update: if (admin() || userCan('trash') || userCan('delitem')) && okDoc(); allow delete: if (admin() || userCan('trash') || userCan('delitem')); }\n    match /meta/{doc}       { allow read: if active(); allow create: if admin(); allow update: if admin() || (active() && metaSafe()); }\n    match /items/{id}       { allow read: if active(); allow create, update: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')) && okDoc(); allow delete: if (admin() || userCan('delitem')); }\n    match /folders/{id}     { allow read: if active(); allow create, update: if userCan('editloc') && okDoc(); allow delete: if (admin() || userCan('editloc')); }\n    match /lists/{id}       { allow read: if active(); allow create, update: if active() && okDoc(); allow delete: if admin(); }\n    match /pos/{id}         { allow read: if active(); allow create, update: if active() && okDoc(); allow delete: if admin(); }\n    match /dispatches/{id}  { allow read: if active(); allow create, update: if (admin() || userCan('dispatch')) && okDoc(); allow delete: if admin(); }\n    match /awbs/{id}        { allow read: if active(); allow create, update: if (userCan('awbAccept') || userCan('awbDispatch')) && okDoc(); allow delete: if admin(); }\n    match /approvals/{id}   { allow read: if active(); allow create: if active() && okDoc(); allow update, delete: if admin(); }\n    match /backups/{id}     { allow read, create, delete: if admin(); allow update: if false; }\n    match /photos/{id}      { allow read: if active(); allow write: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')); }\n\n    // Deny anything not explicitly matched above.\n    match /{document=**} { allow read, write: if false; }\n  }\n}";
+const FB_RULES="rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n\n    function uD() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }\n    function active() { return request.auth != null && uD().status == 'active'; }\n    function admin() { return active() && uD().role in ['admin','mainframe']; }\n    function mainframe() { return active() && uD().role == 'mainframe'; }\n    function perms() {\n      return exists(/databases/$(database)/documents/meta/app)\n        ? get(/databases/$(database)/documents/meta/app).data.get('perms', {})\n        : {};\n    }\n    function userCan(key) { return admin() || perms().get(key, true) == true; }\n\n    // Non-admins may only change numbering + view preferences in meta.\n    // perms, company, currency, tax settings and any FUTURE field are frozen by default.\n    function metaSafe() {\n      return request.resource.data.diff(resource.data).affectedKeys()\n             .hasOnly(['seq','view','sort','market','usdMig']);\n    }\n    // Defence-in-depth: cap top-level field count. (Firestore already caps each doc at 1MB.)\n    function okDoc() { return request.resource.data.size() <= 60; }\n\n    match /users/{uid} {\n      allow read: if request.auth != null && (request.auth.uid == uid || admin());\n      allow create: if request.auth != null && request.auth.uid == uid && (\n        (request.resource.data.role == 'user' && request.resource.data.status == 'pending') ||\n        (request.auth.token.email == 'trishal@invento.app' && request.resource.data.role == 'mainframe')\n      );\n      allow update: if mainframe()\n        || (admin() && resource.data.role == 'user' && request.resource.data.role == 'user')\n        || (request.auth != null && request.auth.uid == uid\n            && request.resource.data.role == resource.data.role\n            && request.resource.data.status == resource.data.status);\n      allow delete: if mainframe() || (request.auth != null && request.auth.uid == uid);\n    }\n\n    // \"Forgot password\" requests. The person is signed OUT, so create is public --\n    // but locked down hard: doc id MUST equal the userid (one request per user, no\n    // flooding), exactly two fields, tight types/length. Contains no private data.\n    // Only admins can read or clear them.\n    match /pwresets/{userid} {\n      allow read, update, delete: if admin();\n      allow create: if request.resource.data.keys().hasOnly(['userid','ts'])\n        && request.resource.data.userid is string\n        && request.resource.data.userid == userid\n        && request.resource.data.userid.size() >= 2\n        && request.resource.data.userid.size() <= 40\n        && request.resource.data.userid.matches('^[a-z0-9._-]+$')\n        && request.resource.data.ts is number;\n    }\n\n    match /support/{id}     { allow read, update, delete: if admin(); allow create: if active() && request.resource.data.keys().hasOnly(['id','ts','by','text','img','status']) && request.resource.data.text is string && request.resource.data.text.size() <= 2000; }\n    match /txns/{id}        { allow read: if active(); allow create: if active() && okDoc(); allow update: if false; allow delete: if admin(); }\n    match /trash/{id}       { allow read: if active(); allow create, update: if (admin() || userCan('trash') || userCan('delitem')) && okDoc(); allow delete: if (admin() || userCan('trash') || userCan('delitem')); }\n    match /meta/{doc}       { allow read: if active(); allow create: if admin(); allow update: if admin() || (active() && metaSafe()); }\n    match /items/{id}       { allow read: if active(); allow create, update: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')) && okDoc(); allow delete: if (admin() || userCan('delitem')); }\n    match /folders/{id}     { allow read: if active(); allow create, update: if userCan('editloc') && okDoc(); allow delete: if (admin() || userCan('editloc')); }\n    match /lists/{id}       { allow read: if active(); allow create, update: if active() && okDoc(); allow delete: if admin(); }\n    match /pos/{id}         { allow read: if active(); allow create, update: if active() && okDoc(); allow delete: if admin(); }\n    match /dispatches/{id}  { allow read: if active(); allow create, update: if (admin() || userCan('dispatch')) && okDoc(); allow delete: if admin(); }\n    match /awbs/{id}        { allow read: if active(); allow create, update: if (userCan('awbAccept') || userCan('awbDispatch') || userCan('awbReturn')) && okDoc(); allow delete: if (admin() || userCan('awbDelete')); }\n    match /approvals/{id}   { allow read: if active(); allow create: if active() && okDoc(); allow update, delete: if admin(); }\n    match /backups/{id}     { allow read, create, delete: if admin(); allow update: if false; }\n    match /photos/{id}      { allow read: if active(); allow write: if (userCan('additem') || userCan('adjqty') || userCan('dispatch')); }\n\n    // Deny anything not explicitly matched above.\n    match /{document=**} { allow read, write: if false; }\n  }\n}";
 function authEmail(u){u=String(u||'').trim().toLowerCase();return u.indexOf('@')>0?u:u.replace(/[^a-z0-9._-]/g,'')+'@invento.app'}
 function authErrMsg(e){
   const c=(e&&e.code)||'';
@@ -5491,8 +4612,7 @@ function vLogin(err,tab,m){
     '<button class="btn pri block" id="lg-go">'+ico('check')+(m==='ph'?(tab==='in'?'Send code & sign in':'Send code & create account'):(tab==='in'?'Sign in':'Create account'))+'</button>'+
     (tab==='in'&&m==='em'?'<button class="btn block mt" id="lg-forgot" style="font-weight:600">'+ico('lock')+'Forgot password?</button>':'')+
     (m==='ph'?'<div class="hint mt">SMS charges apply to the business, not you. Standard code delivery.</div>':(tab==='up'?'<div class="hint mt">The email gets a verification link. Your team sees only your name and user ID.</div>':''))+
-    '</div>'+
-    '<button class="btn block mt" id="lang-flip" data-noi18n style="font-weight:700">'+(langHi()?'View in English':'हिंदी में देखें')+'</button>';
+    '</div>';
   $('#tb-in').onclick=()=>vLogin('','in',m);
   $('#tb-up').onclick=()=>vLogin('','up',m);
   $('#mm-em').onclick=()=>vLogin('',tab,'em');
