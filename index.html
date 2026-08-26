@@ -4130,14 +4130,12 @@ function vDispatch(sub,arg){
     validate:async code=>{const a=awbByNo(code);
       if(a&&a.status==='dispatched')return {ok:false,msg:(langHi()?'पहले ही डिस्पैच · ':'Already dispatched · ')+ago(a.resolvedAt)};
       if(a&&a.status==='returned')return {ok:false,msg:langHi()?'ऑफिस वापस जा चुका':'Was returned to office'};
+      if(!a){alarmSound();return {ok:false,msg:(langHi()?'यह अंदर स्कैन नहीं हुआ — पहले Inward करें':'Never scanned inward — do Inward first')}}
       return {ok:true}},
     onDone:async(code,med)=>{
-      const a=awbByNo(code);
-      if(a&&a.status==='accepted'){await dispatchAwbByNo(code,{sku:med.sku,photo:med.photo});return {created:false}}
-      S.awbs.unshift({id:uid('awb'),awb:code,status:'dispatched',acceptedBy:userName(),acceptedAt:Date.now(),resolvedBy:userName(),resolvedAt:Date.now(),sku:med.sku||'',photo:med.photo||'',market:getMarket()});
-      await saveNow('awbs');
-      logTx('dispatch',{detail:'Packed · '+code+(med.sku?' · '+med.sku:'')});
-      return {created:true};
+      /* HARD RULE: only a parcel that came IN can go OUT. No record is ever created here. */
+      const r=await dispatchAwbByNo(code,{sku:med.sku,photo:med.photo});
+      return {created:false,ok:!!(r&&r.ok)};
     },
     onClose:()=>route()
   }));
@@ -4181,12 +4179,16 @@ function vDispatchNew(){
     intl:dDraft.dest==='intl',
     validate:async code=>{const a=awbByNo(code);
       if(a&&a.status==='dispatched')return {ok:false,msg:(langHi()?'पहले ही डिस्पैच · ':'Already dispatched · ')+ago(a.resolvedAt)};
+      if(a&&a.status==='returned')return {ok:false,msg:langHi()?'ऑफिस वापस जा चुका':'Was returned to office'};
+      if(!a){alarmSound();return {ok:false,msg:(langHi()?'यह अंदर स्कैन नहीं हुआ — पहले Inward करें':'Never scanned inward — do Inward first')}}
       return {ok:true}},
     onDone:async(code,med)=>{
+      /* HARD RULE: only a parcel that came IN can go OUT. */
+      const r=await dispatchAwbByNo(code,{sku:med.sku,photo:med.photo,video:med.video});
+      if(!r||!r.ok)return {created:false,ok:false};
       dDraft.parcels=dDraft.parcels||[];
       dDraft.parcels.push({code:code,sku:med.sku||'',photo:med.photo||'',video:med.video||'',at:Date.now()});
-      const a=awbByNo(code);
-      if(a&&a.status==='accepted'){await dispatchAwbByNo(code,{sku:med.sku,photo:med.photo,video:med.video})}
+      return {created:false,ok:true};
     },
     onClose:()=>route()
   });
@@ -4854,39 +4856,77 @@ function startAwbNag(){
 }
 
 function myOverdueAwbs(){const me=userName();return awbOverdue().filter(a=>(a.acceptedBy||'')===me)}
-function awbByNo(no){const k=String(no||'').trim().toLowerCase();return (S.awbs||[]).find(a=>String(a.awb||'').trim().toLowerCase()===k)}
+/* Indian labels carry several barcodes: AWB, order number, sometimes a manifest
+   or reverse-pickup code. A parcel keeps them all in a.codes[] and ANY of them
+   finds it — the packer never has to hunt for the "right" one. */
+const awbKey=s=>String(s||'').replace(/[\s-]/g,'').toUpperCase();
+function awbCodes(a){
+  const out=[],seen={};
+  [a.awb,a.orderNo].concat(Array.isArray(a.codes)?a.codes:[]).forEach(c=>{
+    const k=awbKey(c);if(k&&!seen[k]){seen[k]=1;out.push(String(c).trim())}
+  });
+  return out;
+}
+function awbByNo(no){const k=awbKey(no);if(!k)return null;return (S.awbs||[]).find(a=>awbCodes(a).some(c=>awbKey(c)===k))}
+/* attach another barcode from the same physical label to an existing parcel */
+async function awbAddCode(a,code){
+  code=String(code||'').trim();if(!a||!code)return false;
+  if(awbCodes(a).some(c=>awbKey(c)===awbKey(code)))return true;   // already known
+  a.codes=(Array.isArray(a.codes)?a.codes:[]).concat([code]);
+  a.updatedAt=Date.now();
+  await saveNow('awbs');
+  logTx('list',{detail:'AWB '+a.awb+' — extra barcode linked · '+code});
+  return true;
+}
 function awbAgeDays(a){return Math.floor((Date.now()-(a.acceptedAt||Date.now()))/86400000)}
 // colour state by age: 'fresh' | 'aging' (5-6d) | 'over' (7d+)
 function awbAgeClass(a){const d=awbAgeDays(a);if(d>=AWB_OVERDUE_DAYS)return 'over';if(d>=AWB_OVERDUE_DAYS-1)return 'aging';return 'fresh'}
+let awbLastIn=null,awbLastInAt=0;         // last parcel accepted, for same-label linking
 async function acceptAwb(no,extra){
   no=String(no||'').trim();
   if(!no)return {ok:false,msg:'Empty'};
   const ex=awbByNo(no);
+  /* unknown code, scanned within 20s of the last inward scan → same label? */
+  if(!ex&&awbLastIn&&Date.now()-awbLastInAt<20000&&(S.awbs||[]).indexOf(awbLastIn)>=0&&awbLastIn.status==='accepted'){
+    const same=await confirmDlg(
+      langHi()?'उसी लेबल का दूसरा बारकोड?':'Another barcode on the same label?',
+      (langHi()?'अभी-अभी ':'You just scanned in ')+'<b class="mono">'+esc(awbLastIn.awb)+'</b>'+(langHi()?' अंदर लिया था। क्या ':' — is ')+'<b class="mono">'+esc(no)+'</b>'+(langHi()?' उसी पार्सल का दूसरा बारकोड है?':' another barcode on that same parcel?'),
+      langHi()?'हाँ, उसी पार्सल का':'Yes, same parcel');
+    if(same){
+      await awbAddCode(awbLastIn,no);
+      awbLastInAt=Date.now();
+      return {ok:true,rec:awbLastIn,linked:true,msg:(langHi()?'उसी पार्सल से जोड़ा · ':'linked to · ')+awbLastIn.awb};
+    }
+  }
   if(ex&&ex.status==='accepted'){beep(false);return {ok:false,msg:(langHi()?'पहले से लिस्ट में है':'Already scanned inward')+' ('+(ex.acceptedBy||'someone')+')'}}
   if(ex&&ex.status==='dispatched'){beep(false);return {ok:false,msg:(langHi()?'यह पहले ही डिस्पैच हो चुका है · ':'Already dispatched · ')+ago(ex.resolvedAt)}}
   if(ex&&ex.status==='returned'){beep(false);return {ok:false,msg:(langHi()?'यह ऑफिस वापस जा चुका है · ':'Already returned to office · ')+ago(ex.resolvedAt)}}
   const rec=Object.assign({id:uid('awb'),awb:no,status:'accepted',acceptedBy:userName(),acceptedAt:Date.now()},extra||{});
+  if(!Array.isArray(rec.codes))rec.codes=[];
   S.awbs.unshift(rec);
   await saveNow('awbs');
-  logTx('list',{detail:'AWB accepted · '+no+(rec.customer?' · '+rec.customer:'')});
+  logTx('list',{detail:'AWB accepted · '+no+(rec.orderNo?' · order '+rec.orderNo:'')+(rec.customer?' · '+rec.customer:'')});
+  awbLastIn=rec;awbLastInAt=Date.now();
   return {ok:true,rec};
 }
 async function dispatchAwbByNo(no,extra){
   no=String(no||'').trim();
   if(!no)return {ok:false,msg:'Empty'};
   let a=awbByNo(no);
-  if(a&&a.status==='dispatched'){beep(false);return {ok:false,msg:(langHi()?'यह पहले ही डिस्पैच हो चुका है · ':'Already dispatched · ')+ago(a.resolvedAt)+' · '+(a.resolvedBy||'')}}
+  if(a&&a.status==='dispatched'){beep(false);return {ok:false,msg:(langHi()?'यह पहले ही डिस्पैच हो चुका है · ':'Already dispatched · ')+ago(a.resolvedAt)+' · '+(a.resolvedBy||'')+(awbKey(no)!==awbKey(a.awb)?' · AWB '+a.awb:'')}}
   if(a&&a.status==='returned'){beep(false);return {ok:false,msg:(langHi()?'यह ऑफिस वापस जा चुका है · ':'Was returned to office · ')+ago(a.resolvedAt)}}
   if(!a){ /* going OUT but never scanned IN — must never pass quietly */
     alarmSound();    toast('⚠ '+no+' — '+(langHi()?'अंदर स्कैन नहीं हुआ':'never scanned inward'),'err');
     return {ok:false,msg:(langHi()?'पहले Inward स्कैन करें':'Scan it inward first')};
   }
   a.status='dispatched';a.resolvedBy=userName();a.resolvedAt=Date.now();
+  a.outCode=no;                                     // which barcode the packer actually scanned
+  if(!awbCodes(a).some(c=>awbKey(c)===awbKey(no)))a.codes=(Array.isArray(a.codes)?a.codes:[]).concat([no]);
   if(extra&&extra.sku)a.sku=String(extra.sku).trim();
   if(extra&&extra.photo)a.photo=extra.photo;
   if(extra&&extra.video)a.video=extra.video;
   await saveNow('awbs');
-  logTx('dispatch',{detail:'AWB dispatched · '+no+(a.sku?' · '+a.sku:'')});
+  logTx('dispatch',{detail:'AWB dispatched · '+no+(awbKey(no)!==awbKey(a.awb)?' (AWB '+a.awb+')':'')+(a.sku?' · '+a.sku:'')});
   return {ok:true,rec:a};
 }
 async function returnAwbRec(a){
@@ -4944,7 +4984,7 @@ function vAwb(sub,arg){
     box.innerHTML='<div class="searchbar mb">'+ico('search')+'<input id="aw-hq" placeholder="'+(langHi()?'नंबर या SKU खोजें…':'Search number or SKU…')+'" autocomplete="off"></div><div id="aw-hlist"></div>';
     const paint=()=>{
       const el=$('#aw-hq');const q=((el&&el.value)||'').trim().toLowerCase();
-      const rows=hist.filter(a=>!q||String(a.awb||'').toLowerCase().indexOf(q)>=0||String(a.sku||'').toLowerCase().indexOf(q)>=0).slice(0,120);
+      const rows=hist.filter(a=>!q||awbCodes(a).some(c=>c.toLowerCase().indexOf(q)>=0)||String(a.sku||'').toLowerCase().indexOf(q)>=0||String(a.customer||'').toLowerCase().indexOf(q)>=0).slice(0,120);
       $('#aw-hlist').innerHTML=rows.length?rows.map(a=>'<div class="awbmini"><div class="awb-no">'+esc(a.awb)+'</div><div class="awb-meta">'+
         (a.status==='dispatched'?(langHi()?'डिस्पैच':'dispatched'):(langHi()?'वापस':'returned'))+' · '+ago(a.resolvedAt)+' · '+esc(a.resolvedBy||'—')+
         (a.sku?' · <b>'+esc(a.sku)+'</b>':'')+(a.video?' · 🎬 '+esc(a.video):'')+'</div>'+
@@ -5002,6 +5042,8 @@ function awbColHTML(title,list,kind){
     const od=cls==='over';
     h+='<div class="awbmini '+cls+'" data-awid="'+a.id+'">'+
       '<div class="awb-no">'+esc(a.awb)+'</div>'+
+      (a.orderNo?'<div class="awb-meta mono">'+(langHi()?'ऑर्डर ':'Order ')+esc(a.orderNo)+'</div>':'')+
+      ((a.codes&&a.codes.length)?'<div class="awb-meta mono" style="opacity:.75">+'+a.codes.length+(langHi()?' और बारकोड':' more barcode'+(a.codes.length>1?'s':''))+'</div>':'')+
       (a.customer?'<div class="awb-meta" style="color:var(--ink)"><b>'+esc(a.customer)+'</b></div>':'')+
       (a.items&&a.items.length?'<div class="awb-meta ellip">'+esc(a.items.map(x=>(x.sku?x.sku+' · ':'')+x.name+(x.qty>1?' ×'+x.qty:'')).join(', '))+'</div>':'')+
       '<div class="awb-meta">'+(kind==='accept'?('held by '+esc(a.acceptedBy||'—')+' · '+awbAgeDays(a)+'d'+(od?' · OVERDUE':'')):(kind==='dispatch'?'out · '+ago(a.resolvedAt):'returned · '+ago(a.resolvedAt)))+'</div>'+
@@ -5166,6 +5208,14 @@ async function parcelCamFlow(opts){
       }
     }
     const res=await opts.onDone(cur,{sku:skuCode||'',photo:photo,item:it||null});
+    if(res&&res.ok===false){
+      /* refused (never scanned inward) — undo the stock we just took and stay on this parcel */
+      if(took){const bi=iById(took.itemId);if(bi)pileAdd(bi,took.rack,took.qty);await saveNow('items');
+        logTx('in',{itemId:took.itemId,qty:took.qty,reason:'Dispatch refused',detail:'Not inward · '+cur});}
+      err(cur,T('यह अंदर स्कैन नहीं हुआ — डिस्पैच नहीं हुआ','Never scanned inward — not dispatched'));
+      alarmSound();
+      return;
+    }
     lastUndo={awb:cur,itemId:took&&took.itemId,qty:took&&took.qty,rack:took&&took.rack,created:!!(res&&res.created)};
     n++;beep(true);
     const done=cur,nm=it?it.name:'';cur='';photo='';stage='idle';paint();
@@ -5349,7 +5399,7 @@ async function pdfPages(file){
       return c.toDataURL('image/jpeg',.82).split(',')[1];
     }};
 }
-const AI_PROMPT="You are reading a courier shipping label or a sales invoice from an Indian leather-goods exporter.\n\nReturn ONLY valid JSON, no markdown fences, no commentary, exactly:\n{\"shipments\":[{\"awb\":\"\",\"courier\":\"\",\"invoice_no\":\"\",\"customer\":\"\",\"items\":[{\"name\":\"\",\"sku\":\"\",\"qty\":1}]}]}\n\nRules:\n- \"awb\" = the tracking / AWB / consignment / docket number. Most important field. Copy the digits and letters EXACTLY as printed. Do not guess, do not reformat, do not add spaces. If you cannot read it clearly, use \"\".\n- \"courier\" = Delhivery, Bluedart, DTDC, XpressBees, Ekart, India Post, Shadowfax, Amazon, etc. \"\" if unclear.\n- \"customer\" = the person or company the parcel is going TO (consignee). Never the sender, never Mahetri / Classy Leather Bags / Asgard.\n- \"items\" = the product lines. For each: \"name\" = the description exactly as printed, \"sku\" = the item/SKU/style/article code printed against that line (\"\" if none), \"qty\" = a number, default 1. Empty array if no lines shown.\n- Several labels on one page = one object each.\n- NEVER invent an AWB number. An empty string is far better than a wrong one.";
+const AI_PROMPT="You are reading a courier shipping label or a sales invoice from an Indian leather-goods exporter.\n\nReturn ONLY valid JSON, no markdown fences, no commentary, exactly:\n{\"shipments\":[{\"awb\":\"\",\"order_no\":\"\",\"other_codes\":[],\"courier\":\"\",\"invoice_no\":\"\",\"customer\":\"\",\"items\":[{\"name\":\"\",\"sku\":\"\",\"qty\":1}]}]}\n\nRules:\n- \"awb\" = the tracking / AWB / consignment / docket number. Most important field. Copy the digits and letters EXACTLY as printed. Do not guess, do not reformat, do not add spaces. If you cannot read it clearly, use \"\".\n- \"order_no\" = the ORDER number printed on the label or invoice (Amazon / Flipkart / Meesho / Shopify order id, often under a second barcode, labelled Order No / Order ID / OD / Purchase Order). \"\" if not shown. It is NOT the AWB.\n- \"other_codes\" = any OTHER identifier printed under its own barcode on the same label (manifest no, reverse/return code, shipment id, package id, seller order item id). Copy each exactly, as an array of strings. Empty array if none. Do not repeat the awb or the order_no here, and do not include phone numbers, pincodes, prices or weights.\n- \"courier\" = Delhivery, Bluedart, DTDC, XpressBees, Ekart, India Post, Shadowfax, Amazon, etc. \"\" if unclear.\n- \"customer\" = the person or company the parcel is going TO (consignee). Never the sender, never Mahetri / Classy Leather Bags / Asgard.\n- \"items\" = the product lines. For each: \"name\" = the description exactly as printed, \"sku\" = the item/SKU/style/article code printed against that line (\"\" if none), \"qty\" = a number, default 1. Empty array if no lines shown.\n- Several labels on one page = one object each.\n- NEVER invent an AWB number. An empty string is far better than a wrong one.";
 
 function aiB64(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(file)})}
 /* bigger + sharper than the catalog compressor — small print must stay readable */
@@ -5438,6 +5488,8 @@ function aiPushShips(ships,label){
   if(!ships.length){aiRows.push({file:label,pages:[label],awb:'',customer:'',courier:'',invoice_no:'',items:[],err:(langHi()?'इस पेज पर कुछ नहीं मिला':'Nothing found on this page'),pick:false});return}
   ships.forEach(s=>{
     const awb=String(s.awb||'').trim();
+    const orderNo=String(s.order_no||'').trim();
+    const others=(Array.isArray(s.other_codes)?s.other_codes:[]).map(c=>String(c||'').trim()).filter(c=>c&&awbKey(c)!==awbKey(awb)&&awbKey(c)!==awbKey(orderNo)).slice(0,6);
     const items=Array.isArray(s.items)?s.items.filter(x=>x&&(x.name||x.sku)).map(x=>{
       const nm=String(x.name||'').slice(0,120),sk=String(x.sku||'').trim();
       const m=aiMatchItem(nm,sk);
@@ -5445,9 +5497,17 @@ function aiPushShips(ships,label){
     }):[];
     /* the label, the invoice and the packing slip are separate pages of ONE parcel —
        same tracking number means merge into the existing row, never add it again */
-    const twin=awb?aiRows.find(r=>r.awb&&aiNorm(r.awb)===aiNorm(awb)):null;
+    /* pages of one parcel may print different barcodes — match on ANY known code */
+    const mine=[awb,orderNo].concat(others).filter(Boolean).map(aiNorm);
+    const twin=mine.length?aiRows.find(r=>[r.awb,r.orderNo].concat(r.codes||[]).filter(Boolean).some(c=>mine.indexOf(aiNorm(c))>=0)):null;
     if(twin){
       twin.pages.push(label);
+      if(!twin.awb&&awb)twin.awb=awb;
+      twin.orderNo=aiBetter(twin.orderNo,orderNo);
+      others.concat(awb&&aiNorm(awb)!==aiNorm(twin.awb)?[awb]:[]).forEach(c=>{
+        const all=[twin.awb,twin.orderNo].concat(twin.codes||[]).filter(Boolean).map(aiNorm);
+        if(all.indexOf(aiNorm(c))<0)twin.codes=(twin.codes||[]).concat([c]);
+      });
       twin.customer=aiBetter(twin.customer,s.customer);
       twin.courier=aiBetter(twin.courier,s.courier);
       twin.invoice_no=aiBetter(twin.invoice_no,s.invoice_no);
@@ -5463,6 +5523,8 @@ function aiPushShips(ships,label){
     aiRows.push({
       file:label,pages:[label],
       awb:awb,
+      orderNo:orderNo,
+      codes:others,
       courier:String(s.courier||'').trim(),
       invoice_no:String(s.invoice_no||'').trim(),
       customer:String(s.customer||'').trim(),
@@ -5526,7 +5588,9 @@ function aiPaintRows(){
     h+='<div class="awbmini" style="border-color:'+(st.k==='new'?'var(--line)':'var(--red)')+';margin-bottom:9px">'+
       '<label class="row" style="gap:8px;align-items:center"><input type="checkbox" data-aip="'+ix+'"'+(r.pick?' checked':'')+(st.k!=='new'?' disabled':'')+' style="width:18px;height:18px;accent-color:var(--saddle)"><b class="grow ellip">'+esc(r.file)+((r.pages&&r.pages.length>1)?' <span class="pill info" style="font-size:10px">'+r.pages.length+(langHi()?' पेज':' pages')+'</span>':'')+'</b>'+pill+'</label>'+
       '<div class="field mt" style="margin-bottom:6px"><label>'+(langHi()?'ट्रैकिंग / AWB':'Tracking / AWB')+'</label><input class="in mono" data-aiawb="'+ix+'" value="'+esc(r.awb)+'" placeholder="'+(langHi()?'नहीं मिला — खुद लिखें':'not found — type it')+'"></div>'+
+      '<div class="field" style="margin-bottom:6px"><label>'+(langHi()?'ऑर्डर नंबर':'Order number')+'</label><input class="in mono" data-aiord="'+ix+'" value="'+esc(r.orderNo||'')+'" placeholder="—"></div>'+
       '<div class="field" style="margin-bottom:6px"><label>'+(langHi()?'ग्राहक':'Customer')+'</label><input class="in" data-aicus="'+ix+'" value="'+esc(r.customer)+'" placeholder="—"></div>'+
+      ((r.codes&&r.codes.length)?'<div class="sub mono" style="opacity:.8;margin-bottom:4px">'+(langHi()?'और बारकोड: ':'also on label: ')+esc(r.codes.join(' · '))+'</div>':'')+
       (r.items.length
         ?'<div style="margin-top:2px">'+r.items.map(x=>'<div class="sub" style="display:flex;gap:6px;align-items:baseline;padding:1px 0">'+
             '<span class="grow ellip">'+esc(x.name)+(x.qty>1?' <b class="num">×'+x.qty+'</b>':'')+'</span>'+
@@ -5546,6 +5610,7 @@ function aiPaintRows(){
   $$('#ai-out [data-aip]').forEach(c=>c.onchange=()=>{aiRows[+c.dataset.aip].pick=c.checked;aiPaintRows()});
   $$('#ai-out [data-aiawb]').forEach(i=>i.onchange=()=>{aiRows[+i.dataset.aiawb].awb=i.value.trim();aiRows[+i.dataset.aiawb].err='';aiPaintRows()});
   $$('#ai-out [data-aicus]').forEach(i=>i.onchange=()=>{aiRows[+i.dataset.aicus].customer=i.value.trim()});
+  $$('#ai-out [data-aiord]').forEach(i=>i.onchange=()=>{aiRows[+i.dataset.aiord].orderNo=i.value.trim()});
   const bb=$('#ai-blanks');if(bb)bb.onclick=()=>{aiShowBlanks=!aiShowBlanks;aiPaintRows()};
   $('#ai-clear').onclick=()=>{aiRows=[];aiShowBlanks=false;const p=$('#ai-prog');if(p)p.innerHTML='';aiPaintRows()};
   const cm=$('#ai-commit');if(cm)cm.onclick=aiCommit;
@@ -5560,7 +5625,7 @@ async function aiCommit(){
   let n=0;
   for(const r of rows){
     const skus=(r.items||[]).map(x=>x.sku).filter(Boolean);
-    const res=await acceptAwb(r.awb,{customer:r.customer||'',items:r.items||[],courier:r.courier||'',invoiceNo:r.invoice_no||'',sku:skus.join(', '),source:'ai'});
+    const res=await acceptAwb(r.awb,{customer:r.customer||'',items:r.items||[],courier:r.courier||'',invoiceNo:r.invoice_no||'',orderNo:r.orderNo||'',codes:(r.codes||[]).slice(),sku:skus.join(', '),source:'ai'});
     if(res&&res.ok)n++;
   }
   aiRows=[];
