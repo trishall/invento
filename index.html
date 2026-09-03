@@ -4886,18 +4886,7 @@ async function acceptAwb(no,extra){
   no=String(no||'').trim();
   if(!no)return {ok:false,msg:'Empty'};
   const ex=awbByNo(no);
-  /* unknown code, scanned within 20s of the last inward scan → same label? */
-  if(!ex&&awbLastIn&&Date.now()-awbLastInAt<20000&&(S.awbs||[]).indexOf(awbLastIn)>=0&&awbLastIn.status==='accepted'){
-    const same=await confirmDlg(
-      langHi()?'उसी लेबल का दूसरा बारकोड?':'Another barcode on the same label?',
-      (langHi()?'अभी-अभी ':'You just scanned in ')+'<b class="mono">'+esc(awbLastIn.awb)+'</b>'+(langHi()?' अंदर लिया था। क्या ':' — is ')+'<b class="mono">'+esc(no)+'</b>'+(langHi()?' उसी पार्सल का दूसरा बारकोड है?':' another barcode on that same parcel?'),
-      langHi()?'हाँ, उसी पार्सल का':'Yes, same parcel');
-    if(same){
-      await awbAddCode(awbLastIn,no);
-      awbLastInAt=Date.now();
-      return {ok:true,rec:awbLastIn,linked:true,msg:(langHi()?'उसी पार्सल से जोड़ा · ':'linked to · ')+awbLastIn.awb};
-    }
-  }
+
   if(ex&&ex.status==='accepted'){beep(false);return {ok:false,msg:(langHi()?'पहले से लिस्ट में है':'Already scanned inward')+' ('+(ex.acceptedBy||'someone')+')'}}
   if(ex&&ex.status==='dispatched'){beep(false);return {ok:false,msg:(langHi()?'यह पहले ही डिस्पैच हो चुका है · ':'Already dispatched · ')+ago(ex.resolvedAt)}}
   if(ex&&ex.status==='returned'){beep(false);return {ok:false,msg:(langHi()?'यह ऑफिस वापस जा चुका है · ':'Already returned to office · ')+ago(ex.resolvedAt)}}
@@ -5276,9 +5265,10 @@ function awbScanFlow(mode){
   const accept=mode==='in';
   if(accept && !can('awbAccept')){toast('No permission','err');go('#awb');return}
   if(!accept && !can('awbDispatch')){toast('No permission','err');go('#awb');return}
-  awbScanModal(accept?'Inward — accept AWBs':'Outward — dispatch AWBs',
-    accept?'Scan each label taken from office.':'Scan each AWB you are sending out. SKU or photo optional.',
-    async(code)=>accept?acceptAwb(code):dispatchAwbByNo(code,awbExtra()), ()=>vAwb(), !accept);
+  awbScanModal(accept?(langHi()?'Inward — लेबल अंदर लें':'Inward — accept AWBs'):'Outward — dispatch AWBs',
+    accept?(langHi()?'लेबल का AWB स्कैन करें। एक ही बारकोड है तो Enter दबाएँ। कई बारकोड हैं तो सब स्कैन करके Enter दबाएँ।':'Scan the AWB. One barcode on the label? Press Enter. Several? Scan them all, then press Enter for the next order.')
+           :'Scan each AWB you are sending out. SKU or photo optional.',
+    async(code)=>accept?acceptAwb(code):dispatchAwbByNo(code,awbExtra()), ()=>vAwb(), !accept, accept);
 }
 function awbReturnScanFlow(prefill){
   if(!isAdminU()){toast(langHi()?'वापसी सिर्फ एडमिन कर सकते हैं':'Only admins can return AWBs','err');go('#awb');return}
@@ -5297,7 +5287,7 @@ function awbReturnScanFlow(prefill){
 let _awExtra={sku:'',photo:''};
 function awbExtra(){const e={sku:_awExtra.sku,photo:_awExtra.photo};_awExtra={sku:'',photo:''};
   const s=$('#aw-sku');if(s)s.value='';const pv=$('#aw-pv');if(pv)pv.innerHTML='';return e}
-function awbScanModal(title,subtitle,onCode,onDone,withExtra){
+function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
   const hw=hwScanner();
   let h='<h3>'+esc(title)+(hw?' <span class="pill ok" style="font-size:10px">Machine</span>':'')+'</h3>';
   h+='<p class="sub mb">'+esc(subtitle)+'</p>';
@@ -5309,8 +5299,10 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra){
        '<button class="btn" id="aw-cam" style="flex:0 0 auto">'+ico('camera')+'</button></div>'+
        '<input type="file" id="aw-pf" accept="image/*" capture="environment" style="display:none"><div id="aw-pv" class="mb"></div>';
   }
+  if(group)h+='<div id="aw-cur" style="margin-bottom:8px"></div>';
   h+='<div id="aw-feed2" class="sub" style="min-height:40px;margin-bottom:8px"></div>';
-  h+='<button class="btn pri block" id="aw-done2">'+ico('check')+'Done</button>';
+  if(group)h+='<button class="btn block mb" id="aw-next" disabled>'+ico('check')+(langHi()?'यह पार्सल पूरा — अगला (Enter)':'Parcel done — next (Enter)')+'</button>';
+  h+='<button class="btn pri block" id="aw-done2">'+ico('check')+(langHi()?'सब हो गया':'Finish')+'</button>';
   openModal(h);
   const inp=$('#aw-in2'),feed=$('#aw-feed2');
   if(withExtra){
@@ -5324,15 +5316,45 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra){
         r.readAsDataURL(f);pf.value='';};
     }
   }
-  let n=0;
+  let n=0,cur=null;                       // cur = the parcel currently being built
+  const T=(hi,en)=>langHi()?hi:en;
+  const okBox=(code,extra)=>{feed.innerHTML='<b style="color:var(--green)">✓ '+esc(code)+'</b><div class="sub">'+(extra||(n+' '+T('पार्सल हो गए','done')))+'</div>';beep(true)};
+  const errBox=(code,msg)=>{feed.innerHTML='<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:10px;padding:9px 11px"><b style="color:var(--red)">'+esc(code)+'</b><div style="color:var(--red);font-weight:600;font-size:13px">'+esc(msg||'skipped')+'</div></div>';beep(false)};
+  const paintCur=()=>{
+    const box=$('#aw-cur'),nx=$('#aw-next');if(!box)return;
+    if(!cur){box.innerHTML='<div class="hint">'+T('अगला लेबल स्कैन करें','Scan the next label to start a parcel')+'</div>';if(nx)nx.disabled=true;return}
+    const codes=awbCodes(cur);
+    box.innerHTML='<div class="awbmini fresh"><div class="awb-no">'+esc(cur.awb)+'</div>'+
+      '<div class="awb-meta">'+codes.length+' '+T('बारकोड इस पार्सल पर','barcode'+(codes.length===1?'':'s')+' on this parcel')+'</div>'+
+      '<div class="sub mono" style="margin-top:3px">'+codes.map(c=>esc(c)).join(' · ')+'</div>'+
+      '<div class="hint" style="margin-top:4px">'+T('इसी लेबल के और बारकोड स्कैन करें, या Enter दबाकर अगला पार्सल शुरू करें।','Scan more barcodes from this same label, or press Enter for the next parcel.')+'</div></div>';
+    if(nx)nx.disabled=false;
+  };
+  const closeParcel=(quiet)=>{
+    if(!cur)return;
+    const done=cur;cur=null;paintCur();
+    if(!quiet){beep(true);feed.innerHTML='<b>'+esc(done.awb)+'</b> '+T('पूरा · अगला लेबल स्कैन करें','closed · scan the next label')+'<div class="sub">'+n+' '+T('पार्सल हो गए','done')+'</div>'}
+  };
   const handle=async(code)=>{
     code=String(code||'').trim();if(!code)return;
+    if(group&&cur){
+      /* another barcode from the SAME label */
+      if(awbCodes(cur).some(c=>awbKey(c)===awbKey(code))){errBox(code,T('यह बारकोड पहले ही जुड़ा है','already on this parcel'));inp.value='';return}
+      const other=awbByNo(code);
+      if(other&&other.id!==cur.id){errBox(code,T('यह दूसरे पार्सल का है · ','belongs to another parcel · ')+other.awb);inp.value='';return}
+      await awbAddCode(cur,code);
+      okBox(code,T('इसी पार्सल से जुड़ा','linked to this parcel'));
+      paintCur();inp.value='';return;
+    }
     const r=await onCode(code);
-    if(r&&r.ok){n++;feed.innerHTML='<b style="color:var(--green)">✓ '+esc(code)+'</b><div class="sub">'+n+' done</div>';beep(true);}
-    else{feed.innerHTML='<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:10px;padding:9px 11px"><b style="color:var(--red)">'+esc(code)+'</b><div style="color:var(--red);font-weight:600;font-size:13px">'+esc((r&&r.msg)||'skipped')+'</div></div>';beep(false);}
+    if(r&&r.ok){n++;if(group){cur=r.rec;okBox(code,T('पार्सल खुला — और बारकोड स्कैन करें या Enter','parcel open — scan more barcodes or press Enter'));paintCur()}else okBox(code)}
+    else errBox(code,(r&&r.msg));
     inp.value='';
   };
-  inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();const v=inp.value.trim();if(v)handle(v)}};
+  inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();const v=inp.value.trim();if(v)handle(v);else if(group)closeParcel()}};
+  if(group)paintCur();
+  const nx=$('#aw-next');if(nx)nx.onclick=()=>{closeParcel();refocusSafe()};
+  function refocusSafe(){try{inp.focus()}catch(e){}}
   const refocus=()=>{try{inp.focus()}catch(e){}};refocus();
   let fi=null,stop=null;
   if(hw){
@@ -5399,7 +5421,7 @@ async function pdfPages(file){
       return c.toDataURL('image/jpeg',.82).split(',')[1];
     }};
 }
-const AI_PROMPT="You are reading a courier shipping label or a sales invoice from an Indian leather-goods exporter.\n\nReturn ONLY valid JSON, no markdown fences, no commentary, exactly:\n{\"shipments\":[{\"awb\":\"\",\"order_no\":\"\",\"other_codes\":[],\"courier\":\"\",\"invoice_no\":\"\",\"customer\":\"\",\"items\":[{\"name\":\"\",\"sku\":\"\",\"qty\":1}]}]}\n\nRules:\n- \"awb\" = the tracking / AWB / consignment / docket number. Most important field. Copy the digits and letters EXACTLY as printed. Do not guess, do not reformat, do not add spaces. If you cannot read it clearly, use \"\".\n- \"order_no\" = the ORDER number printed on the label or invoice (Amazon / Flipkart / Meesho / Shopify order id, often under a second barcode, labelled Order No / Order ID / OD / Purchase Order). \"\" if not shown. It is NOT the AWB.\n- \"other_codes\" = any OTHER identifier printed under its own barcode on the same label (manifest no, reverse/return code, shipment id, package id, seller order item id). Copy each exactly, as an array of strings. Empty array if none. Do not repeat the awb or the order_no here, and do not include phone numbers, pincodes, prices or weights.\n- \"courier\" = Delhivery, Bluedart, DTDC, XpressBees, Ekart, India Post, Shadowfax, Amazon, etc. \"\" if unclear.\n- \"customer\" = the person or company the parcel is going TO (consignee). Never the sender, never Mahetri / Classy Leather Bags / Asgard.\n- \"items\" = the product lines. For each: \"name\" = the description exactly as printed, \"sku\" = the item/SKU/style/article code printed against that line (\"\" if none), \"qty\" = a number, default 1. Empty array if no lines shown.\n- Several labels on one page = one object each.\n- NEVER invent an AWB number. An empty string is far better than a wrong one.";
+const AI_PROMPT="You are reading a courier shipping label or a sales invoice from an Indian leather-goods exporter.\n\nReturn ONLY valid JSON, no markdown fences, no commentary, exactly:\n{\"shipments\":[{\"awb\":\"\",\"order_no\":\"\",\"other_codes\":[],\"courier\":\"\",\"invoice_no\":\"\",\"customer\":\"\",\"items\":[{\"name\":\"\",\"sku\":\"\",\"qty\":1}]}]}\n\nRules:\n- \"awb\" = the tracking / AWB / consignment / docket number. Most important field. Copy the digits and letters EXACTLY as printed. Do not guess, do not reformat, do not add spaces. If you cannot read it clearly, use \"\".\n- \"order_no\" = the ORDER number printed on the label or invoice (Amazon / Flipkart / Meesho / Shopify order id, often under a second barcode, labelled Order No / Order ID / OD / Purchase Order). \"\" if not shown. It is NOT the AWB.\n- \"other_codes\" = ONLY identifiers that are printed UNDER THEIR OWN BARCODE and can be scanned (e.g. a manifest barcode, a reverse/return barcode, a package id barcode). At most 3. Empty array if none. Do NOT include: the awb, the order_no, invoice numbers, PO numbers, REF / DEPT / CAD codes, HS codes, phone numbers, pincodes, prices or weights. If a number has no barcode above or below it, leave it out.\n- \"courier\" = Delhivery, Bluedart, DTDC, XpressBees, Ekart, India Post, Shadowfax, Amazon, etc. \"\" if unclear.\n- \"customer\" = the person or company the parcel is going TO (consignee). Never the sender, never Mahetri / Classy Leather Bags / Asgard.\n- \"items\" = the product lines. For each: \"name\" = the description exactly as printed, \"sku\" = the item/SKU/style/article code printed against that line (\"\" if none), \"qty\" = a number, default 1. Empty array if no lines shown.\n- Several labels on one page = one object each.\n- NEVER invent an AWB number. An empty string is far better than a wrong one.";
 
 function aiB64(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(file)})}
 /* bigger + sharper than the catalog compressor — small print must stay readable */
@@ -5497,16 +5519,19 @@ function aiPushShips(ships,label){
     }):[];
     /* the label, the invoice and the packing slip are separate pages of ONE parcel —
        same tracking number means merge into the existing row, never add it again */
-    /* pages of one parcel may print different barcodes — match on ANY known code */
-    const mine=[awb,orderNo].concat(others).filter(Boolean).map(aiNorm);
-    const twin=mine.length?aiRows.find(r=>[r.awb,r.orderNo].concat(r.codes||[]).filter(Boolean).some(c=>mine.indexOf(aiNorm(c))>=0)):null;
+    /* Merge pages of ONE parcel only on a strong identity: the AWB, or the order
+       number when this page carries no AWB. Reference / PO / DEPT numbers repeat
+       across many labels, so they are stored but NEVER used to match. */
+    let twin=null;
+    if(awb)twin=aiRows.find(r=>r.awb&&aiNorm(r.awb)===aiNorm(awb))||null;
+    else if(orderNo)twin=aiRows.find(r=>!r.awb&&r.orderNo&&aiNorm(r.orderNo)===aiNorm(orderNo))||null;
     if(twin){
       twin.pages.push(label);
       if(!twin.awb&&awb)twin.awb=awb;
       twin.orderNo=aiBetter(twin.orderNo,orderNo);
-      others.concat(awb&&aiNorm(awb)!==aiNorm(twin.awb)?[awb]:[]).forEach(c=>{
+      others.forEach(c=>{
         const all=[twin.awb,twin.orderNo].concat(twin.codes||[]).filter(Boolean).map(aiNorm);
-        if(all.indexOf(aiNorm(c))<0)twin.codes=(twin.codes||[]).concat([c]);
+        if(all.indexOf(aiNorm(c))<0&&(twin.codes||[]).length<6)twin.codes=(twin.codes||[]).concat([c]);
       });
       twin.customer=aiBetter(twin.customer,s.customer);
       twin.courier=aiBetter(twin.courier,s.courier);
