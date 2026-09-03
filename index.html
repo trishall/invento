@@ -4893,15 +4893,63 @@ function qtyDlg(it,cur){
     $('#qd-no').onclick=()=>{closeModal();res(null)};
   });
 }
+/* An item sitting in several racks: the packer says which one it came off.
+   No guessing — otherwise rack counts drift while the total stays right.
+   Returns a folder id, or null if the person backed out. */
+function pickRackDlg(it,qty,awb){
+  return new Promise(res=>{
+    const ps=pilesOf(it);
+    let h='<h3>'+(langHi()?'किस रैक से निकाला?':'Taken from which rack?')+'</h3>'+
+      '<p class="sub mb"><b>'+esc(it.name)+'</b> × '+fmtQty(qty)+(awb?' · <span class="mono">'+esc(awb)+'</span>':'')+
+      (langHi()?' — यह आइटम कई जगह रखा है। जहाँ से उठाया, वो रैक चुनें।':' — this item sits in more than one rack. Pick the one it was picked from.')+'</p>';
+    ps.forEach((p,ix)=>{
+      const short=p.q<qty;
+      h+='<button class="btn block mb" data-pr="'+ix+'" style="justify-content:space-between"><span>'+ico('folder')+esc(shelfName(p.f))+'</span><span class="num '+(short?'':'muted')+'" style="'+(short?'color:var(--amber);font-weight:700':'')+'">'+fmtQty(p.q)+(langHi()?' यहाँ':' here')+(short?(langHi()?' · कम':' · short'):'')+'</span></button>';
+    });
+    h+='<button class="btn block" id="pr-x">'+(langHi()?'रद्द करें':'Cancel')+'</button>';
+    openModal(h);
+    $$('#modal [data-pr]').forEach(b=>b.onclick=()=>{closeModal();res(ps[+b.dataset.pr].f)});
+    $('#pr-x').onclick=()=>{closeModal();res(null)};
+  });
+}
+function firstName(n){return String(n||'').trim().split(/\s+/)[0]||String(n||'')}
+function teamNames(){
+  const me=userName(),seen={},out=[];
+  const add=n=>{n=String(n||'').trim();if(!n)return;const k=n.toLowerCase();if(seen[k])return;seen[k]=1;out.push(n)};
+  add(me);
+  (S.txns||[]).forEach(t=>add(t.user));
+  (S.awbs||[]).forEach(a=>{add(a.acceptedBy);add(a.resolvedBy)});
+  const rest=out.slice(1).sort((a,b)=>firstName(a).localeCompare(firstName(b)));
+  return [out[0]].concat(rest);
+}
+/* first names are shown; a repeated first name gets a last initial so two Rameshes
+   never look identical on the record */
+function nameOptions(sel){
+  const names=teamNames(),cnt={};
+  names.forEach(n=>{const f=firstName(n).toLowerCase();cnt[f]=(cnt[f]||0)+1});
+  return names.map(n=>{
+    const f=firstName(n),rest=String(n).trim().slice(f.length).trim();
+    const lbl=(cnt[f.toLowerCase()]>1&&rest)?(f+' '+rest.charAt(0).toUpperCase()+'.'):f;
+    return '<option value="'+esc(n)+'"'+(n===sel?' selected':'')+'>'+esc(lbl)+'</option>';
+  }).join('');
+}
 function reasonDlg(title,body,okLabel){
   return new Promise(res=>{
     openModal('<h3>'+esc(title)+'</h3><p class="sub mb">'+body+'</p>'+
+      '<div class="field"><label>'+(langHi()?'किसने हटाया (ज़रूरी)':'Who is removing it (required)')+'</label>'+
+        '<select class="in" id="rz-w">'+nameOptions(userName())+'<option value="__other__">'+(langHi()?'कोई और…':'Someone else…')+'</option></select></div>'+
+      '<div class="field" id="rz-owrap" style="display:none"><label>'+(langHi()?'नाम लिखें':'Type the name')+'</label><input class="in" id="rz-o" autocomplete="off" placeholder="'+(langHi()?'पूरा नाम':'Full name')+'"></div>'+
       '<div class="field"><label>'+(langHi()?'वजह (ज़रूरी)':'Reason (required)')+'</label><input class="in" id="rz-t" placeholder="'+(langHi()?'जैसे: गलत स्कैन, ऑर्डर कैंसिल':'e.g. wrong scan, order cancelled')+'" autocomplete="off"></div>'+
       '<div class="row"><button class="btn grow" id="rz-no">'+(langHi()?'रद्द':'Cancel')+'</button><button class="btn danger grow" id="rz-yes">'+esc(okLabel||(langHi()?'हटाएँ':'Remove'))+'</button></div>');
     setTimeout(()=>{try{$('#rz-t').focus()}catch(e){}},40);
-    const go=()=>{const v=($('#rz-t').value||'').trim();
+    const sel=$('#rz-w');
+    sel.onchange=()=>{const o=sel.value==='__other__';$('#rz-owrap').style.display=o?'':'none';if(o)setTimeout(()=>{try{$('#rz-o').focus()}catch(e){}},30)};
+    const go=()=>{
+      let by=sel.value;
+      if(by==='__other__'){by=($('#rz-o').value||'').trim();if(by.length<2){toast(langHi()?'नाम लिखें':'Type the name','err');return}}
+      const v=($('#rz-t').value||'').trim();
       if(v.length<3){toast(langHi()?'वजह लिखना ज़रूरी है':'A reason is required','err');return}
-      closeModal();res(v)};
+      closeModal();res({reason:v,by:by});};
     $('#rz-yes').onclick=go;
     $('#rz-t').onkeydown=e=>{if(e.key==='Enter')go()};
     $('#rz-no').onclick=()=>{closeModal();res(null)};
@@ -4968,9 +5016,14 @@ async function dispatchAwbByNo(no,extra){
     const want=+x.qty||0;if(want<=0)continue;
     const have=+it.qty||0;
     const take=Math.min(want,have);
+    let rack;
+    if(take>0&&isMultiRack(it)){
+      rack=await pickRackDlg(it,take,a.awb);
+      if(rack===null||rack===undefined){beep(false);return {ok:false,msg:(langHi()?'रैक नहीं चुना — डिस्पैच नहीं हुआ':'No rack chosen — not dispatched')}}
+    }
     if(take>0){
-      const from=pileDrain(it,take);
-      logTx('out',{itemId:it.id,itemName:it.name,fromQ:have,toQ:+it.qty||0,qty:take,reason:'Dispatched · AWB '+a.awb,detail:'AWB '+a.awb+(from?' · from '+from:'')});
+      const from=pileDrain(it,take,rack);
+      logTx('out',{itemId:it.id,itemName:it.name,fromQ:have,toQ:+it.qty||0,qty:take,reason:'Dispatched · AWB '+a.awb,detail:'AWB '+a.awb+(from?' · from '+from:'')+(rack!==undefined?' · '+(langHi()?'चुना':'picked')+' '+shelfName(rack):'')});
       moved.push(it.name+' ×'+fmtQty(take));
     }
     if(take<want)toast('⚠ '+it.name+' — '+(langHi()?'स्टॉक में सिर्फ ':'only ')+fmtQty(have)+(langHi()?' थे':' in stock'),'err');
@@ -5121,13 +5174,14 @@ function wireAwbColActions(){
   $$('#main [data-awdel]').forEach(b=>b.onclick=async()=>{
     if(!isAdminU()){toast(langHi()?'सिर्फ एडमिन AWB डिलीट कर सकते हैं':'Only admins can delete AWB records','err');return}
     const a=(S.awbs||[]).find(x=>x.id===b.dataset.awdel);if(!a)return;
+    if(a.status!=='accepted'&&!isAdminU()){toast(langHi()?'यह ऑर्डर जा चुका है — सिर्फ एडमिन हटा सकते हैं':'This order has gone out — only an admin can remove it','err');return}
     const why=await reasonDlg(langHi()?'AWB हटाएँ?':'Remove this AWB?',
       '<b class="mono">'+esc(a.awb)+'</b>'+(awbItems(a).length?' · '+awbItems(a).map(x=>esc(x.name)+' ×'+fmtQty(x.qty)).join(', '):'')+
       (langHi()?' — यह रिकॉर्ड से हट जाएगा। वजह लिखना ज़रूरी है, और आपका नाम दर्ज होगा।':' — this will be taken off the records. A reason is required and your name is recorded.'),
       langHi()?'हटाएँ':'Remove');
     if(!why)return;
     S.awbs=S.awbs.filter(x=>x.id!==a.id);await saveNow('awbs');
-    logTx('list',{detail:'AWB removed by hand · '+a.awb+' · reason: '+why+(awbItems(a).length?' · items: '+awbItems(a).map(x=>x.name+' ×'+fmtQty(x.qty)).join(', '):'')});
+    logTx('list',{detail:'AWB removed by hand · '+a.awb+' · by '+why.by+(why.by!==userName()?' (signed in: '+userName()+')':'')+' · reason: '+why.reason+(awbItems(a).length?' · items: '+awbItems(a).map(x=>x.name+' ×'+fmtQty(x.qty)).join(', '):'')});
     toast(langHi()?'हटाया — लॉग में दर्ज':'Removed — recorded in the log','ok');vAwb();
   });
 }
@@ -5408,11 +5462,12 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
       '<div class="hint" style="margin-top:4px">'+T('इसी लेबल के और बारकोड और आइटम का SKU स्कैन करें, फिर Enter दबाएँ।','Scan the label\'s other barcodes and each item SKU, then press Enter.')+'</div></div>';
     $$('#aw-cur [data-rmitem]').forEach(b=>b.onclick=async()=>{
       const xi=+b.dataset.rmitem,items=awbItems(cur),x=items[xi];if(!x)return;
+      if(cur.status!=='accepted'){toast(T('यह ऑर्डर जा चुका है — अब बदल नहीं सकते','This order has already gone out — it cannot be changed'),'err');return}
       const why=await reasonDlg(T('आइटम हटाएँ?','Remove this item?'),
         '<b>'+esc(x.name)+'</b> × '+fmtQty(x.qty)+T(' इस पार्सल से हटाया जाएगा।',' will be taken off this parcel.'),T('हटाएँ','Remove'));
       if(!why)return;
       await awbSetItems(cur,items.filter((y,i)=>i!==xi));
-      logTx('list',{detail:'AWB '+cur.awb+' — item removed · '+x.name+' ×'+fmtQty(x.qty)+' · reason: '+why});
+      logTx('list',{detail:'AWB '+cur.awb+' — item removed · '+x.name+' ×'+fmtQty(x.qty)+' · by '+why.by+(why.by!==userName()?' (signed in: '+userName()+')':'')+' · reason: '+why.reason});
       toast(T('हटाया','Removed'),'ok');paintCur();
     });
     if(nx)nx.disabled=false;
