@@ -580,6 +580,26 @@ function beep(ok){
 }
 /* Scan alarm: three sharp low blasts — reserved for "this should not have happened"
    (an AWB going out that never came in, a barcode not in the catalog). */
+/* Parcel completed: a short rising three-note chime. Deliberately unlike the
+   single scan beep, so the packer knows the whole parcel landed, not just a scan. */
+function successChime(){
+  try{
+    const ctx=beep.ctx||(beep.ctx=new (window.AudioContext||window.webkitAudioContext)());
+    if(ctx.state==='suspended')ctx.resume();
+    [[0,880],[.10,1320],[.20,1760]].forEach(([at,f])=>{
+      const t=ctx.currentTime+at;
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.type='square';o.frequency.setValueAtTime(f,t);
+      o.connect(g);g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(.3,t+.004);
+      g.gain.setValueAtTime(.3,t+.11);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+.14);
+      o.start(t);o.stop(t+.15);
+    });
+  }catch(e){}
+  if(navigator.vibrate)navigator.vibrate([50,40,50,40,90]);
+}
 function alarmSound(){
   try{
     const ctx=beep.ctx||(beep.ctx=new (window.AudioContext||window.webkitAudioContext)());
@@ -1724,8 +1744,15 @@ async function bulkAct(k){
   if(k==='csv'){if(!can('export')){toast('You do not have permission to export','err');return}exportItemsCSV(its);return}
   if(k==='tag'){openModal('<h3>Add tag to '+its.length+' items</h3><div class="field"><input class="in" id="bt" placeholder="e.g. sale, export, b-grade" list="tagsdl"><datalist id="tagsdl">'+allTags().map(t=>'<option value="'+esc(t)+'">').join('')+'</datalist></div><button class="btn pri block" id="btgo">Add tag</button>');
     $('#btgo').onclick=()=>{const t=$('#bt').value.trim();if(!t)return;its.forEach(i=>{i.tags=i.tags||[];if(!i.tags.includes(t))i.tags.push(t);i.updatedAt=Date.now()});save('items');logTx('edited',{detail:'Tag "'+t+'" added to '+its.length+' items'});closeModal();toast('Tag added','ok');route()};return}
-  if(k==='del'){const ok=await confirmDlg('Delete '+its.length+' items?','They move to Trash and can be restored from More → Trash.','Delete',true);if(!ok)return;
-    its.forEach(i=>trashItem(i,true));save('items');save('trash');logTx('deleted',{detail:its.length+' items moved to trash'});view.sel.clear();renderBulk();toast(its.length+' moved to trash');route()}
+  if(k==='del'){
+    const units=its.reduce((s,i)=>s+(+i.qty||0),0);
+    const why=await reasonDlg(langHi()?its.length+' आइटम ट्रैश में डालें?':'Move '+its.length+' items to trash?',
+      (langHi()?'कुल ':'')+'<b class="num">'+fmtQty(units)+'</b>'+(langHi()?' यूनिट स्टॉक से निकल जाएँगे। ट्रैश से वापस लाया जा सकता है।':' units will come out of stock. They can be restored from Trash.'),
+      langHi()?'ट्रैश में डालें':'Move to trash');
+    if(!why)return;
+    its.forEach(i=>trashItem(i,true));save('items');save('trash');
+    logTx('deleted',{detail:its.length+' items moved to trash ('+fmtQty(units)+' units) · by '+why.by+(why.by!==userName()?' (signed in: '+userName()+')':'')+' · reason: '+why.reason});
+    view.sel.clear();renderBulk();toast(its.length+(langHi()?' ट्रैश में':' moved to trash'));route()}
 }
 
 /* ============================================================
@@ -2605,13 +2632,20 @@ function vList(id){
   const st=$('#pl-start');if(st)st.onclick=()=>{l.status='progress';l.updatedAt=Date.now();save('lists');logTx('list',{detail:l.name+' → picking started'});route()};
   const dn=$('#pl-done');if(dn)dn.onclick=async()=>{
     const shorts=l.items.filter(x=>(+x.picked||0)+1e-9<(+x.need||0));
-    const ok=await confirmDlg('Complete '+esc(l.name)+'?','Picked quantities will be deducted from stock.'+(shorts.length?'<br><b>'+shorts.length+' line'+(shorts.length>1?'s are':' is')+' short</b> — they complete with what was picked.':''),'Complete & deduct');
-    if(!ok)return;
+    const picks=l.items.filter(x=>(+x.picked||0)>0).map(x=>{const it=iById(x.itemId);return (it?it.name:'?')+' ×'+fmtQty(x.picked)});
+    if(!picks.length){toast(langHi()?'कुछ पिक नहीं हुआ':'Nothing picked','err');return}
+    const g=await reasonDlg(
+      langHi()?'स्टॉक घटेगा — पुष्टि करें':'Stock is about to leave — confirm',
+      '<b>'+esc(l.name)+'</b> · '+esc(picks.join(', '))+
+      (shorts.length?(langHi()?'<br>'+shorts.length+' लाइन कम पिक हुई।':'<br>'+shorts.length+' line'+(shorts.length>1?'s are':' is')+' short — they complete with what was picked.'):'')+
+      (langHi()?'<br>नाम और वजह ज़रूरी है।':'<br>A name and a reason are required.'),
+      langHi()?'पूरा करें':'Complete & deduct');
+    if(!g)return;
     l.items.forEach(x=>{
       const it=iById(x.itemId);const p=+x.picked||0;
       if(!it||p<=0)return;
       const old=+it.qty||0;pileDrain(it,Math.min(p,old));
-      logTx('picked',{itemId:it.id,itemName:it.name,fromQ:old,toQ:it.qty,detail:l.name});
+      logTx('picked',{itemId:it.id,itemName:it.name,fromQ:old,toQ:it.qty,qty:p,detail:l.name+' · by '+g.by+(g.by!==userName()?' (signed in: '+userName()+')':'')+' · '+g.reason});
     });
     l.status='completed';l.completedAt=Date.now();l.updatedAt=Date.now();
     await Promise.all([saveNow('items'),saveNow('lists')]);
@@ -4379,6 +4413,17 @@ async function saveDispatch(){
     if(!picked)return; // user closed the rack question — dispatch not saved
     Object.assign(rackChoice,picked);
   }
+  /* stock is about to leave on a self-declared order — own it */
+  const dedList=deductable.map(l=>{const it=iById(l.itemId);return (it?it.name:l.name)+' ×'+fmtQty(l.qty)}).join(', ');
+  if(deductable.length){
+    const g=await reasonDlg(
+      langHi()?'स्टॉक घटेगा — पुष्टि करें':'Stock is about to leave — confirm',
+      (langHi()?'ऑर्डर ':'Order ')+'<b>'+esc(dDraft.orderId)+'</b> · '+esc(dedList)+
+      (langHi()?'<br>यह AWB स्कैन से नहीं जुड़ा, इसलिए नाम और वजह ज़रूरी है।':'<br>This is not tied to a scanned AWB, so a name and a reason are required.'),
+      langHi()?'डिस्पैच करें':'Dispatch');
+    if(!g)return;
+    dDraft.by=g.by;dDraft.why=g.reason;
+  }
   const sv=$('#d-save');if(sv){sv.disabled=true;sv.textContent='Saving…'}
   const no=await nextDispatchNo();
   // deduct stock + log movements (pile-aware)
@@ -4388,7 +4433,7 @@ async function saveDispatch(){
     const old=+it.qty||0;const q=Math.min(+ln.qty||0,old);
     const pf=rackChoice[ln.itemId+'|'+dDraft.lines.indexOf(ln)];
     const fromTxt=pileDrain(it,q,pf);
-    logTx('out',{itemId:it.id,itemName:it.name,fromQ:old,toQ:it.qty,qty:q,reason:'Dispatched · '+dDraft.orderId,detail:'Dispatch '+dDraft.orderId+(fromTxt&&pf!==undefined?' · from '+fromTxt:'')});
+    logTx('out',{itemId:it.id,itemName:it.name,fromQ:old,toQ:it.qty,qty:q,reason:'Dispatched · '+dDraft.orderId,detail:'Dispatch '+dDraft.orderId+(fromTxt&&pf!==undefined?' · from '+fromTxt:'')+(dDraft.by?' · by '+dDraft.by+(dDraft.by!==userName()?' (signed in: '+userName()+')':'')+' · '+dDraft.why:'')});
   }
   // store photos separately (keyed) to keep dispatch doc small
   const rec={id:uid('d'),number:no,orderId:dDraft.orderId,dest:dDraft.dest,ts:Date.now(),by:userName(),dupApproved:!!dDraft.dupApproved,
@@ -5357,23 +5402,12 @@ async function parcelCamFlow(opts){
 
   const finish=async(skuCode)=>{
     let it=skuCode?findByCode(skuCode):null;
-    let took=null;
+    let took=null;   /* kept null: packing no longer moves stock by itself */
     if(skuCode&&!it){err(skuCode,T('यह SKU नहीं मिला','No item with that SKU'));return}
-    if(it){
-      const avail=+it.qty||0;
-      if(avail<1){err(skuCode,T('स्टॉक खत्म है — घटाया नहीं','Out of stock — not reduced'));}
-      else{
-        const rack=(pilesOf(it)[0]||{}).f;
-        const old=avail;pileDrain(it,1,rack);await saveNow('items');
-        logTx('out',{itemId:it.id,itemName:it.name,fromQ:old,toQ:+it.qty||0,qty:1,reason:'Dispatched',detail:'Dispatch · '+cur});
-        took={itemId:it.id,qty:1,rack:rack};
-      }
-    }
+    /* Stock is NOT reduced here. The parcel's items were recorded at inward and
+       leave when dispatchAwbByNo runs below — deducting again would double-count. */
     const res=await opts.onDone(cur,{sku:skuCode||'',photo:photo,item:it||null});
     if(res&&res.ok===false){
-      /* refused (never scanned inward) — undo the stock we just took and stay on this parcel */
-      if(took){const bi=iById(took.itemId);if(bi)pileAdd(bi,took.rack,took.qty);await saveNow('items');
-        logTx('in',{itemId:took.itemId,qty:took.qty,reason:'Dispatch refused',detail:'Not inward · '+cur});}
       err(cur,T('यह अंदर स्कैन नहीं हुआ — डिस्पैच नहीं हुआ','Never scanned inward — not dispatched'));
       alarmSound();
       return;
@@ -5472,6 +5506,7 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
        '<button class="btn" id="aw-cam" style="flex:0 0 auto">'+ico('camera')+'</button></div>'+
        '<input type="file" id="aw-pf" accept="image/*" capture="environment" style="display:none"><div id="aw-pv" class="mb"></div>';
   }
+  if(group)h+='<div class="splitbox mb" id="aw-count" style="background:var(--green-bg);border:1px solid var(--green)"><div class="sl"><span>'+(langHi()?'अब तक इनवर्ड हुए':'Parcels inwarded so far')+'</span><b class="num" id="aw-n">0</b></div></div>';
   if(group)h+='<div id="aw-cur" style="margin-bottom:8px"></div>';
   h+='<div id="aw-feed2" class="sub" style="min-height:40px;margin-bottom:8px"></div>';
   if(group)h+='<button class="btn block mb" id="aw-next" disabled>'+ico('check')+(langHi()?'यह पार्सल पूरा — अगला (Enter)':'Parcel done — next (Enter)')+'</button>';
@@ -5529,7 +5564,14 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
       return;
     }
     const done=cur;cur=null;pend=null;paintCur();
-    if(!quiet&&done){beep(true);feed.innerHTML='<b>'+esc(done.awb)+'</b> '+T('पूरा · अगला लेबल स्कैन करें','closed · scan the next label')+'<div class="sub">'+n+' '+T('पार्सल हो गए','done')+'</div>'}
+    const cEl=$('#aw-n');if(cEl)cEl.textContent=String(n);
+    if(!quiet&&done){
+      successChime();
+      feed.innerHTML='<div style="background:var(--green-bg);border:1px solid var(--green);border-radius:10px;padding:9px 11px">'+
+        '<b style="color:var(--green)">✓ '+esc(done.awb)+' '+T('इनवर्ड हो गया','inwarded')+'</b>'+
+        '<div class="sub">'+awbItems(done).map(x=>esc(x.name)+' ×'+fmtQty(x.qty)).join(', ')+'</div>'+
+        '<div class="sub"><b>'+n+'</b> '+T('पार्सल हो गए · अगला लेबल स्कैन करें','done · scan the next label')+'</div></div>';
+    }
   };
   /* register the buffered parcel the moment the first item SKU is scanned */
   const registerPend=async()=>{
@@ -5540,8 +5582,19 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
     for(const c of pend.codes.slice(1))await awbAddCode(cur,c);
     return cur;
   };
+  /* A scan gun misfire produces fragments: a couple of characters, control codes,
+     or a half-read symbol. None of those may become a parcel or a barcode. */
+  const badScan=(c)=>{
+    if(/[\u0000-\u001f]/.test(c))return T('अधूरा स्कैन','partial scan — try again');
+    if(c.length<4)return T('बहुत छोटा — दोबारा स्कैन करें','too short — scan again');
+    if(c.length>64)return T('बहुत लंबा — दोबारा स्कैन करें','too long — scan again');
+    if(!/[A-Za-z0-9]/.test(c))return T('पढ़ा नहीं गया','unreadable — scan again');
+    return '';
+  };
   const handle=async(code)=>{
-    code=String(code||'').trim();if(!code)return;
+    code=String(code||'').replace(/\s+/g,' ').trim();if(!code)return;
+    const bad=badScan(code);
+    if(bad){errBox(code,bad);inp.value='';return}
     const now=Date.now();
     if(busy)return;                                   // a scan is already being processed
     if(code===lastCode&&now-lastAt<1500)return;       // scanner fired twice for one trigger pull
@@ -5628,7 +5681,12 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
       pend=null;
     }
   };
-  $('#aw-done2').onclick=()=>{cleanup();closeModal();if(onDone)onDone();};
+  $('#aw-done2').onclick=()=>{
+    const total=n;
+    cleanup();closeModal();
+    if(group&&total)toast(total+(langHi()?' ऑर्डर इनवर्ड हुए':' order'+(total===1?'':'s')+' inwarded'),'ok');
+    if(onDone)onDone();
+  };
   const ov=$('#ovl');const obs=new MutationObserver(()=>{if(!ov.classList.contains('show')){cleanup();obs.disconnect();}});obs.observe(ov,{attributes:true,attributeFilter:['class']});
 }
 
@@ -5974,7 +6032,13 @@ document.addEventListener('click',e=>{
   else if(act==='cloneitem'){const i=iById(id);if(i)cloneDlg(i)}
   else if(act==='labelone'){sessionStorage.setItem('lblsel',JSON.stringify([id]));go('#labels')}
   else if(act==='addto'){const i=iById(id);if(i)addToDlg(i)}
-  else if(act==='delitem'){if(!can('delitem')){toast('You do not have permission to delete','err');return}const i=iById(id);if(!i)return;confirmDlg('Move to trash?','\u201C'+esc(i.name)+'\u201D can be restored from Trash later.','Move to trash',true).then(ok=>{if(!ok)return;trashItem(i);logTx('deleted',{itemId:i.id,itemName:i.name});toast('Moved to trash');updateBadges();go('#stock'+(i.folder?'/'+i.folder:''))})}
+  else if(act==='delitem'){if(!can('delitem')){toast('You do not have permission to delete','err');return}const i=iById(id);if(!i)return;
+    reasonDlg(langHi()?'आइटम ट्रैश में डालें?':'Move item to trash?',
+      '<b>'+esc(i.name)+'</b>'+((+i.qty||0)>0?' · <b class="num">'+fmtQty(i.qty)+'</b> '+esc(i.unit||'')+(langHi()?' स्टॉक में हैं':' in stock'):'')+
+      (langHi()?' — यह स्टॉक से निकल जाएगा। ट्रैश से वापस लाया जा सकता है।':' — this takes it out of stock. It can be restored from Trash.'),
+      langHi()?'ट्रैश में डालें':'Move to trash').then(why=>{if(!why)return;
+      trashItem(i);logTx('deleted',{itemId:i.id,itemName:i.name,qty:+i.qty||0,detail:'by '+why.by+(why.by!==userName()?' (signed in: '+userName()+')':'')+' · reason: '+why.reason});
+      toast(langHi()?'ट्रैश में डाला — लॉग में दर्ज':'Moved to trash — recorded in the log');updateBadges();go('#stock'+(i.folder?'/'+i.folder:''))})}
   else if(act==='renfolder'){if(!can('editloc')){toast('You do not have permission for locations','err');return}folderDlg(null,id)}
   else if(act==='delfolder'){if(!can('editloc')){toast('You do not have permission for locations','err');return}deleteFolder(id)}
   else if(act==='newlist'){b.disabled=true;createList().then(lid=>go('#list/'+lid))}
