@@ -1792,10 +1792,12 @@ function vItem(id){
     if(!pick)return;                            // person closed the box — nothing changes
     const pf=pick.f;
     if(dir<0){const pp=pilesOf(i).find(p=>String(p.f||'')===String(pf||''));const cap=pp?pp.q:0;if(n>cap+1e-9){toast('Only '+fmtQty(cap)+' in '+shelfName(pf),'err');return}}
+    let g=null;
+    if(dir<0){g=await manualOutGate(i,n,shelfName(pf),reason);if(!g)return}
     const wasMulti=isMultiRack(i);
     if(dir>0)pileAdd(i,pf,n);else pileDrain(i,n,pf);
     const nv=+i.qty||0;save('items');
-    logTx(dir>0?'in':'out',{itemId:i.id,itemName:i.name,fromQ:old,toQ:nv,qty:n,reason:reason,detail:reason+' · '+shelfName(pf)});
+    logTx(dir>0?'in':'out',{itemId:i.id,itemName:i.name,fromQ:old,toQ:nv,qty:n,reason:reason,detail:reason+' · '+shelfName(pf)+(g?' · by '+g.by+(g.by!==userName()?' (signed in: '+userName()+')':'')+' · '+g.reason:'')});
     updateBadges();beep(true);
     toast((dir>0?'Added ':'Removed ')+fmtQty(n)+' in '+shelfName(pf)+' — now '+fmtQty(nv),'ok');
     if(wasMulti||isMultiRack(i))route();
@@ -2141,13 +2143,15 @@ function vScan(mode,arg){
       '<div class="sub"><span class="num">'+(dir>0?'+':'−')+fmtQty(n)+'</span> → '+esc(shelfName(pf))+' · '+(langHi()?'यहाँ अभी ':'here now ')+'<span class="num">'+fmtQty(here)+'</span></div>'+
       '<div class="row mt"><button class="btn grow" id="qc-no">Cancel</button><button class="btn pri grow" id="qc-yes">'+(dir>0?'Add':'Remove')+'</button></div></div>');
     $('#qc-no').onclick=()=>qcRender('');
-    $('#qc-yes').onclick=()=>{
+    $('#qc-yes').onclick=async()=>{
       if(dir>0&&guardPOBeforeAdd(it,()=>{const b=$('#qc-yes');if(b)b.click()}))return;
       const old=+it.qty||0;
       if(dir<0){const cap=here;if(n>cap+1e-9){beep(false);toast('Only '+fmtQty(cap)+' in '+shelfName(pf),'err');return}}
+      let g=null;
+      if(dir<0){g=await manualOutGate(it,n,shelfName(pf),langHi()?'झटपट कमांड':'Quick command');if(!g)return}
       if(dir>0)pileAdd(it,pf,n);else pileDrain(it,n,pf);
       const nv=+it.qty||0;save('items');
-      logTx(dir>0?'in':'out',{itemId:it.id,itemName:it.name,fromQ:old,toQ:nv,qty:n,reason:'Quick command',detail:'Command · '+shelfName(pf)});
+      logTx(dir>0?'in':'out',{itemId:it.id,itemName:it.name,fromQ:old,toQ:nv,qty:n,reason:'Quick command',detail:'Command · '+shelfName(pf)+(g?' · by '+g.by+(g.by!==userName()?' (signed in: '+userName()+')':'')+' · '+g.reason:'')});
       updateBadges();beep(true);qcRender('');$('#qc').value='';
       toast((dir>0?'Added ':'Removed ')+fmtQty(n)+' in '+shelfName(pf)+' — now '+fmtQty(nv),'ok');
     };
@@ -2217,9 +2221,11 @@ function vScan(mode,arg){
       if(!pick)return;                          // closed — nothing changes, back to scanning
       const pf=pick.f;
       if(dir<0){const pp=pilesOf(it).find(p=>String(p.f||'')===String(pf||''));const cap=pp?pp.q:0;if(n>cap+1e-9){beep(false);toast('Only '+fmtQty(cap)+' in '+shelfName(pf),'err');return}}
+      let g=null;
+      if(dir<0){g=await manualOutGate(it,n,shelfName(pf),reason);if(!g)return}
       if(dir>0)pileAdd(it,pf,n);else pileDrain(it,n,pf);
       const nv=+it.qty||0;save('items');
-      logTx(dir>0?'in':'out',{itemId:it.id,itemName:it.name,fromQ:old,toQ:nv,qty:n,reason:reason,detail:'Scan · '+reason+' · '+shelfName(pf)});
+      logTx(dir>0?'in':'out',{itemId:it.id,itemName:it.name,fromQ:old,toQ:nv,qty:n,reason:reason,detail:'Scan · '+reason+' · '+shelfName(pf)+(g?' · by '+g.by+(g.by!==userName()?' (signed in: '+userName()+')':'')+' · '+g.reason:'')});
       updateBadges();beep(true);closeModal();
       toast((dir>0?'Added ':'Removed ')+fmtQty(n)+' in '+shelfName(pf)+' — '+it.name+' now '+fmtQty(nv),'ok');
     };
@@ -3395,6 +3401,31 @@ function vImport(){
     h+='<div class="tablewrap"><table class="t"><thead><tr><th>Name</th><th>'+locTerm()+'</th><th class="r">Qty</th><th>SKU</th></tr></thead><tbody>'+parsed.slice(0,8).map(p=>'<tr><td>'+esc(p.name)+'</td><td class="small">'+esc(p.folderName||'—')+'</td><td class="r num">'+fmtQty(p.qty)+'</td><td class="small mono">'+esc(p.sku||'')+'</td></tr>').join('')+(parsed.length>8?'<tr><td colspan="4" class="small muted">… and '+(parsed.length-8)+' more</td></tr>':'')+'</tbody></table></div>';
     $('#imp-stage').innerHTML=h;
     $('#imp-go').onclick=async()=>{
+      /* a CSV update can quietly lower stock on hundreds of items — surface it first */
+      const dupMode0=$('#imp-dup')?$('#imp-dup').value:'update';
+      const nameDupMode0=$('#imp-namedup')?$('#imp-namedup').value:'update';
+      if(dupMode0==='update'||nameDupMode0==='update'){
+        const nameIdx0={};S.items.forEach(i=>{const k=(i.name||'').trim().toLowerCase();if(k&&!(k in nameIdx0))nameIdx0[k]=i.id});
+        const cuts=[];
+        parsed.forEach(p=>{
+          let ex=p.sku?S.items.find(i=>skusOf(i).some(s=>String(s).toLowerCase()===String(p.sku).toLowerCase())):null;
+          if(!ex){const nid=nameIdx0[(p.name||'').trim().toLowerCase()];if(nid!=null)ex=iById(nid)}
+          if(ex&&(+p.qty||0)<(+ex.qty||0))cuts.push({name:ex.name,from:+ex.qty||0,to:+p.qty||0});
+        });
+        if(cuts.length){
+          const units=cuts.reduce((s,c)=>s+(c.from-c.to),0);
+          const ok=await confirmDlg(
+            langHi()?'यह इम्पोर्ट स्टॉक घटाएगा':'This import will reduce stock',
+            '<b>'+cuts.length+'</b>'+(langHi()?' आइटम का स्टॉक घटेगा — कुल ':' item'+(cuts.length===1?'':'s')+' will go down — ')+'<b class="num">'+fmtQty(units)+'</b>'+(langHi()?' यूनिट कम।':' units in total.')+
+            '<div class="card pad" style="max-height:30dvh;overflow:auto;margin-top:10px;text-align:left">'+
+              cuts.slice(0,40).map(c=>'<div class="row small" style="padding:2px 0"><span class="grow ellip">'+esc(c.name)+'</span><b class="num">'+fmtQty(c.from)+' → '+fmtQty(c.to)+'</b></div>').join('')+
+              (cuts.length>40?'<div class="hint">+'+(cuts.length-40)+(langHi()?' और':' more')+'</div>':'')+
+            '</div>',
+            langHi()?'हाँ, घटाएँ':'Yes, reduce stock',true);
+          if(!ok)return;
+          logTx('imported',{detail:'CSV reduced stock on '+cuts.length+' items ('+fmtQty(units)+' units) — confirmed by '+userName()});
+        }
+      }
       $('#imp-go').disabled=true;
       const dupMode=$('#imp-dup')?$('#imp-dup').value:'update';
       const nameDupMode=$('#imp-namedup')?$('#imp-namedup').value:'update';
@@ -4932,6 +4963,19 @@ function nameOptions(sel){
     const lbl=(cnt[f.toLowerCase()]>1&&rest)?(f+' '+rest.charAt(0).toUpperCase()+'.'):f;
     return '<option value="'+esc(n)+'"'+(n===sel?' selected':'')+'>'+esc(lbl)+'</option>';
   }).join('');
+}
+/* Any hand-made stock removal (item page, scan popup, quick command) has to be
+   owned by a person and explained. Order-driven removals — dispatch, pick list,
+   AWB outward — are exempt, because the order itself is the record. */
+async function manualOutGate(it,n,rackName,category){
+  const r=await reasonDlg(
+    langHi()?'स्टॉक घटाना है?':'Take stock out?',
+    '<b>'+esc(it.name)+'</b> — '+(langHi()?'घटाएँगे ':'removing ')+'<b class="num">'+fmtQty(n)+'</b> '+esc(it.unit||'')+
+    (rackName?(langHi()?' · रैक ':' · from ')+esc(rackName):'')+
+    (category?' · '+esc(category):'')+
+    (langHi()?'<br>यह किसी ऑर्डर से नहीं जुड़ा, इसलिए नाम और वजह ज़रूरी है।':'<br>This is not tied to an order, so a name and a reason are required.'),
+    langHi()?'स्टॉक घटाएँ':'Remove stock');
+  return r;   // {reason, by} or null
 }
 function reasonDlg(title,body,okLabel){
   return new Promise(res=>{
