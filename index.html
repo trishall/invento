@@ -5011,6 +5011,30 @@ function qtyDlg(it,cur){
 /* An item sitting in several racks: the packer says which one it came off.
    No guessing — otherwise rack counts drift while the total stays right.
    Returns a folder id, or null if the person backed out. */
+function firstName(n){return String(n||'').trim().split(/\s+/)[0]||String(n||'')}
+/* Names for the "who did it" dropdown. Built from people already visible in the
+   activity log and on AWB records — every signed-in user can read those, unlike
+   the users collection, which only admins may list. */
+function teamNames(){
+  const me=userName(),seen={},out=[];
+  const add=n=>{n=String(n||'').trim();if(!n)return;const k=n.toLowerCase();if(seen[k])return;seen[k]=1;out.push(n)};
+  add(me);
+  (S.txns||[]).forEach(t=>add(t.user));
+  (S.awbs||[]).forEach(a=>{add(a.acceptedBy);add(a.resolvedBy)});
+  const rest=out.slice(1).sort((a,b)=>firstName(a).localeCompare(firstName(b)));
+  return [out[0]].concat(rest);
+}
+/* First names are shown; a repeated first name gets a last initial so two
+   Rameshes never look identical on the record. Full names are what get stored. */
+function nameOptions(sel){
+  const names=teamNames(),cnt={};
+  names.forEach(n=>{const f=firstName(n).toLowerCase();cnt[f]=(cnt[f]||0)+1});
+  return names.map(n=>{
+    const f=firstName(n),rest=String(n).trim().slice(f.length).trim();
+    const lbl=(cnt[f.toLowerCase()]>1&&rest)?(f+' '+rest.charAt(0).toUpperCase()+'.'):f;
+    return '<option value="'+esc(n)+'"'+(n===sel?' selected':'')+'>'+esc(lbl)+'</option>';
+  }).join('');
+}
 function pickRackDlg(it,qty,awb){
   return new Promise(res=>{
     const ps=pilesOf(it);
@@ -6386,11 +6410,73 @@ function vCloudError(e){
   $('#ce-local').onclick=()=>{localStorage.removeItem('gdwn:fbconfig');localStorage.setItem('gdwn:mode','local');location.reload()};
 }
 
+/* ============================================================
+   BOOT ANIMATION
+   A packer walks a carton to the table and stacks it, on a loop.
+   Pure inline SVG + CSS keyframes — no images, no library, themes
+   itself from the app's own colour variables.
+   ============================================================ */
+function bootLoaderHTML(msg,sub){
+  return '<style>'+
+  '@keyframes gd-walk{0%{transform:translateX(-112px)}34%{transform:translateX(56px)}58%{transform:translateX(56px)}86%{transform:translateX(-112px)}100%{transform:translateX(-112px)}}'+
+  '@keyframes gd-bob{0%,100%{transform:translateY(0)}25%{transform:translateY(-2.2px)}50%{transform:translateY(0)}75%{transform:translateY(-2.2px)}}'+
+  '@keyframes gd-legF{0%{transform:rotate(20deg)}17%{transform:rotate(-20deg)}34%,58%{transform:rotate(0deg)}72%{transform:rotate(-20deg)}86%,100%{transform:rotate(20deg)}}'+
+  '@keyframes gd-legB{0%{transform:rotate(-20deg)}17%{transform:rotate(20deg)}34%,58%{transform:rotate(0deg)}72%{transform:rotate(20deg)}86%,100%{transform:rotate(-20deg)}}'+
+  '@keyframes gd-arm{0%,35%{transform:rotate(0deg)}44%{transform:rotate(16deg)}54%{transform:rotate(16deg)}62%,100%{transform:rotate(0deg)}}'+
+  '@keyframes gd-carry{0%,44%{opacity:1}49%,100%{opacity:0}}'+
+  '@keyframes gd-drop{0%,46%{opacity:0;transform:translateY(-24px)}56%{opacity:1;transform:translateY(0)}96%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(0)}}'+
+  '@keyframes gd-dots{0%,20%{opacity:.25}50%{opacity:1}100%{opacity:.25}}'+
+  '.gd-wrap{display:grid;place-items:center;padding:40px 16px 10px}'+
+  '.gd svg{width:min(320px,82vw);height:auto;display:block}'+
+  '.gd-guy{animation:gd-walk 4.4s cubic-bezier(.45,0,.55,1) infinite}'+
+  '.gd-body{animation:gd-bob .6s ease-in-out infinite}'+
+  '.gd-lf{transform-origin:62px 92px;animation:gd-legF 4.4s linear infinite}'+
+  '.gd-lb{transform-origin:62px 92px;animation:gd-legB 4.4s linear infinite}'+
+  '.gd-arms{transform-origin:62px 70px;animation:gd-arm 4.4s ease-in-out infinite}'+
+  '.gd-carry{animation:gd-carry 4.4s linear infinite}'+
+  '.gd-drop{animation:gd-drop 4.4s cubic-bezier(.3,1.5,.5,1) infinite}'+
+  '.gd-t{font-weight:800;font-size:16px;margin-top:14px;text-align:center}'+
+  '.gd-s{font-size:13px;color:var(--muted);text-align:center;margin-top:2px}'+
+  '.gd-s i{font-style:normal;animation:gd-dots 1.3s infinite}'+
+  '.gd-s i:nth-child(2){animation-delay:.18s}.gd-s i:nth-child(3){animation-delay:.36s}'+
+  '@media (prefers-reduced-motion:reduce){.gd-guy,.gd-body,.gd-lf,.gd-lb,.gd-arms,.gd-carry,.gd-drop{animation:none}.gd-carry{opacity:0}.gd-drop{opacity:1;transform:none}}'+
+  '</style>'+
+  '<div class="gd-wrap"><div class="gd">'+
+  '<svg viewBox="0 0 260 132" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'+
+    '<line x1="10" y1="118" x2="250" y2="118" stroke="var(--line2)" stroke-width="2.4" stroke-linecap="round"/>'+
+    /* the table */
+    '<g stroke="var(--saddle)" fill="none" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round">'+
+      '<path d="M126 88h116"/><path d="M134 88v30"/><path d="M234 88v30"/>'+
+    '</g>'+
+    /* stock already on the table */
+    '<g><rect x="196" y="60" width="30" height="28" rx="3" fill="var(--kraft)" stroke="var(--brass)" stroke-width="2.4"/><path d="M196 71h30" stroke="var(--brass)" stroke-width="2"/></g>'+
+    '<g><rect x="200" y="32" width="24" height="28" rx="3" fill="var(--kraft)" stroke="var(--brass)" stroke-width="2.4"/><path d="M200 43h24" stroke="var(--brass)" stroke-width="2"/></g>'+
+    /* the carton he sets down */
+    '<g class="gd-drop"><rect x="150" y="60" width="30" height="28" rx="3" fill="var(--kraft)" stroke="var(--brass)" stroke-width="2.4"/><path d="M150 71h30" stroke="var(--brass)" stroke-width="2"/><path d="M165 60v28" stroke="var(--brass)" stroke-width="1.6" stroke-dasharray="3 3"/></g>'+
+    /* the packer */
+    '<g class="gd-guy">'+
+      '<g stroke="var(--saddle)" fill="none" stroke-width="4.4" stroke-linecap="round">'+
+        '<line class="gd-lb" x1="62" y1="92" x2="53" y2="118"/>'+
+        '<line class="gd-lf" x1="62" y1="92" x2="71" y2="118"/>'+
+      '</g>'+
+      '<g class="gd-body">'+
+        '<circle cx="63" cy="45" r="11" fill="var(--saddle)"/>'+
+        '<path d="M62 56v37" stroke="var(--saddle)" stroke-width="8.5" stroke-linecap="round" fill="none"/>'+
+        '<g class="gd-arms">'+
+          '<path d="M62 70h20" stroke="var(--saddle)" stroke-width="5" stroke-linecap="round" fill="none"/>'+
+          '<g class="gd-carry"><rect x="80" y="58" width="28" height="26" rx="3" fill="var(--kraft)" stroke="var(--brass)" stroke-width="2.4"/><path d="M80 68h28" stroke="var(--brass)" stroke-width="2"/></g>'+
+        '</g>'+
+      '</g>'+
+    '</g>'+
+  '</svg></div>'+
+  '<div class="gd-t">'+esc(msg||'')+'</div>'+
+  '<div class="gd-s">'+esc(sub||'')+' <i>.</i><i>.</i><i>.</i></div></div>';
+}
 (async function init(){
   applyTheme(getTheme());
   window.addEventListener('hashchange',route);
   paintNav();
-  $('#main').innerHTML='<div class="empty" style="margin-top:56px">'+ico('bolt')+'<div class="t">Connecting…</div><div class="s">Loading Invento</div></div>';
+  $('#main').innerHTML=bootLoaderHTML(langHi()?'जुड़ रहे हैं':'Connecting',langHi()?'Invento खुल रहा है':'Loading Invento');
   let res;
   try{res=await loadAll()}
   catch(e){console.error(e);vCloudError(e);return}
