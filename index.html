@@ -250,13 +250,22 @@ textarea.in{resize:vertical;min-height:70px}
 .fcard svg{width:22px;height:22px;color:var(--brass);flex:0 0 auto}
 .fcard .fn{font-weight:700;font-size:13.5px;line-height:1.25}
 .fcard .fm{font-size:11px;color:var(--muted)}
-.igrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:10px}
+.igrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:10px;align-items:stretch}
+.icard .bd{display:flex;flex-direction:column;gap:2px}
+.icard .qv{margin-top:auto}
 .icard{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;cursor:pointer;box-shadow:var(--shadow);position:relative;text-align:left;display:flex;flex-direction:column}
 .icard .ph{aspect-ratio:4/3;background:linear-gradient(135deg,#F0EBE2,#E5DECF);display:grid;place-items:center;color:#C9BFA9;position:relative}
 .icard .ph img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
 .icard .ph svg{width:30px;height:30px}
 .icard .bd{padding:9px 11px 11px}
-.icard .nm{font-weight:700;font-size:13.5px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.5em}
+.icard .nm{font-weight:700;font-size:13.5px;line-height:1.28;min-height:2.5em;white-space:normal;overflow-wrap:anywhere;word-break:break-word;hyphens:auto}
+.icard .nm.long{font-size:12.2px;line-height:1.24}
+.icard .nm.xlong{font-size:11.4px;line-height:1.22}
+/* list rows: the name marquees back and forth when it does not fit */
+.irow .nm.mq{overflow:hidden}
+.irow .nm.mq span{display:inline-block;white-space:nowrap;animation:mqslide 9s ease-in-out infinite}
+@keyframes mqslide{0%,18%{transform:translateX(0)}82%,100%{transform:translateX(calc(-100% + 210px))}}
+@media (prefers-reduced-motion:reduce){.irow .nm.mq span{animation:none}}
 .icard .qv{display:flex;align-items:baseline;justify-content:space-between;margin-top:5px;gap:6px}
 .icard .q{font-weight:800;font-size:14px}
 .icard .q small{font-weight:600;color:var(--muted);font-size:10.5px}
@@ -1580,7 +1589,9 @@ function rowHTML(i,opt){
   return '<div class="irow'+(selected?' sel':'')+'" data-item="'+i.id+'">'+
     (selectable?'<span class="selbox">'+ico('check')+'</span>':'')+
     '<span class="th">'+((i.img||i.thumb)?'<img src="'+esc(i.img||i.thumb)+'" alt="" loading="lazy" referrerpolicy="no-referrer">':ico('box'))+'</span>'+
-    '<div class="grow"><div class="nm ellip">'+esc(i.name)+'</div><div class="meta">'+
+    '<div class="grow">'+(String(i.name||'').length>30
+        ?'<div class="nm mq" title="'+esc(i.name)+'"><span>'+esc(i.name)+'</span></div>'
+        :'<div class="nm ellip">'+esc(i.name)+'</div>')+'<div class="meta">'+
       (i.sku?'<span class="skutag">'+esc(i.sku)+'</span>':'')+
       '<span class="ellip">'+esc(pileSummary(i))+'</span>'+
       (isLow(i)?'<span class="pill low">Low</span>':'')+'</div></div>'+
@@ -1592,7 +1603,7 @@ function cardHTML(i){
     '<span class="selbox">'+ico('check')+'</span>'+
     (isLow(i)?'<span class="pill low lowdot">Low</span>':'')+
     '<div class="ph">'+((i.img||i.thumb)?'<img src="'+esc(i.img||i.thumb)+'" alt="" loading="lazy" referrerpolicy="no-referrer">':ico('photo'))+'</div>'+
-    '<div class="bd"><div class="nm">'+esc(i.name)+'</div><div class="qv"><span class="q num">'+fmtQty(i.qty)+' <small>'+esc(i.unit||'')+'</small></span>'+(+i.price?'<span class="pr num">'+fmtMoney(+i.price,0)+'</span>':'')+'</div></div></div>';
+    '<div class="bd"><div class="nm'+(String(i.name||'').length>60?' xlong':(String(i.name||'').length>34?' long':''))+'" title="'+esc(i.name)+'">'+esc(i.name)+'</div><div class="qv"><span class="q num">'+fmtQty(i.qty)+' <small>'+esc(i.unit||'')+'</small></span>'+(+i.price?'<span class="pr num">'+fmtMoney(+i.price,0)+'</span>':'')+'</div></div></div>';
 }
 function vStock(arg){
   if(!arg){return vStockHome();}
@@ -1749,6 +1760,7 @@ function bindStockClicks(fid){
   $$('#main [data-folder]').forEach(b=>b.onclick=()=>go('#stock/'+b.dataset.folder));
   $$('#main [data-item]').forEach(el=>el.onclick=e=>{
     const id=el.dataset.item;
+
     if(view.selectMode||e.target.closest('.selbox')){
       if(view.sel.has(id))view.sel.delete(id);else view.sel.add(id);
       el.classList.toggle('sel');renderBulk();return;
@@ -5616,7 +5628,9 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
         r.readAsDataURL(f);pf.value='';};
     }
   }
-  let n=0,cur=null,pend=null,busy=false,lastCode='',lastAt=0;
+  let n=0,cur=null,pend=null,busy=false,lastCode='',lastAt=0,pback=null;
+  /* pback = a dispatched parcel being verified back in. Every barcode that was on
+     it must be scanned again — one label is not proof the whole parcel is back. */
   /* pend = a parcel being built that is NOT saved yet. Nothing is registered until
      an item SKU is scanned — an AWB with no item is not a parcel. */
   const T=(hi,en)=>langHi()?hi:en;
@@ -5626,6 +5640,16 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
   const codesOf=()=>cur?awbCodes(cur):(pend?pend.codes:[]);
   const paintCur=()=>{
     const box=$('#aw-cur'),nx=$('#aw-next');if(!box)return;
+    if(pback){
+      box.innerHTML='<div class="awbmini aging"><div class="awb-no">'+esc(pback.rec.awb)+' <span class="pill low" style="font-size:9px">'+T('वापस लेना है','bringing back in')+'</span></div>'+
+        '<div class="awb-meta">'+pback.got.length+' / '+pback.need.length+' '+T('लेबल स्कैन हुए','labels scanned')+'</div>'+
+        '<div class="sub mono" style="margin-top:3px">'+pback.need.map(c=>{
+          const done=pback.got.some(g=>awbKey(g)===awbKey(c));
+          return '<span style="opacity:'+(done?1:.45)+';'+(done?'color:var(--green)':'')+'">'+(done?'✓ ':'○ ')+esc(c)+'</span>';
+        }).join(' · ')+'</div>'+
+        '<div class="hint" style="margin-top:4px">'+T('बाकी लेबल स्कैन करें, या Enter दबाकर रद्द करें।','Scan the remaining labels, or press Enter to cancel.')+'</div></div>';
+      if(nx)nx.disabled=true;return;
+    }
     if(!cur&&!pend){box.innerHTML='<div class="hint">'+T('अगला लेबल स्कैन करें','Scan the next label to start a parcel')+'</div>';if(nx)nx.disabled=true;return}
     const codes=codesOf(),items=itemsOf(),saved=!!cur;
     box.innerHTML='<div class="awbmini '+(saved?'fresh':'aging')+'"><div class="awb-no">'+esc(codes[0]||'')+
@@ -5650,6 +5674,8 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
     });
   };
   const closeParcel=(quiet)=>{
+    if(pback){const a=pback.rec;pback=null;paintCur();
+      feed.innerHTML='<div class="sub">'+T('रद्द किया — ','cancelled — ')+esc(a.awb)+T(' वापस नहीं लिया गया',' was not brought back in')+'</div>';return}
     if(!cur&&!pend)return;
     if(group&&!itemsOf().length){
       errBox(codesOf()[0]||'',T('पहले आइटम का SKU स्कैन करें — बिना SKU यह पार्सल दर्ज नहीं होगा','scan the item SKU first — without it this parcel is not registered'));
@@ -5693,6 +5719,22 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
     if(code===lastCode&&now-lastAt<1500)return;       // scanner fired twice for one trigger pull
     busy=true;lastCode=code;lastAt=now;inp.value='';
     try{
+      if(group&&pback){
+        /* collecting the rest of a dispatched parcel's labels */
+        const belongs=awbCodes(pback.rec).some(c=>awbKey(c)===awbKey(code));
+        if(!belongs){errBox(code,T('यह इस पार्सल का बारकोड नहीं है','not a barcode from this parcel'));return}
+        if(pback.got.some(c=>awbKey(c)===awbKey(code))){errBox(code,T('यह बारकोड पहले ही स्कैन हो चुका','already scanned for this parcel'));return}
+        pback.got.push(code);
+        const left=pback.need.length-pback.got.length;
+        if(left>0){beep(true);paintCur();okBox(code,pback.got.length+' / '+pback.need.length+T(' स्कैन हुए — ',' scanned — ')+left+T(' बाकी',' left'));return}
+        /* every label is back — now ask for the manual verification */
+        const rec=pback.rec;pback=null;
+        if(await awbReinward(rec)){
+          cur=rec;pend=null;n++;paintCur();
+          okBox(code,T('सारे लेबल मिले — वापस अंदर लिया, अब आइटम का SKU स्कैन करें','all labels verified — brought back in, now scan the item SKU'));
+        } else {paintCur();feed.innerHTML='<div class="sub">'+T('वापस नहीं लिया गया','not brought back in')+'</div>'}
+        return;
+      }
       if(group){
         const it=findByCode(code);
         if(it){
@@ -5736,14 +5778,21 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
           const ex0=ms[0];
           if(ex0&&ex0.status==='accepted'){errBox(code,T('पहले से लिस्ट में है','already scanned inward')+' ('+(ex0.acceptedBy||'')+')');return}
           if(ex0&&(ex0.status==='dispatched'||ex0.status==='returned')){
-            /* it has already gone out — offer the manual route rather than a dead end */
+            const all=awbCodes(ex0);
+            if(all.length>1){
+              /* several labels were on this parcel — all of them must come back */
+              pback={rec:ex0,need:all.slice(),got:[code]};
+              beep(false);paintCur();
+              feed.innerHTML='<div style="background:var(--amber-bg);border:1px solid var(--amber);border-radius:10px;padding:9px 11px">'+
+                '<b style="color:var(--amber)">'+esc(ex0.awb)+' — '+(ex0.status==='dispatched'?T('डिस्पैच हो चुका है','already dispatched'):T('ऑफिस वापस जा चुका है','returned to office'))+'</b>'+
+                '<div class="sub">'+T('इस पार्सल पर '+all.length+' बारकोड थे। वापस लेने के लिए सारे स्कैन करें।','This parcel had '+all.length+' barcodes. Scan them all to bring it back in.')+'</div></div>';
+              return;
+            }
             errBox(code,(ex0.status==='dispatched'?T('यह डिस्पैच हो चुका है','already dispatched'):T('यह ऑफिस वापस जा चुका है','already returned to office'))+T(' — हाथ से वापस लेने का विकल्प खुल रहा है…',' — opening manual verification…'));
             if(await awbReinward(ex0)){
               cur=ex0;pend=null;n++;paintCur();
               okBox(code,T('हाथ से वापस अंदर लिया — अब आइटम का SKU स्कैन करें','brought back in by hand — now scan the item SKU'));
-            } else {
-              feed.innerHTML='<div class="sub">'+T('वापस नहीं लिया गया','not brought back in')+'</div>';
-            }
+            } else feed.innerHTML='<div class="sub">'+T('वापस नहीं लिया गया','not brought back in')+'</div>';
             return;
           }
           pend={codes:[code],items:[]};
