@@ -625,6 +625,33 @@ function lazyScript(src){lazyScript.c=lazyScript.c||{};if(lazyScript.c[src])retu
 let modalHist=false,ignorePop=false;
 function openModal(html){$('#modal').innerHTML=html;$('#ovl').classList.add('show');document.body.style.overflow='hidden';
   if(!modalHist){modalHist=true;try{history.pushState({m:1},'')}catch(e){}}}
+/* ============================================================
+   SUB-DIALOG LAYER
+   openModal() replaces #modal, which would wipe an open scan screen and its
+   handlers. Anything asked DURING scanning (quantity, reason) uses this second
+   layer instead: it floats above, the scan screen survives untouched, and the
+   scanner is locked out while it is open.
+   ============================================================ */
+let SUB_OPEN=false;
+function subOpen(html){
+  let ov=document.getElementById('ovl2');
+  if(!ov){
+    ov=document.createElement('div');ov.id='ovl2';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(28,22,16,.55);z-index:70;display:none;align-items:flex-end;justify-content:center';
+    const m=document.createElement('div');m.id='modal2';
+    m.style.cssText='background:var(--card);width:100%;max-width:560px;max-height:88dvh;overflow-y:auto;border-radius:20px 20px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom))';
+    if(window.matchMedia&&window.matchMedia('(min-width:680px)').matches){ov.style.alignItems='center';ov.style.padding='20px';m.style.borderRadius='18px'}
+    ov.appendChild(m);document.body.appendChild(ov);
+  }
+  document.getElementById('modal2').innerHTML=html;
+  ov.style.display='flex';SUB_OPEN=true;
+}
+function subClose(){
+  const ov=document.getElementById('ovl2');
+  if(ov){ov.style.display='none';const m=document.getElementById('modal2');if(m)m.innerHTML=''}
+  SUB_OPEN=false;
+}
+const sub$=s=>{const m=document.getElementById('modal2');return m?m.querySelector(s):null};
 function showPhoto(dataUrl){
   let lb=$('#lightbox');
   if(!lb){lb=document.createElement('div');lb.id='lightbox';lb.className='lightbox';document.body.appendChild(lb)}
@@ -1314,6 +1341,16 @@ function refreshAcctMenu(){
   const lp=$('#acct-lp');if(lp)lp.onclick=()=>{closeAcct();linkPhoneFlow()};
   const ae2=$('#acct-ae');if(ae2)ae2.onclick=()=>{closeAcct();addEmailPasswordFlow()};
   const so=$('#acct-signout');if(so)so.onclick=async()=>{closeAcct();const ok=await confirmDlg('Sign out?','You will need your user ID and password to sign back in.','Sign out');if(!ok)return;try{await firebase.auth().signOut()}catch(e){};location.reload()};
+}
+/* The scan field keeps focus so the gun always lands in it — but it must never
+   yank focus off a box the person is typing in, or a menu they have open. */
+function focusIsBusy(el){
+  if(typeof SUB_OPEN!=='undefined'&&SUB_OPEN)return true;
+  const a=document.activeElement;
+  if(!a||a===document.body||a===el)return false;
+  if(/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))return true;   // typing somewhere else
+  if(a.isContentEditable)return true;
+  return false;
 }
 function hwScanner(){try{return localStorage.getItem('invento_hwscan')==='1'}catch(e){return false}}
 function setHwScanner(on){try{localStorage.setItem('invento_hwscan',on?'1':'0')}catch(e){}}
@@ -2206,8 +2243,8 @@ function vScan(mode,arg){
   if(hw){
     setTimeout(()=>{try{man.focus()}catch(e){}},80);
     // keep focus + auto-submit (scanners that don't send Enter)
-    const fi=setInterval(()=>{if(!document.querySelector('#man')){clearInterval(fi);return}try{if(document.activeElement!==man)man.focus()}catch(e){}},500);
-    let at=null;man.oninput=()=>{clearTimeout(at);at=setTimeout(()=>{if(man.value.trim().length>=3)$('#mango').click()},120)};
+    const fi=setInterval(()=>{if(!document.querySelector('#man')){clearInterval(fi);return}if(focusIsBusy(man))return;try{if(document.activeElement!==man)man.focus()}catch(e){}},500);
+    let at=null;man.oninput=()=>{clearTimeout(at);at=setTimeout(()=>{if(focusIsBusy(man))return;if(man.value.trim().length>=3)$('#mango').click()},140)};
   }
 
   let lastCode='',lastAt=0,closed=false;
@@ -4958,15 +4995,17 @@ function awbIsPrimaryOf(no){const k=awbKey(no);return (S.awbs||[]).find(a=>awbKe
    and eyeballed by the person, never inferred. Returns a number, or null. */
 function qtyDlg(it,cur){
   return new Promise(res=>{
-    openModal('<h3>'+(langHi()?'कितने पीस?':'How many pieces?')+'</h3>'+
+    subOpen('<h3>'+(langHi()?'कितने पीस?':'How many pieces?')+'</h3>'+
       '<p class="sub mb"><b>'+esc(it.name)+'</b>'+(langHi()?' दोबारा स्कैन हुआ। गिनकर सही मात्रा भरें — दो स्कैन का मतलब दो पीस नहीं होता।':' was scanned again. Count them and type the real quantity — two scans do not mean two pieces.')+'</p>'+
       '<div class="field"><label>'+(langHi()?'इस पार्सल में मात्रा':'Quantity in this parcel')+'</label><input class="in num" id="qd-n" inputmode="decimal" value="'+fmtQty((+cur||1)+1)+'" style="text-align:center;font-weight:800;font-size:20px"></div>'+
       '<div class="hint mb">'+(langHi()?'0 भरने पर यह आइटम पार्सल से हट जाएगा।':'Enter 0 to take this item off the parcel.')+'</div>'+
       '<div class="row"><button class="btn grow" id="qd-no">'+(langHi()?'रद्द':'Cancel')+'</button><button class="btn pri grow" id="qd-ok">'+ico('check')+(langHi()?'सेव':'Save')+'</button></div>');
-    const el=$('#qd-n');setTimeout(()=>{try{el.focus();el.select()}catch(e){}},40);
-    const go=()=>{const v=round4(parseFloat(el.value));if(isNaN(v)||v<0){toast(langHi()?'सही मात्रा भरें':'Enter a valid quantity','err');return}closeModal();res(v)};
-    $('#qd-ok').onclick=go;el.onkeydown=e=>{if(e.key==='Enter')go()};
-    $('#qd-no').onclick=()=>{closeModal();res(null)};
+    const el=sub$('#qd-n');
+    setTimeout(()=>{try{el.focus();el.select()}catch(e){}},60);
+    const go=()=>{const v=round4(parseFloat(el.value));if(isNaN(v)||v<0){toast(langHi()?'सही मात्रा भरें':'Enter a valid quantity','err');return}subClose();res(v)};
+    sub$('#qd-ok').onclick=go;
+    el.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();go()}};
+    sub$('#qd-no').onclick=()=>{subClose();res(null)};
   });
 }
 /* An item sitting in several racks: the packer says which one it came off.
@@ -4975,39 +5014,21 @@ function qtyDlg(it,cur){
 function pickRackDlg(it,qty,awb){
   return new Promise(res=>{
     const ps=pilesOf(it);
+    const useSub=SUB_OPEN||!!document.querySelector('#aw-in2');   // asked mid-scan? float above
     let h='<h3>'+(langHi()?'किस रैक से निकाला?':'Taken from which rack?')+'</h3>'+
       '<p class="sub mb"><b>'+esc(it.name)+'</b> × '+fmtQty(qty)+(awb?' · <span class="mono">'+esc(awb)+'</span>':'')+
       (langHi()?' — यह आइटम कई जगह रखा है। जहाँ से उठाया, वो रैक चुनें।':' — this item sits in more than one rack. Pick the one it was picked from.')+'</p>';
     ps.forEach((p,ix)=>{
       const short=p.q<qty;
-      h+='<button class="btn block mb" data-pr="'+ix+'" style="justify-content:space-between"><span>'+ico('folder')+esc(shelfName(p.f))+'</span><span class="num '+(short?'':'muted')+'" style="'+(short?'color:var(--amber);font-weight:700':'')+'">'+fmtQty(p.q)+(langHi()?' यहाँ':' here')+(short?(langHi()?' · कम':' · short'):'')+'</span></button>';
+      h+='<button class="btn block mb" data-pr="'+ix+'" style="justify-content:space-between"><span>'+ico('folder')+esc(shelfName(p.f))+'</span><span class="num" style="'+(short?'color:var(--amber);font-weight:700':'opacity:.7')+'">'+fmtQty(p.q)+(langHi()?' यहाँ':' here')+(short?(langHi()?' · कम':' · short'):'')+'</span></button>';
     });
     h+='<button class="btn block" id="pr-x">'+(langHi()?'रद्द करें':'Cancel')+'</button>';
-    openModal(h);
-    $$('#modal [data-pr]').forEach(b=>b.onclick=()=>{closeModal();res(ps[+b.dataset.pr].f)});
-    $('#pr-x').onclick=()=>{closeModal();res(null)};
+    if(useSub)subOpen(h);else openModal(h);
+    const root=()=>document.getElementById(useSub?'modal2':'modal');
+    const shut=()=>{if(useSub)subClose();else closeModal()};
+    Array.from(root().querySelectorAll('[data-pr]')).forEach(b=>b.onclick=()=>{shut();res(ps[+b.dataset.pr].f)});
+    root().querySelector('#pr-x').onclick=()=>{shut();res(null)};
   });
-}
-function firstName(n){return String(n||'').trim().split(/\s+/)[0]||String(n||'')}
-function teamNames(){
-  const me=userName(),seen={},out=[];
-  const add=n=>{n=String(n||'').trim();if(!n)return;const k=n.toLowerCase();if(seen[k])return;seen[k]=1;out.push(n)};
-  add(me);
-  (S.txns||[]).forEach(t=>add(t.user));
-  (S.awbs||[]).forEach(a=>{add(a.acceptedBy);add(a.resolvedBy)});
-  const rest=out.slice(1).sort((a,b)=>firstName(a).localeCompare(firstName(b)));
-  return [out[0]].concat(rest);
-}
-/* first names are shown; a repeated first name gets a last initial so two Rameshes
-   never look identical on the record */
-function nameOptions(sel){
-  const names=teamNames(),cnt={};
-  names.forEach(n=>{const f=firstName(n).toLowerCase();cnt[f]=(cnt[f]||0)+1});
-  return names.map(n=>{
-    const f=firstName(n),rest=String(n).trim().slice(f.length).trim();
-    const lbl=(cnt[f.toLowerCase()]>1&&rest)?(f+' '+rest.charAt(0).toUpperCase()+'.'):f;
-    return '<option value="'+esc(n)+'"'+(n===sel?' selected':'')+'>'+esc(lbl)+'</option>';
-  }).join('');
 }
 /* Any hand-made stock removal (item page, scan popup, quick command) has to be
    owned by a person and explained. Order-driven removals — dispatch, pick list,
@@ -5020,28 +5041,28 @@ async function manualOutGate(it,n,rackName,category){
     (category?' · '+esc(category):'')+
     (langHi()?'<br>यह किसी ऑर्डर से नहीं जुड़ा, इसलिए नाम और वजह ज़रूरी है।':'<br>This is not tied to an order, so a name and a reason are required.'),
     langHi()?'स्टॉक घटाएँ':'Remove stock');
-  return r;   // {reason, by} or null
+  return r;
 }
 function reasonDlg(title,body,okLabel){
   return new Promise(res=>{
-    openModal('<h3>'+esc(title)+'</h3><p class="sub mb">'+body+'</p>'+
+    subOpen('<h3>'+esc(title)+'</h3><p class="sub mb">'+body+'</p>'+
       '<div class="field"><label>'+(langHi()?'किसने हटाया (ज़रूरी)':'Who is removing it (required)')+'</label>'+
         '<select class="in" id="rz-w">'+nameOptions(userName())+'<option value="__other__">'+(langHi()?'कोई और…':'Someone else…')+'</option></select></div>'+
       '<div class="field" id="rz-owrap" style="display:none"><label>'+(langHi()?'नाम लिखें':'Type the name')+'</label><input class="in" id="rz-o" autocomplete="off" placeholder="'+(langHi()?'पूरा नाम':'Full name')+'"></div>'+
       '<div class="field"><label>'+(langHi()?'वजह (ज़रूरी)':'Reason (required)')+'</label><input class="in" id="rz-t" placeholder="'+(langHi()?'जैसे: गलत स्कैन, ऑर्डर कैंसिल':'e.g. wrong scan, order cancelled')+'" autocomplete="off"></div>'+
       '<div class="row"><button class="btn grow" id="rz-no">'+(langHi()?'रद्द':'Cancel')+'</button><button class="btn danger grow" id="rz-yes">'+esc(okLabel||(langHi()?'हटाएँ':'Remove'))+'</button></div>');
-    setTimeout(()=>{try{$('#rz-t').focus()}catch(e){}},40);
-    const sel=$('#rz-w');
-    sel.onchange=()=>{const o=sel.value==='__other__';$('#rz-owrap').style.display=o?'':'none';if(o)setTimeout(()=>{try{$('#rz-o').focus()}catch(e){}},30)};
+    setTimeout(()=>{try{sub$('#rz-t').focus()}catch(e){}},60);
+    const sel=sub$('#rz-w');
+    sel.onchange=()=>{const o=sel.value==='__other__';sub$('#rz-owrap').style.display=o?'':'none';if(o)setTimeout(()=>{try{sub$('#rz-o').focus()}catch(e){}},30)};
     const go=()=>{
       let by=sel.value;
-      if(by==='__other__'){by=($('#rz-o').value||'').trim();if(by.length<2){toast(langHi()?'नाम लिखें':'Type the name','err');return}}
-      const v=($('#rz-t').value||'').trim();
+      if(by==='__other__'){by=(sub$('#rz-o').value||'').trim();if(by.length<2){toast(langHi()?'नाम लिखें':'Type the name','err');return}}
+      const v=(sub$('#rz-t').value||'').trim();
       if(v.length<3){toast(langHi()?'वजह लिखना ज़रूरी है':'A reason is required','err');return}
-      closeModal();res({reason:v,by:by});};
-    $('#rz-yes').onclick=go;
-    $('#rz-t').onkeydown=e=>{if(e.key==='Enter')go()};
-    $('#rz-no').onclick=()=>{closeModal();res(null)};
+      subClose();res({reason:v,by:by});};
+    sub$('#rz-yes').onclick=go;
+    sub$('#rz-t').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();go()}};
+    sub$('#rz-no').onclick=()=>{subClose();res(null)};
   });
 }
 async function awbAddCode(a,code){
@@ -5453,7 +5474,7 @@ async function parcelCamFlow(opts){
     if(dn)dn.onclick=()=>{pcCamStop();closeModal();if(opts.onClose)opts.onClose()};
   }
   openModal('<div class="sub">…</div>');paint();
-  const foc=setInterval(()=>{const I=$('#pc-in');if(!I){clearInterval(foc);return}if(document.activeElement!==I){try{I.focus()}catch(e){}}},600);
+  const foc=setInterval(()=>{const I=$('#pc-in');if(!I){clearInterval(foc);return}if(focusIsBusy(I))return;if(document.activeElement!==I){try{I.focus()}catch(e){}}},600);
   const ov=$('#ovl');
   const obs=new MutationObserver(()=>{if(!ov.classList.contains('show')&&!$('#pc-in')){obs.disconnect();clearInterval(foc);pcCamStop()}});
   obs.observe(ov,{attributes:true,attributeFilter:['class']});
@@ -5592,6 +5613,7 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
     return '';
   };
   const handle=async(code)=>{
+    if(SUB_OPEN)return;                               // a question is open — the gun waits
     code=String(code||'').replace(/\s+/g,' ').trim();if(!code)return;
     const bad=badScan(code);
     if(bad){errBox(code,bad);inp.value='';return}
@@ -5610,6 +5632,7 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
           const ex=items.find(x=>x.itemId===it.id);
           if(ex){
             const q=await qtyDlg(it,ex.qty);
+            inp.value='';setTimeout(()=>{try{inp.focus()}catch(e){}},60);
             if(q===null){errBox(code,T('मात्रा नहीं भरी','quantity not entered'));return}
             if(q<=0){const left=items.filter(x=>x.itemId!==it.id);
               if(cur)await awbSetItems(cur,left);else pend.items=left;
@@ -5652,15 +5675,15 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
       else errBox(code,(r&&r.msg));
     } finally { busy=false }
   };
-  inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();const v=inp.value.trim();inp.value='';if(v)handle(v);else if(group)closeParcel()}};
+  inp.onkeydown=e=>{if(SUB_OPEN)return;if(e.key==='Enter'){e.preventDefault();const v=inp.value.trim();inp.value='';if(v)handle(v);else if(group)closeParcel()}};
   if(group)paintCur();
   const nx=$('#aw-next');if(nx)nx.onclick=()=>{closeParcel();refocusSafe()};
   function refocusSafe(){try{inp.focus()}catch(e){}}
   const refocus=()=>{try{inp.focus()}catch(e){}};refocus();
   let fi=null,stop=null;
   if(hw){
-    fi=setInterval(()=>{if(!document.querySelector('#aw-in2')){clearInterval(fi);return}refocus()},450);
-    let at=null;inp.oninput=()=>{clearTimeout(at);at=setTimeout(()=>{const v=inp.value.trim();if(v.length>=4){inp.value='';handle(v)}},170)};
+    fi=setInterval(()=>{if(!document.querySelector('#aw-in2')){clearInterval(fi);return}if(focusIsBusy(inp))return;refocus()},450);
+    let at=null;inp.oninput=()=>{clearTimeout(at);at=setTimeout(()=>{if(SUB_OPEN)return;const v=inp.value.trim();if(v.length>=4){inp.value='';handle(v)}},170)};
   } else {
     (async()=>{
       if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return;
