@@ -676,8 +676,8 @@ function beep(ok){
       o.type='square';o.frequency.setValueAtTime(freq,t);
       o.connect(g);g.connect(ctx.destination);
       g.gain.setValueAtTime(0.0001,t);
-      g.gain.exponentialRampToValueAtTime(.35,t+.004);   // instant attack — the "crack"
-      g.gain.setValueAtTime(.35,t+dur-.012);             // hold flat, full volume
+      g.gain.exponentialRampToValueAtTime(.16,t+.004);   // instant attack — the "crack"
+      g.gain.setValueAtTime(.16,t+dur-.012);             // hold flat
       g.gain.exponentialRampToValueAtTime(0.0001,t+dur); // clean cut, no click
       o.start(t);o.stop(t+dur+.01);
     };
@@ -700,8 +700,8 @@ function successChime(){
       o.type='square';o.frequency.setValueAtTime(f,t);
       o.connect(g);g.connect(ctx.destination);
       g.gain.setValueAtTime(0.0001,t);
-      g.gain.exponentialRampToValueAtTime(.3,t+.004);
-      g.gain.setValueAtTime(.3,t+.11);
+      g.gain.exponentialRampToValueAtTime(.15,t+.004);
+      g.gain.setValueAtTime(.15,t+.11);
       g.gain.exponentialRampToValueAtTime(0.0001,t+.14);
       o.start(t);o.stop(t+.15);
     });
@@ -718,8 +718,8 @@ function alarmSound(){
       o.type='square';o.frequency.setValueAtTime(300,t);
       o.connect(g);g.connect(ctx.destination);
       g.gain.setValueAtTime(0.0001,t);
-      g.gain.exponentialRampToValueAtTime(.42,t+.004);
-      g.gain.setValueAtTime(.42,t+.22-.012);
+      g.gain.exponentialRampToValueAtTime(.22,t+.004);
+      g.gain.setValueAtTime(.22,t+.22-.012);
       g.gain.exponentialRampToValueAtTime(0.0001,t+.22);
       o.start(t);o.stop(t+.23);
     });
