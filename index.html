@@ -5719,9 +5719,10 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
         }
         /* a label barcode */
         if(codesOf().some(c=>awbKey(c)===awbKey(code))){errBox(code,T('यह बारकोड पहले ही जुड़ा है','already on this parcel'));return}
-        const prim=awbIsPrimaryOf(code);
-        if(prim&&(!cur||prim.id!==cur.id)){errBox(code,T('यह दूसरे पार्सल का AWB है · ','this is another parcel\'s AWB · ')+prim.awb);return}
         if(cur){
+          /* a parcel is open — this is another barcode from the same label */
+          const prim=awbIsPrimaryOf(code);
+          if(prim&&prim.id!==cur.id){errBox(code,T('यह दूसरे पार्सल का AWB है · ','this is another parcel\'s AWB · ')+prim.awb);return}
           const also=awbMatches(code).filter(x=>x.id!==cur.id).length;
           await awbAddCode(cur,code);
           okBox(code,also?T('जुड़ा — यह बारकोड '+(also+1)+' लेबल पर है, इससे डिस्पैच नहीं होगा','linked — but this barcode is on '+(also+1)+' labels, so it cannot dispatch on its own')
@@ -5735,12 +5736,23 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
           const ex0=ms[0];
           if(ex0&&ex0.status==='accepted'){errBox(code,T('पहले से लिस्ट में है','already scanned inward')+' ('+(ex0.acceptedBy||'')+')');return}
           if(ex0&&(ex0.status==='dispatched'||ex0.status==='returned')){
-            errBox(code,ex0.status==='dispatched'?T('यह पहले ही डिस्पैच हो चुका है','already dispatched'):T('यह ऑफिस वापस जा चुका है','already returned to office'));
-            if(await awbReinward(ex0)){pend={codes:awbCodes(ex0).slice(),items:[]};cur=ex0;paintCur();okBox(code,T('हाथ से वापस अंदर लिया','brought back in by hand'));}
+            /* it has already gone out — offer the manual route rather than a dead end */
+            errBox(code,(ex0.status==='dispatched'?T('यह डिस्पैच हो चुका है','already dispatched'):T('यह ऑफिस वापस जा चुका है','already returned to office'))+T(' — हाथ से वापस लेने का विकल्प खुल रहा है…',' — opening manual verification…'));
+            if(await awbReinward(ex0)){
+              cur=ex0;pend=null;n++;paintCur();
+              okBox(code,T('हाथ से वापस अंदर लिया — अब आइटम का SKU स्कैन करें','brought back in by hand — now scan the item SKU'));
+            } else {
+              feed.innerHTML='<div class="sub">'+T('वापस नहीं लिया गया','not brought back in')+'</div>';
+            }
             return;
           }
           pend={codes:[code],items:[]};
-        } else pend.codes.push(code);
+        } else {
+          /* adding more barcodes to a parcel that is not registered yet */
+          const prim=awbIsPrimaryOf(code);
+          if(prim){errBox(code,T('यह दूसरे पार्सल का AWB है · ','this is another parcel\'s AWB · ')+prim.awb);return}
+          pend.codes.push(code);
+        }
         okBox(code,T('बारकोड जोड़ा — अब आइटम का SKU स्कैन करें','barcode added — now scan the item SKU'));
         paintCur();return;
       }
