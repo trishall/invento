@@ -5284,6 +5284,7 @@ function reasonDlg(title,body,okLabel){
    required, and the stock that left is offered back to the exact rack it came from. */
 async function awbReinward(a){
   if(!a||a.status==='accepted')return false;
+  if(a.status==='cancelled'){toast(langHi()?'रद्द ऑर्डर वापस नहीं लिया जा सकता':'A cancelled shipment cannot be brought back in','err');return false}
   const items=awbItems(a).filter(x=>(+x.outQty||0)>0);
   const what=items.length?items.map(x=>x.name+' ×'+fmtQty(x.outQty)).join(', '):(langHi()?'कोई आइटम दर्ज नहीं':'no items recorded');
   /* keyboard only: the person must type the AWB themselves. A scan gun cannot do
@@ -5361,6 +5362,7 @@ async function acceptAwb(no,extra){
   const ex=ms[0]||null;
 
   if(ex&&ex.status==='accepted'){beep(false);return {ok:false,msg:(langHi()?'पहले से लिस्ट में है':'Already scanned inward')+' ('+(ex.acceptedBy||'someone')+')'}}
+  if(ex&&ex.status==='cancelled'){beep(false);return {ok:false,msg:(langHi()?'यह ऑर्डर रद्द हो चुका है':'This shipment was cancelled')}}
   if(ex&&ex.status==='dispatched'){beep(false);return {ok:false,msg:(langHi()?'यह पहले ही डिस्पैच हो चुका है · ':'Already dispatched · ')+ago(ex.resolvedAt)}}
   if(ex&&ex.status==='returned'){beep(false);return {ok:false,msg:(langHi()?'यह ऑफिस वापस जा चुका है · ':'Already returned to office · ')+ago(ex.resolvedAt)}}
   const rec=Object.assign({id:uid('awb'),awb:no,status:'accepted',acceptedBy:userName(),acceptedAt:Date.now()},extra||{});
@@ -5383,6 +5385,7 @@ async function dispatchAwbByNo(no,extra){
       :('This barcode is on '+ms.length+' labels'+(live?' ('+live+' still inward)':'')+' — scan another barcode from this order'))};
   }
   let a=ms[0]||null;
+  if(a&&a.status==='cancelled'){beep(false);alarmSound();return {ok:false,msg:(langHi()?'यह ऑर्डर रद्द हो चुका है — बाहर नहीं जा सकता':'This shipment was cancelled — it cannot go out')}}
   if(a&&a.status==='dispatched'){beep(false);return {ok:false,msg:(langHi()?'यह पहले ही डिस्पैच हो चुका है · ':'Already dispatched · ')+ago(a.resolvedAt)+' · '+(a.resolvedBy||'')+(awbKey(no)!==awbKey(a.awb)?' · AWB '+a.awb:'')}}
   if(a&&a.status==='returned'){beep(false);return {ok:false,msg:(langHi()?'यह ऑफिस वापस जा चुका है · ':'Was returned to office · ')+ago(a.resolvedAt)}}
   if(!a){ /* going OUT but never scanned IN — must never pass quietly */
@@ -5442,6 +5445,8 @@ function vAwb(sub,arg){
   const ret=(S.awbs||[]).filter(a=>a.status==='returned').sort((a,b)=>(b.resolvedAt||0)-(a.resolvedAt||0));
   const myOver=myOverdueAwbs();
   let h=modeSlider('awb');
+  h+='<button class="btn block mb" id="aw-status">'+ico('search')+(langHi()?'शिपमेंट की स्थिति देखें / रद्द करें':'Shipment status — check or cancel an order')+'</button>';
+  h+='<button class="btn block mb" id="aw-back" style="border-color:var(--saddle);color:var(--saddle);font-weight:700">'+ico('undo')+(langHi()?'वापस अंदर लें — डिस्पैच हुआ पार्सल':'Bring back in — a parcel that already went out')+'</button>';
   if(myOver.length)h+='<div class="splitbox mb" style="background:var(--red-bg);border:1px solid var(--red)"><div class="row" style="gap:8px;align-items:center"><span style="color:var(--red)">'+ico('alert')+'</span><div><b style="color:var(--red)">Send to office: '+myOver.length+' overdue AWB'+(myOver.length>1?'s':'')+'</b><div class="small muted">They are '+AWB_OVERDUE_DAYS+'+ days old. Send them to office before accepting more.</div></div></div></div>';
   // two big buttons
   h+='<div class="bigbtns'+(isAdminU()?' three':'')+'" style="margin-bottom:14px">'+
@@ -5464,6 +5469,8 @@ function vAwb(sub,arg){
      '<div id="aw-histbox" style="display:none;margin-top:10px"></div></div>';
   $('#main').innerHTML=h;
   wireModeSlider();
+  const shb=$('#aw-status');if(shb)shb.onclick=()=>shipmentDlg('');
+  const bbb=$('#aw-back');if(bbb)bbb.onclick=()=>bringBackDlg('');
   const aix=$('#aw-aix');if(aix)aix.onclick=()=>go('#aiscan');
   $('#aw-in').onclick=()=>startInward();
   $('#aw-out').onclick=()=>{ if(!can('awbDispatch')){toast('No permission to dispatch AWBs','err');return} go('#awb/out'); };
@@ -5531,6 +5538,137 @@ function startInward(){
   go('#awb/in');
 }
 
+/* Find a dispatched or returned parcel and bring it back in. Lives on the AWB
+   screen so the refusal message at Inward points somewhere real. */
+/* One place to look up a shipment, see everything that happened to it, and
+   cancel the whole thing if the order fell through. */
+function shipmentDlg(preQ){
+  const T=(hi,en)=>langHi()?hi:en;
+  const all=(S.awbs||[]).slice().sort((a,b)=>(b.resolvedAt||b.acceptedAt||0)-(a.resolvedAt||a.acceptedAt||0));
+  openModal('<h3>'+T('शिपमेंट की स्थिति','Shipment status')+'</h3>'+
+    '<p class="sub mb">'+T('नंबर से ढूँढें — क्या-क्या हुआ वो दिखेगा, और चाहें तो पूरा ऑर्डर रद्द कर सकते हैं।','Look one up by number — you see everything that happened to it, and can cancel the whole shipment.')+'</p>'+
+    '<div class="searchbar mb">'+ico('search')+'<input id="sh-q" placeholder="'+T('AWB / ऑर्डर नंबर / ग्राहक / SKU','AWB, order number, customer or SKU')+'" autocomplete="off" value="'+esc(preQ||'')+'"></div>'+
+    '<div id="sh-res" style="max-height:52dvh;overflow-y:auto"></div>'+
+    '<button class="btn block mt" onclick="closeModal()">'+T('बंद करें','Close')+'</button>');
+  const q=$('#sh-q'),res=$('#sh-res');
+  setTimeout(()=>{try{q.focus()}catch(e){}},60);
+  const stateOf=a=>a.status==='cancelled'?{t:T('रद्द','CANCELLED'),c:'low'}
+    :a.status==='dispatched'?{t:T('बाहर गया','Dispatched'),c:'info'}
+    :a.status==='returned'?{t:T('ऑफिस वापस','Returned to office'),c:'gray'}
+    :{t:T('अंदर है — बाहर जाना बाकी','Inward — not yet out'),c:'ok'};
+  const draw=()=>{
+    const v=(q.value||'').trim().toLowerCase();
+    const pool=(v?all.filter(a=>awbCodes(a).some(c=>c.toLowerCase().indexOf(v)>=0)||String(a.customer||'').toLowerCase().indexOf(v)>=0||String(a.sku||'').toLowerCase().indexOf(v)>=0):all).slice(0,20);
+    res.innerHTML=pool.length?pool.map(a=>{
+      const st=stateOf(a),items=awbItems(a);
+      const moved=items.filter(x=>(+x.outQty||0)>0);
+      return '<div class="card pad" style="margin-bottom:10px;border-left:4px solid var(--'+(a.status==='cancelled'?'red':a.status==='accepted'?'green':'saddle')+')">'+
+        '<div class="row" style="gap:8px;align-items:center"><b class="grow awb-no">'+esc(a.awb)+'</b><span class="pill '+st.c+'">'+esc(st.t)+'</span></div>'+
+        (awbCodes(a).length>1?'<div class="sub mono">'+esc(awbCodes(a).slice(1).join(' · '))+'</div>':'')+
+        (a.customer?'<div class="sub"><b>'+esc(a.customer)+'</b>'+(a.orderNo?' · '+esc(a.orderNo):'')+'</div>':'')+
+        '<div class="hist" style="margin-top:6px;font-size:12.5px">'+
+          '<div class="h"><span class="dot"></span><div class="grow"><b>'+T('अंदर लिया','Inwarded')+'</b> · '+esc(a.acceptedBy||'—')+'<div class="when">'+(a.acceptedAt?fmtDT(a.acceptedAt):'—')+'</div></div></div>'+
+          (items.length?'<div class="h"><span class="dot"></span><div class="grow"><b>'+T('पैक किया','Packed')+'</b> · '+esc(items.map(x=>x.name+' ×'+fmtQty(x.qty)+(x.rack!==undefined?' ('+shelfName(x.rack)+')':'')).join(', '))+'</div></div>'
+            :'<div class="h"><span class="dot"></span><div class="grow" style="color:var(--amber)"><b>'+T('कोई आइटम दर्ज नहीं','No items recorded')+'</b></div></div>')+
+          (a.status==='dispatched'?'<div class="h"><span class="dot"></span><div class="grow"><b>'+T('बाहर गया','Dispatched')+'</b> · '+esc(a.resolvedBy||'—')+(a.outCode&&awbKey(a.outCode)!==awbKey(a.awb)?' · '+T('स्कैन','scanned ')+esc(a.outCode):'')+
+            '<div class="when">'+fmtDT(a.resolvedAt)+(moved.length?' · '+T('स्टॉक घटा: ','stock out: ')+esc(moved.map(x=>x.name+' ×'+fmtQty(x.outQty)+' ('+shelfName(x.outRack)+')').join(', ')):'')+'</div></div></div>':'')+
+          (a.status==='returned'?'<div class="h"><span class="dot"></span><div class="grow"><b>'+T('ऑफिस वापस','Returned to office')+'</b> · '+esc(a.resolvedBy||'—')+'<div class="when">'+fmtDT(a.resolvedAt)+'</div></div></div>':'')+
+          (a.reinwarded?'<div class="h"><span class="dot"></span><div class="grow"><b>'+T('हाथ से वापस लिया','Brought back in by hand')+'</b> ×'+a.reinwarded+(a.reinwardWhy?' · '+esc(a.reinwardWhy):'')+'</div></div>':'')+
+          (a.status==='cancelled'?'<div class="h"><span class="dot" style="background:var(--red)"></span><div class="grow" style="color:var(--red)"><b>'+T('रद्द','CANCELLED')+'</b> · '+esc(a.cancelledBy||'—')+' · '+esc(a.cancelReason||'')+'<div class="when">'+fmtDT(a.cancelledAt)+'</div></div></div>':'')+
+        '</div>'+
+        (a.status==='cancelled'?'<div class="hint mt">'+T('यह ऑर्डर बंद है — कोई कार्रवाई नहीं हो सकती।','This shipment is closed — no further action is possible.')+'</div>'
+          :'<button class="btn sm block mt danger" data-cx="'+a.id+'" style="font-weight:700">'+ico('x')+T('पूरा ऑर्डर रद्द करें','Cancel this shipment'+(moved.length?' & put stock back':''))+'</button>')+
+      '</div>';
+    }).join(''):'<div class="sub" style="padding:10px 4px">'+(all.length?T('कुछ नहीं मिला','Nothing found'):T('अभी कोई शिपमेंट नहीं','No shipments yet'))+'</div>';
+    $$('#sh-res [data-cx]').forEach(b=>b.onclick=async()=>{
+      const a=(S.awbs||[]).find(x=>x.id===b.dataset.cx);if(!a)return;
+      const keep=q.value;closeModal();
+      await awbCancel(a);
+      shipmentDlg(keep);
+    });
+  };
+  q.oninput=draw;draw();
+}
+function bringBackDlg(preQ){
+  const gone=(S.awbs||[]).filter(a=>a.status==='dispatched'||a.status==='returned')
+    .sort((a,b)=>(b.resolvedAt||0)-(a.resolvedAt||0));
+  const T=(hi,en)=>langHi()?hi:en;
+  openModal('<h3>'+T('वापस अंदर लें','Bring a parcel back in')+'</h3>'+
+    '<p class="sub mb">'+T('जो पार्सल बाहर जा चुका है उसे ढूँढें — गलती से डिस्पैच हुआ या कूरियर ने लौटाया। पुष्टि के लिए नंबर टाइप करना होगा।','Find a parcel that has gone out — dispatched by mistake, or returned by the courier. You will be asked to type its number to confirm.')+'</p>'+
+    '<div class="searchbar mb">'+ico('search')+'<input id="bb-q" placeholder="'+T('AWB / ऑर्डर नंबर / ग्राहक','AWB, order number or customer')+'" autocomplete="off" value="'+esc(preQ||'')+'"></div>'+
+    '<div id="bb-res" class="ilist" style="max-height:46dvh;overflow-y:auto"></div>'+
+    '<button class="btn block mt" onclick="closeModal()">'+T('बंद करें','Close')+'</button>');
+  const q=$('#bb-q'),res=$('#bb-res');
+  setTimeout(()=>{try{q.focus()}catch(e){}},60);
+  const draw=()=>{
+    const v=(q.value||'').trim().toLowerCase();
+    const pool=(v?gone.filter(a=>awbCodes(a).some(c=>c.toLowerCase().indexOf(v)>=0)||String(a.customer||'').toLowerCase().indexOf(v)>=0||String(a.sku||'').toLowerCase().indexOf(v)>=0):gone).slice(0,25);
+    res.innerHTML=pool.length?pool.map(a=>'<div class="awbmini">'+
+        '<div class="awb-no">'+esc(a.awb)+'</div>'+
+        '<div class="awb-meta">'+(a.status==='dispatched'?T('डिस्पैच','dispatched'):T('ऑफिस वापस','returned'))+' · '+ago(a.resolvedAt)+' · '+esc(a.resolvedBy||'—')+'</div>'+
+        (a.customer?'<div class="awb-meta">'+esc(a.customer)+'</div>':'')+
+        ((a.items&&a.items.length)?'<div class="awb-meta ellip">'+esc(a.items.map(x=>x.name+' ×'+fmtQty(x.outQty||x.qty)).join(', '))+'</div>':'')+
+        '<button class="btn sm block mt" data-bb="'+a.id+'" style="color:var(--saddle);border-color:var(--saddle);font-weight:700">'+ico('undo')+T('वापस अंदर लें','Bring back in')+'</button></div>').join('')
+      :'<div class="sub" style="padding:10px 4px">'+(gone.length?T('कुछ नहीं मिला','Nothing found'):T('कोई पार्सल बाहर नहीं गया','No parcels have gone out'))+'</div>';
+    $$('#bb-res [data-bb]').forEach(el=>el.onclick=async()=>{
+      const a=(S.awbs||[]).find(x=>x.id===el.dataset.bb);if(!a)return;
+      if(a.status==='accepted'){toast(T('यह पहले से अंदर है','Already inward'),'err');return}
+      const keep=q.value;closeModal();
+      if(await awbReinward(a))vAwb();else bringBackDlg(keep);
+    });
+  };
+  q.oninput=draw;draw();
+}
+/* Cancel everything to do with one shipment. If it went out, the stock comes
+   back to the racks it left from. The record is then frozen: it cannot be
+   inwarded, dispatched or returned again. */
+async function awbCancel(a){
+  if(!a)return false;
+  const T=(hi,en)=>langHi()?hi:en;
+  if(a.status==='cancelled'){toast(T('यह पहले ही रद्द है','Already cancelled'),'err');return false}
+  const out=awbItems(a).filter(x=>(+x.outQty||0)>0);          // what actually left stock
+  const held=awbItems(a);
+  const typed=await new Promise(res=>{
+    subOpen('<h3 style="color:var(--red)">'+T('पूरा ऑर्डर रद्द करें','Cancel this whole shipment')+'</h3>'+
+      '<p class="sub mb"><b class="mono">'+esc(a.awb)+'</b> · '+esc(a.status==='dispatched'?T('डिस्पैच हो चुका','already out'):T('अंदर है','inward'))+
+      (held.length?'<br>'+esc(held.map(x=>x.name+' ×'+fmtQty(x.qty)).join(', ')):'')+
+      (out.length?T('<br>बाहर गया स्टॉक वापस जोड़ा जाएगा।','<br>Stock that left will be put back.'):'')+
+      T('<br>इसके बाद यह पार्सल न अंदर आएगा, न बाहर जाएगा।','<br>After this the parcel can never be inwarded, dispatched or returned again.')+'</p>'+
+      '<div class="field"><label>'+T('पुष्टि के लिए AWB टाइप करें','Type the AWB to confirm')+'</label><input class="in mono" id="cx-t" autocomplete="off" spellcheck="false" placeholder="'+esc(a.awb.replace(/./g,'•'))+'"></div>'+
+      '<div class="row"><button class="btn grow" id="cx-no">'+T('रहने दें','Keep it')+'</button><button class="btn danger grow" id="cx-ok">'+T('आगे','Continue')+'</button></div>');
+    const el=sub$('#cx-t');setTimeout(()=>{try{el.focus()}catch(e){}},60);
+    let lastLen=0,lastAt=0;
+    el.oninput=()=>{const now=Date.now();if(el.value.length-lastLen>3&&now-lastAt<120){el.value='';toast(T('टाइप करें, स्कैन नहीं','Type it — do not scan'),'err');beep(false)}lastLen=el.value.length;lastAt=now};
+    const go=()=>{if(awbKey(el.value)!==awbKey(a.awb)){toast(T('नंबर मेल नहीं खाता','Number does not match'),'err');beep(false);return}subClose();res(true)};
+    sub$('#cx-ok').onclick=go;el.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();go()}};
+    sub$('#cx-no').onclick=()=>{subClose();res(false)};
+  });
+  if(!typed)return false;
+  const why=await reasonDlg(T('ऑर्डर रद्द करें','Cancel the shipment'),
+    '<b class="mono">'+esc(a.awb)+'</b>'+T(' — यह क्यों रद्द हो रहा है? नाम और वजह दर्ज होगी।',' — why is this being cancelled? The name and reason go on the record.'),
+    T('रद्द करें','Cancel shipment'));
+  if(!why)return false;
+  let back='';
+  if(out.length){
+    for(const x of out){
+      const it=x.itemId&&iById(x.itemId);if(!it)continue;
+      pileAdd(it,x.outRack,+x.outQty||0);
+      logTx('in',{itemId:it.id,itemName:it.name,qty:+x.outQty||0,reason:'Shipment cancelled · AWB '+a.awb,
+        detail:'AWB '+a.awb+' cancelled · back to '+shelfName(x.outRack)+' · by '+why.by+' · '+why.reason});
+      x.outQty=0;
+    }
+    await saveNow('items');
+    back=' · '+T('स्टॉक वापस जोड़ा','stock put back');
+  }
+  a.status='cancelled';a.cancelledBy=why.by;a.cancelledAt=Date.now();a.cancelReason=why.reason;
+  delete a.outCode;
+  await saveNow('awbs');
+  logTx('list',{detail:'Shipment CANCELLED · '+a.awb+' · by '+why.by+(why.by!==userName()?' (signed in: '+userName()+')':'')+' · reason: '+why.reason+back});
+  alarmSound();
+  toast(T('रद्द हो गया · ','Cancelled · ')+a.awb+back,'ok');
+  updateBadges();
+  return true;
+}
 function wireAwbBack(){
   $$('#main [data-awback]').forEach(b=>b.onclick=async()=>{
     const a=(S.awbs||[]).find(x=>x.id===b.dataset.awback);
@@ -5850,8 +5988,11 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
       '<div class="sub mono" style="margin-top:3px">'+codes.map(c=>esc(c)+(awbShared(c)?' <span class="pill low" style="font-size:9px">'+T('कई लेबल','shared')+'</span>':'')).join(' · ')+'</div>'+
       (items.length
         ?'<div style="margin-top:6px;border-top:1px solid var(--line2);padding-top:5px">'+items.map((x,xi)=>'<div class="row" style="gap:6px;padding:2px 0;font-size:13px"><span class="grow ellip">'+esc(x.name)+(x.rack!==undefined?' <span class="skutag" style="font-size:10px">'+esc(shelfName(x.rack))+'</span>':'')+(x.manual?' <span class="pill warn" style="font-size:9px">'+T('नाम से','by name')+'</span>':'')+'</span><b class="num">×'+fmtQty(x.qty)+'</b><button class="icobtn ghost" data-rmitem="'+xi+'" style="width:26px;height:26px;flex:0 0 auto">'+ico('x')+'</button></div>').join('')+'</div>'
-        :'<div class="hint" style="margin-top:5px;color:var(--amber);font-weight:700">'+T('आइटम का SKU स्कैन करें — तभी यह पार्सल दर्ज होगा','scan an item SKU — the parcel is not registered until you do')+'</div>')+
-      '<div class="hint" style="margin-top:4px">'+T('इसी लेबल के और बारकोड और आइटम का SKU स्कैन करें, फिर Enter दबाएँ।','Scan the label\'s other barcodes and each item SKU, then press Enter.')+'</div></div>';
+        :'<div class="hint" style="margin-top:5px;color:var(--amber);font-weight:700">'+T('आइटम का SKU स्कैन करें — तभी यह पार्सल दर्ज होगा','scan an item SKU — nothing is saved until you do')+'</div>')+
+      (saved?''
+        :'<div class="hint" style="margin-top:6px;padding:6px 8px;border-radius:8px;background:var(--amber-bg);color:var(--amber);font-weight:700">'+
+          (items.length?T('अब DONE स्कैन करें (या Enter) — तभी यह दर्ज होगा','Now scan DONE (or press Enter) — only then is it saved'):T('कुछ भी सेव नहीं हुआ है','nothing has been saved yet'))+'</div>')+
+      '</div>';
     if(nx)nx.disabled=!items.length;
     $$('#aw-cur [data-rmitem]').forEach(b=>b.onclick=async()=>{
       const xi=+b.dataset.rmitem,items2=itemsOf(),x=items2[xi];if(!x)return;
@@ -5865,13 +6006,19 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
       toast(T('हटाया','Removed'),'ok');paintCur();
     });
   };
-  const closeParcel=(quiet)=>{
+  const closeParcel=async(quiet)=>{
     if(!cur&&!pend)return;
     if(group&&!itemsOf().length){
       errBox(codesOf()[0]||'',T('पहले आइटम का SKU स्कैन करें — बिना SKU यह पार्सल दर्ज नहीं होगा','scan the item SKU first — without it this parcel is not registered'));
       return;
     }
-    const done=cur;cur=null;pend=null;paintCur();
+    let done=cur;
+    if(!done&&pend){
+      const rec=await commitPend();      // write it now, or refuse and keep the buffer
+      if(!rec){paintCur();return}
+      done=rec;
+    }
+    cur=null;pend=null;paintCur();
     const cEl=$('#aw-n');if(cEl)cEl.textContent=String(n);
     if(!quiet&&done){
       successChime();
@@ -5881,14 +6028,30 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
         '<div class="sub"><b>'+n+'</b> '+T('पार्सल हो गए · अगला लेबल स्कैन करें','done · scan the next label')+'</div></div>';
     }
   };
-  /* register the buffered parcel the moment the first item SKU is scanned */
-  const registerPend=async()=>{
-    const first=pend.codes[0];
-    const r=await onCode(first);
-    if(!r||!r.ok){errBox(first,(r&&r.msg));return null}
-    cur=r.rec;n++;
-    for(const c of pend.codes.slice(1))await awbAddCode(cur,c);
-    return cur;
+  /* Commit happens only on DONE. Everything is re-checked at that moment, because
+     another device may have inwarded or dispatched one of these codes meanwhile. */
+  const commitPend=async()=>{
+    if(!pend)return false;
+    if(!pend.codes.length){errBox('',T('कोई बारकोड नहीं','no barcode scanned'));return false}
+    if(!pend.items.length){errBox(pend.codes[0],T('पहले आइटम का SKU स्कैन करें','scan the item SKU first'));return false}
+    const bad=pend.items.find(x=>!x.itemId||!(+x.qty>0));
+    if(bad){errBox(pend.codes[0],T('आइटम की मात्रा सही नहीं','an item has no valid quantity'));return false}
+    for(const c of pend.codes){
+      const ms=awbMatches(c);
+      if(ms.length){
+        const st=ms[0].status;
+        errBox(c,st==='accepted'?T('अभी-अभी किसी और ने अंदर ले लिया','just taken inward by someone else')
+              :st==='dispatched'?T('यह डिस्पैच हो चुका है','already dispatched'):T('यह ऑफिस वापस जा चुका है','already returned to office'));
+        return false;
+      }
+    }
+    const r=await onCode(pend.codes[0]);
+    if(!r||!r.ok){errBox(pend.codes[0],(r&&r.msg));return false}
+    const rec=r.rec;
+    for(const c of pend.codes.slice(1))await awbAddCode(rec,c);
+    await awbSetItems(rec,pend.items);
+    n++;
+    return rec;
   };
   /* A scan gun misfire produces fragments: a couple of characters, control codes,
      or a half-read symbol. None of those may become a parcel or a barcode. */
@@ -5927,33 +6090,48 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
     const entry={itemId:it.id,sku:skusOf(it)[0]||code,name:it.name,qty:1,rack:rack};
     if(how==='search')entry.manual=true;
     items.push(entry);
-    if(!cur){ if(!await registerPend())return false; }
-    await awbSetItems(cur,items);
-    okBox(code,esc(it.name)+' × 1 · '+esc(shelfName(rack))+(how==='search'?T(' · नाम से जोड़ा',' · added by search'):'')+T(' · पार्सल दर्ज हुआ',' · parcel registered'));
+    if(cur)await awbSetItems(cur,items);else pend.items=items;
+    okBox(code,esc(it.name)+' × 1 · '+esc(shelfName(rack))+(how==='search'?T(' · नाम से जोड़ा',' · added by search'):'')+T(' · DONE दबाने पर दर्ज होगा',' · press DONE to register'));
     paintCur();return true;
   };
-  /* search the catalog when the SKU barcode will not read */
-  const findItemDlg=()=>{
+  /* Search the catalog when a SKU barcode will not read. Stays open so several
+     items can go into the same parcel — closing is a deliberate tap. */
+  const findItemDlg=(preQ,note)=>{
     if(!cur&&!pend){toast(T('पहले लेबल का बारकोड स्कैन करें','Scan the label barcode first'),'err');beep(false);return}
+    const packed=itemsOf();
     subOpen('<h3>'+T('नाम से आइटम जोड़ें','Add item by name')+'</h3>'+
-      '<div class="searchbar mb">'+ico('search')+'<input id="fi-q" placeholder="'+T('नाम या SKU लिखें','Type a name or SKU')+'" autocomplete="off"></div>'+
-      '<div id="fi-res" class="ilist" style="max-height:46dvh;overflow-y:auto"></div>'+
-      '<button class="btn block mt" id="fi-x">'+T('बंद करें','Close')+'</button>');
+      '<div class="sub mb">'+T('जितने आइटम चाहें जोड़ें — यह खुला रहेगा।','Add as many items as you need — this stays open.')+'</div>'+
+      (note?'<div class="splitbox mb" style="background:var(--green-bg);border:1px solid var(--green)"><b>'+esc(note)+'</b></div>':'')+
+      '<div class="searchbar mb">'+ico('search')+'<input id="fi-q" placeholder="'+T('नाम या SKU लिखें','Type a name or SKU')+'" autocomplete="off" value="'+esc(preQ||'')+'"></div>'+
+      '<div id="fi-res" class="ilist" style="max-height:38dvh;overflow-y:auto"></div>'+
+      '<div id="fi-in" class="mt"></div>'+
+      '<button class="btn pri block mt" id="fi-x">'+ico('check')+T('हो गया — स्कैन पर वापस','Done — back to scanning')+'</button>');
     const q=sub$('#fi-q'),res=sub$('#fi-res');
-    setTimeout(()=>{try{q.focus()}catch(e){}},60);
+    setTimeout(()=>{try{q.focus();q.select()}catch(e){}},60);
+    /* what is already in this parcel, so nobody adds the same thing twice by mistake */
+    const inBox=sub$('#fi-in');
+    if(inBox)inBox.innerHTML=packed.length
+      ?'<div class="eyebrow mb">'+T('इस पार्सल में','In this parcel')+'</div>'+packed.map(x=>'<div class="row small" style="padding:2px 0"><span class="grow ellip">'+esc(x.name)+'</span><b class="num">×'+fmtQty(x.qty)+'</b></div>').join('')
+      :'<div class="hint">'+T('अभी कोई आइटम नहीं','no items yet')+'</div>';
     const draw=()=>{
       const v=(q.value||'').trim().toLowerCase();
       const pool=v?sortItems(S.items.filter(i=>matches(i,v))).slice(0,12):[];
-      res.innerHTML=pool.length?pool.map(i=>'<div class="irow" data-fi="'+i.id+'" style="cursor:pointer"><span class="th">'+((i.img||i.thumb)?'<img src="'+esc(i.img||i.thumb)+'" alt="" referrerpolicy="no-referrer">':ico('box'))+'</span><div class="grow"><div class="nm ellip">'+esc(i.name)+'</div><div class="meta num">'+(skusOf(i)[0]?'<span class="skutag">'+esc(skusOf(i)[0])+'</span> ':'')+fmtQty(i.qty)+' '+esc(i.unit||'')+' · '+esc(pileSummary(i))+'</div></div>'+ico('plus','muted')+'</div>').join('')
+      res.innerHTML=pool.length?pool.map(i=>{
+        const already=packed.find(x=>x.itemId===i.id);
+        return '<div class="irow" data-fi="'+i.id+'" style="cursor:pointer"><span class="th">'+((i.img||i.thumb)?'<img src="'+esc(i.img||i.thumb)+'" alt="" referrerpolicy="no-referrer">':ico('box'))+'</span><div class="grow"><div class="nm ellip">'+esc(i.name)+(already?' <span class="pill ok" style="font-size:9px">×'+fmtQty(already.qty)+'</span>':'')+'</div><div class="meta num">'+(skusOf(i)[0]?'<span class="skutag">'+esc(skusOf(i)[0])+'</span> ':'')+fmtQty(i.qty)+' '+esc(i.unit||'')+' · '+esc(pileSummary(i))+'</div></div>'+ico('plus','muted')+'</div>';
+      }).join('')
         :'<div class="sub" style="padding:10px 4px">'+(v?T('कुछ नहीं मिला','No matches'):T('नाम या SKU लिखना शुरू करें','Start typing a name or SKU'))+'</div>';
       Array.from(res.querySelectorAll('[data-fi]')).forEach(r=>r.onclick=async()=>{
         const it=iById(r.dataset.fi);if(!it)return;
-        subClose();
-        await addItem(it,skusOf(it)[0]||it.name,'search');
+        const keep=q.value;
+        subClose();                                   // free the layer for the qty / rack question
+        const ok=await addItem(it,skusOf(it)[0]||it.name,'search');
+        findItemDlg(keep,ok?(it.name+T(' जुड़ा',' added')):'');   // and straight back to the list
       });
     };
-    q.oninput=draw;q.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();const first=res.querySelector('[data-fi]');if(first)first.click()}};
-    sub$('#fi-x').onclick=()=>{subClose();setTimeout(()=>{try{inp.focus()}catch(e){}},60)};
+    q.oninput=draw;
+    q.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();const first=res.querySelector('[data-fi]');if(first)first.click()}};
+    sub$('#fi-x').onclick=()=>{subClose();paintCur();setTimeout(()=>{try{inp.focus()}catch(e){}},60)};
     draw();
   };
   const fb=$('#aw-find');if(fb)fb.onclick=findItemDlg;
@@ -5964,7 +6142,7 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
     if(key){
       inp.value='';
       if(!group){errBox(code,T('यह key सिर्फ Inward में चलती है','this key only works on the Inward screen'));return}
-      if(key==='done'){closeParcel();return}
+      if(key==='done'){await closeParcel();return}
       if(key==='cancel'){
         if(cur){errBox(code,T('यह पार्सल दर्ज हो चुका है — हटाने के लिए AWB स्क्रीन पर वजह लिखें','this parcel is already registered — remove it from the AWB screen with a reason'));return}
         if(pend){const a=pend.codes[0];pend=null;paintCur();beep(false);feed.innerHTML='<div class="sub">'+T('छोड़ा — ','dropped — ')+esc(a)+T(' दर्ज नहीं हुआ',' was not registered')+'</div>';return}
@@ -5999,9 +6177,10 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
           if(ms.length>1){errBox(code,T('यह बारकोड कई लेबल पर है — इस पार्सल का अपना AWB स्कैन करें','this barcode is on several labels — scan this parcel\'s own AWB'));return}
           const ex0=ms[0];
           if(ex0&&ex0.status==='accepted'){errBox(code,T('पहले से लिस्ट में है','already scanned inward')+' ('+(ex0.acceptedBy||'')+')');return}
+          if(ex0&&ex0.status==='cancelled'){errBox(code,T('यह ऑर्डर रद्द हो चुका है','this shipment was cancelled'));return}
           if(ex0&&(ex0.status==='dispatched'||ex0.status==='returned')){
             errBox(code,(ex0.status==='dispatched'?T('यह डिस्पैच हो चुका है','already dispatched'):T('यह ऑफिस वापस जा चुका है','already returned to office'))+
-              T(' — वापस लेना है तो AWB स्क्रीन पर "वापस अंदर लें" दबाकर नंबर टाइप करें',' — to bring it back, use "Bring back in" on the AWB screen and type the number'));
+              T(' — वापस लेना है तो: AWB स्क्रीन → "वापस अंदर लें" बटन → नंबर टाइप करें',' — to bring it back: AWB screen → the "Bring back in" button → type the number'));
             return;
           }
           pend={codes:[code],items:[]};
@@ -6019,7 +6198,7 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
       else errBox(code,(r&&r.msg));
     } finally { busy=false }
   };
-  inp.onkeydown=e=>{if(SUB_OPEN)return;if(e.key==='Enter'){e.preventDefault();const v=inp.value.trim();inp.value='';if(v)handle(v);else if(group)closeParcel()}};
+  inp.onkeydown=e=>{if(SUB_OPEN)return;if(e.key==='Enter'){e.preventDefault();const v=inp.value.trim();inp.value='';if(v)handle(v);else if(group)closeParcel()}};   /* closeParcel is async; fire-and-forget is fine here */
   if(group)paintCur();
   const nx=$('#aw-next');if(nx)nx.onclick=()=>{closeParcel();refocusSafe()};
   function refocusSafe(){try{inp.focus()}catch(e){}}
@@ -6042,13 +6221,21 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
   }
   const cleanup=()=>{
     if(fi)clearInterval(fi);if(stop){try{stop()}catch(e){}stop=null}
-    if(typeof pend!=='undefined'&&pend&&!cur){
+    if(typeof pend!=='undefined'&&pend){
       alarmSound();
-      toast('⚠ '+(pend.codes[0]||'')+' — '+(langHi()?'SKU स्कैन नहीं हुआ, यह पार्सल दर्ज नहीं हुआ':'no item SKU scanned, so this parcel was NOT registered'),'err');
+      toast('⚠ '+(pend.codes[0]||'')+' — '+(langHi()?'DONE नहीं दबाया, यह पार्सल दर्ज नहीं हुआ':'DONE was not scanned, so this parcel was NOT registered'),'err');
       pend=null;
     }
   };
-  $('#aw-done2').onclick=()=>{
+  $('#aw-done2').onclick=async()=>{
+    if(group&&pend){
+      const ok=await confirmDlg(
+        langHi()?'यह पार्सल दर्ज नहीं हुआ':'This parcel is not registered',
+        '<b class="mono">'+esc(pend.codes[0]||'')+'</b>'+(langHi()?' अभी दर्ज नहीं हुआ है। बाहर निकलने पर यह छूट जाएगा।':' has not been registered yet. Leaving now will discard it.')+
+        (pend.items.length?'<br>'+esc(pend.items.map(x=>x.name+' ×'+fmtQty(x.qty)).join(', ')):(langHi()?'<br>कोई आइटम स्कैन नहीं हुआ':'<br>no items scanned')),
+        langHi()?'छोड़कर बाहर निकलें':'Discard and leave',true);
+      if(!ok)return;
+    }
     const total=n;
     cleanup();closeModal();
     if(group&&total)toast(total+(langHi()?' ऑर्डर इनवर्ड हुए':' order'+(total===1?'':'s')+' inwarded'),'ok');
