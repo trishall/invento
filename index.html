@@ -5284,13 +5284,14 @@ function reasonDlg(title,body,okLabel){
    required, and the stock that left is offered back to the exact rack it came from. */
 async function awbReinward(a){
   if(!a||a.status==='accepted')return false;
-  if(a.status==='cancelled'){toast(langHi()?'रद्द ऑर्डर वापस नहीं लिया जा सकता':'A cancelled shipment cannot be brought back in','err');return false}
+  const wasCancelled=a.status==='cancelled';
   const items=awbItems(a).filter(x=>(+x.outQty||0)>0);
   const what=items.length?items.map(x=>x.name+' ×'+fmtQty(x.outQty)).join(', '):(langHi()?'कोई आइटम दर्ज नहीं':'no items recorded');
   /* keyboard only: the person must type the AWB themselves. A scan gun cannot do
      this, so a label scanned again and again can never bring a parcel back in. */
   const typed=await new Promise(res=>{
     subOpen('<h3>'+(langHi()?'AWB नंबर टाइप करें':'Type the AWB number')+'</h3>'+
+      (wasCancelled?'<div class="splitbox mb" style="background:var(--amber-bg);border:1px solid var(--amber)"><b>'+(langHi()?'यह ऑर्डर रद्द किया गया था — फिर से खोला जा रहा है':'This shipment was cancelled — you are reopening it')+'</b>'+(a.cancelReason?'<div class="sub">'+(langHi()?'वजह थी: ':'cancelled because: ')+esc(a.cancelReason)+'</div>':'')+'</div>':'')+
       '<p class="sub mb">'+(langHi()?'पुष्टि के लिए यह नंबर कीबोर्ड से टाइप करें (स्कैन नहीं चलेगा):':'To confirm, type this number on the keyboard — scanning will not work here:')+
       ' <b class="mono">'+esc(a.awb)+'</b></p>'+
       '<div class="field"><input class="in mono" id="rb-t" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="'+esc(a.awb.replace(/./g,'•'))+'"></div>'+
@@ -5313,6 +5314,9 @@ async function awbReinward(a){
     langHi()?'वापस अंदर लें':'Bring back in');
   if(!why)return false;
   let restored='';
+  if(wasCancelled&&!items.length){
+    /* stock was already put back at the moment of cancellation — nothing to move */
+  }
   if(items.length){
     const back=await confirmDlg(
       langHi()?'स्टॉक वापस जोड़ें?':'Put the stock back?',
@@ -5330,10 +5334,11 @@ async function awbReinward(a){
   }
   a.status='accepted';a.acceptedBy=why.by;a.acceptedAt=Date.now();
   delete a.resolvedAt;delete a.resolvedBy;delete a.outCode;
+  if(wasCancelled){a.reopened=(+a.reopened||0)+1;a.reopenWhy=why.reason;delete a.cancelledAt;delete a.cancelledBy;delete a.cancelReason}
   a.reinwarded=(+a.reinwarded||0)+1;a.reinwardWhy=why.reason;
   await saveNow('awbs');
-  logTx('list',{detail:'AWB brought back in by hand · '+a.awb+' · by '+why.by+(why.by!==userName()?' (signed in: '+userName()+')':'')+' · reason: '+why.reason+restored});
-  toast((langHi()?'वापस अंदर लिया · ':'Back in · ')+a.awb,'ok');
+  logTx('list',{detail:(wasCancelled?'Cancelled shipment REOPENED · ':'AWB brought back in by hand · ')+a.awb+' · by '+why.by+(why.by!==userName()?' (signed in: '+userName()+')':'')+' · reason: '+why.reason+restored});
+  toast((wasCancelled?(langHi()?'फिर से खोला · ':'Reopened · '):(langHi()?'वापस अंदर लिया · ':'Back in · '))+a.awb,'ok');
   return true;
 }
 async function awbAddCode(a,code){
@@ -5576,10 +5581,17 @@ function shipmentDlg(preQ){
           (a.reinwarded?'<div class="h"><span class="dot"></span><div class="grow"><b>'+T('हाथ से वापस लिया','Brought back in by hand')+'</b> ×'+a.reinwarded+(a.reinwardWhy?' · '+esc(a.reinwardWhy):'')+'</div></div>':'')+
           (a.status==='cancelled'?'<div class="h"><span class="dot" style="background:var(--red)"></span><div class="grow" style="color:var(--red)"><b>'+T('रद्द','CANCELLED')+'</b> · '+esc(a.cancelledBy||'—')+' · '+esc(a.cancelReason||'')+'<div class="when">'+fmtDT(a.cancelledAt)+'</div></div></div>':'')+
         '</div>'+
-        (a.status==='cancelled'?'<div class="hint mt">'+T('यह ऑर्डर बंद है — कोई कार्रवाई नहीं हो सकती।','This shipment is closed — no further action is possible.')+'</div>'
+        (a.status==='cancelled'
+          ?'<button class="btn sm block mt" data-rx="'+a.id+'" style="color:var(--saddle);border-color:var(--saddle);font-weight:700">'+ico('undo')+T('फिर से खोलें — नंबर टाइप करना होगा','Reopen this shipment — type the number')+'</button>'
           :'<button class="btn sm block mt danger" data-cx="'+a.id+'" style="font-weight:700">'+ico('x')+T('पूरा ऑर्डर रद्द करें','Cancel this shipment'+(moved.length?' & put stock back':''))+'</button>')+
       '</div>';
     }).join(''):'<div class="sub" style="padding:10px 4px">'+(all.length?T('कुछ नहीं मिला','Nothing found'):T('अभी कोई शिपमेंट नहीं','No shipments yet'))+'</div>';
+    $$('#sh-res [data-rx]').forEach(b=>b.onclick=async()=>{
+      const a=(S.awbs||[]).find(x=>x.id===b.dataset.rx);if(!a)return;
+      const keep=q.value;closeModal();
+      await awbReinward(a);
+      shipmentDlg(keep);
+    });
     $$('#sh-res [data-cx]').forEach(b=>b.onclick=async()=>{
       const a=(S.awbs||[]).find(x=>x.id===b.dataset.cx);if(!a)return;
       const keep=q.value;closeModal();
@@ -5590,8 +5602,8 @@ function shipmentDlg(preQ){
   q.oninput=draw;draw();
 }
 function bringBackDlg(preQ){
-  const gone=(S.awbs||[]).filter(a=>a.status==='dispatched'||a.status==='returned')
-    .sort((a,b)=>(b.resolvedAt||0)-(a.resolvedAt||0));
+  const gone=(S.awbs||[]).filter(a=>a.status==='dispatched'||a.status==='returned'||a.status==='cancelled')
+    .sort((a,b)=>(b.cancelledAt||b.resolvedAt||0)-(a.cancelledAt||a.resolvedAt||0));
   const T=(hi,en)=>langHi()?hi:en;
   openModal('<h3>'+T('वापस अंदर लें','Bring a parcel back in')+'</h3>'+
     '<p class="sub mb">'+T('जो पार्सल बाहर जा चुका है उसे ढूँढें — गलती से डिस्पैच हुआ या कूरियर ने लौटाया। पुष्टि के लिए नंबर टाइप करना होगा।','Find a parcel that has gone out — dispatched by mistake, or returned by the courier. You will be asked to type its number to confirm.')+'</p>'+
@@ -5605,10 +5617,10 @@ function bringBackDlg(preQ){
     const pool=(v?gone.filter(a=>awbCodes(a).some(c=>c.toLowerCase().indexOf(v)>=0)||String(a.customer||'').toLowerCase().indexOf(v)>=0||String(a.sku||'').toLowerCase().indexOf(v)>=0):gone).slice(0,25);
     res.innerHTML=pool.length?pool.map(a=>'<div class="awbmini">'+
         '<div class="awb-no">'+esc(a.awb)+'</div>'+
-        '<div class="awb-meta">'+(a.status==='dispatched'?T('डिस्पैच','dispatched'):T('ऑफिस वापस','returned'))+' · '+ago(a.resolvedAt)+' · '+esc(a.resolvedBy||'—')+'</div>'+
+        '<div class="awb-meta">'+(a.status==='dispatched'?T('डिस्पैच','dispatched'):a.status==='cancelled'?T('रद्द','cancelled'):T('ऑफिस वापस','returned'))+' · '+ago(a.cancelledAt||a.resolvedAt)+' · '+esc(a.cancelledBy||a.resolvedBy||'—')+(a.cancelReason?' · '+esc(a.cancelReason):'')+'</div>'+
         (a.customer?'<div class="awb-meta">'+esc(a.customer)+'</div>':'')+
         ((a.items&&a.items.length)?'<div class="awb-meta ellip">'+esc(a.items.map(x=>x.name+' ×'+fmtQty(x.outQty||x.qty)).join(', '))+'</div>':'')+
-        '<button class="btn sm block mt" data-bb="'+a.id+'" style="color:var(--saddle);border-color:var(--saddle);font-weight:700">'+ico('undo')+T('वापस अंदर लें','Bring back in')+'</button></div>').join('')
+        '<button class="btn sm block mt" data-bb="'+a.id+'" style="color:var(--saddle);border-color:var(--saddle);font-weight:700">'+ico('undo')+(a.status==='cancelled'?T('फिर से खोलें','Reopen this shipment'):T('वापस अंदर लें','Bring back in'))+'</button></div>').join('')
       :'<div class="sub" style="padding:10px 4px">'+(gone.length?T('कुछ नहीं मिला','Nothing found'):T('कोई पार्सल बाहर नहीं गया','No parcels have gone out'))+'</div>';
     $$('#bb-res [data-bb]').forEach(el=>el.onclick=async()=>{
       const a=(S.awbs||[]).find(x=>x.id===el.dataset.bb);if(!a)return;
@@ -5633,7 +5645,7 @@ async function awbCancel(a){
       '<p class="sub mb"><b class="mono">'+esc(a.awb)+'</b> · '+esc(a.status==='dispatched'?T('डिस्पैच हो चुका','already out'):T('अंदर है','inward'))+
       (held.length?'<br>'+esc(held.map(x=>x.name+' ×'+fmtQty(x.qty)).join(', ')):'')+
       (out.length?T('<br>बाहर गया स्टॉक वापस जोड़ा जाएगा।','<br>Stock that left will be put back.'):'')+
-      T('<br>इसके बाद यह पार्सल न अंदर आएगा, न बाहर जाएगा।','<br>After this the parcel can never be inwarded, dispatched or returned again.')+'</p>'+
+      T('<br>इसके बाद यह पार्सल स्कैन से न अंदर आएगा न बाहर जाएगा। ज़रूरत पड़े तो "वापस अंदर लें" से फिर खोला जा सकता है।','<br>After this, no scan can inward or dispatch it. If the order comes back, it can be reopened from "Bring back in".')+'</p>'+
       '<div class="field"><label>'+T('पुष्टि के लिए AWB टाइप करें','Type the AWB to confirm')+'</label><input class="in mono" id="cx-t" autocomplete="off" spellcheck="false" placeholder="'+esc(a.awb.replace(/./g,'•'))+'"></div>'+
       '<div class="row"><button class="btn grow" id="cx-no">'+T('रहने दें','Keep it')+'</button><button class="btn danger grow" id="cx-ok">'+T('आगे','Continue')+'</button></div>');
     const el=sub$('#cx-t');setTimeout(()=>{try{el.focus()}catch(e){}},60);
@@ -6177,7 +6189,7 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
           if(ms.length>1){errBox(code,T('यह बारकोड कई लेबल पर है — इस पार्सल का अपना AWB स्कैन करें','this barcode is on several labels — scan this parcel\'s own AWB'));return}
           const ex0=ms[0];
           if(ex0&&ex0.status==='accepted'){errBox(code,T('पहले से लिस्ट में है','already scanned inward')+' ('+(ex0.acceptedBy||'')+')');return}
-          if(ex0&&ex0.status==='cancelled'){errBox(code,T('यह ऑर्डर रद्द हो चुका है','this shipment was cancelled'));return}
+          if(ex0&&ex0.status==='cancelled'){errBox(code,T('यह ऑर्डर रद्द हुआ था — फिर से खोलने के लिए: AWB स्क्रीन → "वापस अंदर लें"','this shipment was cancelled — to reopen it: AWB screen → "Bring back in"'));return}
           if(ex0&&(ex0.status==='dispatched'||ex0.status==='returned')){
             errBox(code,(ex0.status==='dispatched'?T('यह डिस्पैच हो चुका है','already dispatched'):T('यह ऑफिस वापस जा चुका है','already returned to office'))+
               T(' — वापस लेना है तो: AWB स्क्रीन → "वापस अंदर लें" बटन → नंबर टाइप करें',' — to bring it back: AWB screen → the "Bring back in" button → type the number'));
