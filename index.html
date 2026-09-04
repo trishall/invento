@@ -1612,6 +1612,7 @@ function vStockHome(){
     '<button class="bigbtn" id="sh-loc">'+ico('folder')+'<div>'+locTermP()+'</div><div class="sub">Racks & shelves — browse by place</div></button>'+
     '<button class="bigbtn" id="sh-prod">'+ico('box')+'<div>Items</div><div class="sub">Every product in one list</div></button>'+
     '</div>';
+  if(can('additem'))h+='<button class="btn pri block mb" data-act="newitem">'+ico('plus')+(langHi()?'नया प्रोडक्ट बनाएँ':'Create a new product')+'</button>';
   h+='<div class="stats mb"><div class="stat"><div class="n num">'+its.length+'</div><div class="l">Items'+(view.warehouse?' here':'')+'</div></div><div class="stat"><div class="n num">'+fmtMoney(val,0)+'</div><div class="l">Stock value</div></div><div class="stat"><div class="n num">'+its.filter(isLow).length+'</div><div class="l">Low stock</div></div></div>';
   $('#main').innerHTML=h;
   if(can('dispatch'))wireModeSlider();
@@ -1634,7 +1635,8 @@ function wireWarehouseBar(refresh){
   };
 }
 function vProducts(){
-  topTitle('Items','#stock');
+  topTitle(langHi()?'आइटम':'Items','#stock',
+    can('additem')?'<button class="icobtn" data-act="newitem" aria-label="'+(langHi()?'नया आइटम':'New item')+'" style="background:var(--saddle);border-color:var(--saddle);color:#fff">'+ico('plus')+'</button>':'');
   let pool=view.warehouse?itemsInTree(view.warehouse):S.items.slice();
   const searching=view.q.trim().length>0;
   if(searching)pool=pool.filter(i=>matches(i,view.q.trim()));
@@ -1650,7 +1652,8 @@ function vProducts(){
   tags.forEach(t=>{h+='<button class="chip'+(view.tag===t?' on':'')+'" data-tag="'+esc(t)+'">'+esc(t)+'</button>'});
   h+='</div>';
   h+='<div class="row mb small muted"><span class="num">'+pool.length+' product'+(pool.length===1?'':'s')+'</span><button class="btn sm ghost right" id="selToggle">'+(view.selectMode?'Done':'Select')+'</button></div>';
-  if(!pool.length)h+='<div class="empty">'+ico('box')+'<div class="t">'+(searching?'Nothing found':'No products')+'</div><div class="s">'+(searching?'Try a different name, SKU or tag.':'Add an item or import a CSV.')+'</div></div>';
+  if(!pool.length)h+='<div class="empty">'+ico('box')+'<div class="t">'+(searching?(langHi()?'कुछ नहीं मिला':'Nothing found'):(langHi()?'कोई प्रोडक्ट नहीं':'No products'))+'</div><div class="s">'+(searching?(langHi()?'दूसरा नाम, SKU या टैग आज़माएँ।':'Try a different name, SKU or tag.'):(langHi()?'नया आइटम बनाएँ या CSV इम्पोर्ट करें।':'Create an item or import a CSV.'))+'</div>'+
+    (!searching&&can('additem')?'<div class="row" style="justify-content:center;gap:9px"><button class="btn pri" data-act="newitem">'+ico('plus')+(langHi()?'नया आइटम':'New item')+'</button>'+(can('export')?'<a class="btn" href="#import">'+(langHi()?'CSV इम्पोर्ट':'Import CSV')+'</a>':'')+'</div>':'')+'</div>';
   else if(S.meta.view==='grid')h+='<div class="igrid">'+pool.map(cardHTML).join('')+'</div>';
   else h+='<div class="ilist">'+pool.map(i=>rowHTML(i,{selectable:true})).join('')+'</div>';
   $('#main').innerHTML=h;
@@ -5089,6 +5092,44 @@ function reasonDlg(title,body,okLabel){
     sub$('#rz-no').onclick=()=>{subClose();res(null)};
   });
 }
+/* A parcel that has already gone out can come back — courier returned it, or it
+   was dispatched by mistake. Manual verification only: a name and a reason are
+   required, and the stock that left is offered back to the exact rack it came from. */
+async function awbReinward(a){
+  if(!a||a.status==='accepted')return false;
+  const items=awbItems(a).filter(x=>(+x.outQty||0)>0);
+  const what=items.length?items.map(x=>x.name+' ×'+fmtQty(x.outQty)).join(', '):(langHi()?'कोई आइटम दर्ज नहीं':'no items recorded');
+  const why=await reasonDlg(
+    langHi()?'डिस्पैच हुआ पार्सल वापस अंदर लें?':'Bring this dispatched parcel back in?',
+    '<b class="mono">'+esc(a.awb)+'</b> · '+(langHi()?'बाहर गया ':'went out ')+ago(a.resolvedAt)+(a.resolvedBy?' · '+esc(a.resolvedBy):'')+
+    '<br>'+esc(what)+
+    (langHi()?'<br>यह हाथ से सत्यापन है — नाम और वजह ज़रूरी है।':'<br>This is a manual verification — a name and a reason are required.'),
+    langHi()?'वापस अंदर लें':'Bring back in');
+  if(!why)return false;
+  let restored='';
+  if(items.length){
+    const back=await confirmDlg(
+      langHi()?'स्टॉक वापस जोड़ें?':'Put the stock back?',
+      esc(what)+(langHi()?' — क्या ये पीस गोदाम में वापस आ गए हैं?':' — are these pieces physically back in the godown?'),
+      langHi()?'हाँ, स्टॉक वापस':'Yes, add back to stock');
+    if(back){
+      for(const x of items){
+        const it=x.itemId&&iById(x.itemId);if(!it)continue;
+        pileAdd(it,x.outRack,+x.outQty||0);
+        logTx('in',{itemId:it.id,itemName:it.name,qty:+x.outQty||0,reason:'Re-inward · AWB '+a.awb,detail:'AWB '+a.awb+' brought back · '+shelfName(x.outRack)+' · by '+why.by+' · '+why.reason});
+      }
+      await saveNow('items');
+      restored=' · '+(langHi()?'स्टॉक वापस जोड़ा':'stock put back');
+    }
+  }
+  a.status='accepted';a.acceptedBy=why.by;a.acceptedAt=Date.now();
+  delete a.resolvedAt;delete a.resolvedBy;delete a.outCode;
+  a.reinwarded=(+a.reinwarded||0)+1;a.reinwardWhy=why.reason;
+  await saveNow('awbs');
+  logTx('list',{detail:'AWB brought back in by hand · '+a.awb+' · by '+why.by+(why.by!==userName()?' (signed in: '+userName()+')':'')+' · reason: '+why.reason+restored});
+  toast((langHi()?'वापस अंदर लिया · ':'Back in · ')+a.awb,'ok');
+  return true;
+}
 async function awbAddCode(a,code){
   code=String(code||'').trim();if(!a||!code)return false;
   if(awbCodes(a).some(c=>awbKey(c)===awbKey(code)))return true;   // already known
@@ -5157,6 +5198,7 @@ async function dispatchAwbByNo(no,extra){
     }
     if(take>0){
       const from=pileDrain(it,take,rack);
+      x.outRack=(rack!==undefined?rack:(pilesOf(it)[0]||{}).f);x.outQty=take;
       logTx('out',{itemId:it.id,itemName:it.name,fromQ:have,toQ:+it.qty||0,qty:take,reason:'Dispatched · AWB '+a.awb,detail:'AWB '+a.awb+(from?' · from '+from:'')+(rack!==undefined?' · '+(langHi()?'चुना':'picked')+' '+shelfName(rack):'')});
       moved.push(it.name+' ×'+fmtQty(take));
     }
@@ -5292,6 +5334,7 @@ function awbColHTML(title,list,kind){
       (a.customer?'<div class="awb-meta" style="color:var(--ink)"><b>'+esc(a.customer)+'</b></div>':'')+
       (a.items&&a.items.length?'<div class="awb-meta ellip">'+esc(a.items.map(x=>x.name+' ×'+fmtQty(x.qty)).join(', '))+'</div>':'<div class="awb-meta" style="color:var(--amber)">'+(langHi()?'कोई आइटम दर्ज नहीं':'no items recorded')+'</div>')+
       '<div class="awb-meta">'+(kind==='accept'?('held by '+esc(a.acceptedBy||'—')+' · '+awbAgeDays(a)+'d'+(od?' · OVERDUE':'')):(kind==='dispatch'?'out · '+ago(a.resolvedAt):'returned · '+ago(a.resolvedAt)))+'</div>'+
+      (kind!=='accept'?'<div class="row mt"><button class="btn sm grow" data-awback="'+a.id+'" style="color:var(--saddle);border-color:var(--saddle)">'+ico('undo')+(langHi()?'वापस अंदर लें':'Bring back in')+'</button></div>':'')+
       (kind==='accept'?'<div class="row mt" style="gap:6px"><button class="btn sm pri grow" data-awdisp="'+a.id+'">Dispatch</button>'+(isAdminU()?'<button class="btn sm grow" data-awret="'+a.id+'">Return</button>':'')+(isAdminU()?'<button class="btn sm danger" data-awdel="'+a.id+'" style="flex:0 0 auto;padding:6px 9px">'+ico('trash')+'</button>':'')+'</div>':(isAdminU()?'<div class="row mt"><button class="btn sm danger" data-awdel="'+a.id+'">'+ico('trash')+'Delete</button></div>':''))+
       '</div>';
   });
@@ -5305,6 +5348,10 @@ function wireAwbColActions(){
     const r=await dispatchAwbByNo(a.awb);if(r.ok){toast('Dispatched','ok');vAwb();}
   });
   $$('#main [data-awret]').forEach(b=>b.onclick=()=>awbReturnOne(b.dataset.awret));
+  $$('#main [data-awback]').forEach(b=>b.onclick=async()=>{
+    const a=(S.awbs||[]).find(x=>x.id===b.dataset.awback);if(!a)return;
+    if(await awbReinward(a))vAwb();
+  });
   $$('#main [data-awdel]').forEach(b=>b.onclick=async()=>{
     if(!isAdminU()){toast(langHi()?'सिर्फ एडमिन AWB डिलीट कर सकते हैं':'Only admins can delete AWB records','err');return}
     const a=(S.awbs||[]).find(x=>x.id===b.dataset.awdel);if(!a)return;
@@ -5687,8 +5734,11 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
           if(ms.length>1){errBox(code,T('यह बारकोड कई लेबल पर है — इस पार्सल का अपना AWB स्कैन करें','this barcode is on several labels — scan this parcel\'s own AWB'));return}
           const ex0=ms[0];
           if(ex0&&ex0.status==='accepted'){errBox(code,T('पहले से लिस्ट में है','already scanned inward')+' ('+(ex0.acceptedBy||'')+')');return}
-          if(ex0&&ex0.status==='dispatched'){errBox(code,T('यह पहले ही डिस्पैच हो चुका है','already dispatched'));return}
-          if(ex0&&ex0.status==='returned'){errBox(code,T('यह ऑफिस वापस जा चुका है','already returned to office'));return}
+          if(ex0&&(ex0.status==='dispatched'||ex0.status==='returned')){
+            errBox(code,ex0.status==='dispatched'?T('यह पहले ही डिस्पैच हो चुका है','already dispatched'):T('यह ऑफिस वापस जा चुका है','already returned to office'));
+            if(await awbReinward(ex0)){pend={codes:awbCodes(ex0).slice(),items:[]};cur=ex0;paintCur();okBox(code,T('हाथ से वापस अंदर लिया','brought back in by hand'));}
+            return;
+          }
           pend={codes:[code],items:[]};
         } else pend.codes.push(code);
         okBox(code,T('बारकोड जोड़ा — अब आइटम का SKU स्कैन करें','barcode added — now scan the item SKU'));
