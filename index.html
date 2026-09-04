@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#EFECE6; --card:#FFFFFF; --ink:#221C15; --muted:#71685B; --faint:#9B9285;
+  --bg:#EFECE6; --card:#FFFFFF; --ink:#221C15; --muted:#6A6155; --faint:#837A6C;
   --line:#E0DBD1; --line2:#CFC8BB;
   --saddle:#8A5226; --saddle-dk:#6F411E; --saddle-bg:#F3E7DA;
   --brass:#A8893B; --kraft:#F4E9D8;
@@ -459,6 +459,32 @@ body.printing #printArea{display:block;padding:8mm}
 .prog{height:7px;background:color-mix(in srgb,var(--ink) 8%,var(--card));border-radius:4px;overflow:hidden}
 .prog i{display:block;height:100%;background:var(--green);border-radius:4px;transition:width .2s}
 .dz{border:2px dashed var(--line2);border-radius:var(--r);padding:26px 16px;text-align:center;color:var(--muted);font-size:13.5px;background:var(--card)}
+
+/* ============================================================
+   DARK MODE — pieces that were hard-coded for the light theme
+   (dark brown text on a dark kraft chip = invisible)
+   ============================================================ */
+.pill.zero,.pill.gray{background:color-mix(in srgb,var(--ink) 9%,var(--card));color:var(--muted)}
+:root[data-theme="dark"] .tag,:root[data-theme="dark"] .skutag{background:#3A2D1E;border-color:#7A6238;color:#E8CB95}
+:root[data-theme="dark"] .tag::before{background:#3A2D1E;border-color:#CBA85A}
+:root[data-theme="dark"] .icard .ph,:root[data-theme="dark"] .irow .th,:root[data-theme="dark"] .gallery .g{background:linear-gradient(135deg,#2C251D,#3A3128);color:#6F6353}
+:root[data-theme="dark"] .irow .selbox{background:var(--line2);border-color:var(--line2)}
+:root[data-theme="dark"] .btn.danger{border-color:#5A2E27}
+:root[data-theme="dark"] .stat.alert{border-color:#5A2E27}
+:root[data-theme="dark"] .splitbox .sl{color:#E3C48E}
+:root[data-theme="dark"] .marketbar .mk{color:#E3C48E}
+:root[data-theme="dark"] .chip{color:var(--muted)}
+:root[data-theme="dark"] .chip.on{background:var(--saddle);border-color:var(--saddle);color:#1B140E}
+:root[data-theme="dark"] .awbcol{background:#1C1712}
+:root[data-theme="dark"] .kv .k,:root[data-theme="dark"] .eyebrow{color:#9C8F7C}
+:root[data-theme="dark"] .hint,:root[data-theme="dark"] .small.muted{color:#A89D8C}
+:root[data-theme="dark"] table.t tfoot td{background:#2A231B}
+:root[data-theme="dark"] .seg{background:#2A231B}
+:root[data-theme="dark"] .prog{background:#2A231B}
+:root[data-theme="dark"] .dz{border-color:#4A3F33}
+:root[data-theme="dark"] input::placeholder,:root[data-theme="dark"] textarea::placeholder{color:#7C7264}
+
+:root[data-theme="dark"] .pill.info{background:#3B2A1C;color:#EBC48A}
 
 /* ============================================================
    PHONE LAYOUT
@@ -1563,6 +1589,48 @@ function homeMetrics(days){
   return {soldU,inU,disp,soldV,series,best,reord,orderVal};
 }
 
+/* ---- Orders processed: today / yesterday / 7 days / custom range ---- */
+function ordersRange(){
+  let r={k:'today'};try{r=JSON.parse(localStorage.getItem('invento_ordrange')||'{"k":"today"}')}catch(e){}
+  const d0=new Date();d0.setHours(0,0,0,0);
+  const day=86400000;
+  if(r.k==='today')return {from:d0.getTime(),to:d0.getTime()+day,label:langHi()?'आज':'Today',k:r.k};
+  if(r.k==='yday')return {from:d0.getTime()-day,to:d0.getTime(),label:langHi()?'कल':'Yesterday',k:r.k};
+  if(r.k==='7d')return {from:d0.getTime()-6*day,to:d0.getTime()+day,label:langHi()?'पिछले 7 दिन':'Last 7 days',k:r.k};
+  if(r.k==='custom'&&r.a&&r.b){const a=new Date(r.a+'T00:00:00').getTime(),b=new Date(r.b+'T00:00:00').getTime()+day;
+    return {from:Math.min(a,b),to:Math.max(a,b),label:fmtDate(Math.min(a,b))+' – '+fmtDate(Math.max(a,b)-1),k:'custom',a:r.a,b:r.b}}
+  return {from:d0.getTime(),to:d0.getTime()+day,label:langHi()?'आज':'Today',k:'today'};
+}
+function ordersStats(rg){
+  const inWin=t=>t>=rg.from&&t<rg.to;
+  const out=(S.awbs||[]).filter(a=>a.status==='dispatched'&&inWin(a.resolvedAt||0));
+  const inn=(S.awbs||[]).filter(a=>inWin(a.acceptedAt||0));
+  const nonAwb=(S.dispatches||[]).filter(d=>d.kind!=='return'&&inWin(d.ts||0));
+  const rets=(S.dispatches||[]).filter(d=>d.kind==='return'&&inWin(d.ts||0));
+  const units=out.reduce((s,a)=>s+awbItems(a).reduce((q,x)=>q+(+x.outQty||+x.qty||0),0),0)+nonAwb.reduce((s,d)=>s+(d.lines||[]).reduce((q,l)=>q+(+l.qty||0),0),0);
+  const who={};out.forEach(a=>{const k=a.resolvedBy||'—';who[k]=(who[k]||0)+1});
+  return {out:out.length,inn:inn.length,nonAwb:nonAwb.length,rets:rets.length,units:units,pending:awbPending().length,
+    who:Object.entries(who).sort((a,b)=>b[1]-a[1]).slice(0,4)};
+}
+function ordersCardHTML(){
+  const rg=ordersRange(),s=ordersStats(rg);
+  const T=(hi,en)=>langHi()?hi:en;
+  const seg=[['today',T('आज','Today')],['yday',T('कल','Yesterday')],['7d',T('7 दिन','7 days')],['custom',T('कस्टम','Custom')]]
+    .map(o=>'<button data-or="'+o[0]+'" class="'+(rg.k===o[0]?'on':'')+'">'+o[1]+'</button>').join('');
+  return '<div class="card pad mb" style="border-left:4px solid var(--saddle)">'+
+    '<div class="row mb" style="align-items:center;gap:8px"><b class="grow">'+T('ऑर्डर प्रोसेस हुए','Orders processed')+'</b><span class="small muted">'+esc(rg.label)+'</span></div>'+
+    '<div class="seg mb" id="or-seg">'+seg+'</div>'+
+    (rg.k==='custom'?'<div class="row mb" style="gap:8px"><input class="in" type="date" id="or-a" value="'+esc(rg.a||'')+'"><input class="in" type="date" id="or-b" value="'+esc(rg.b||'')+'"><button class="btn pri" id="or-go" style="flex:0 0 auto">'+T('देखें','Go')+'</button></div>':'')+
+    '<div class="stats" style="grid-template-columns:repeat(2,1fr)">'+
+      '<div class="stat"><div class="eyebrow">'+T('बाहर गए (AWB)','Dispatched (AWB)')+'</div><div class="v num">'+s.out+'</div></div>'+
+      '<div class="stat"><div class="eyebrow">'+T('अंदर लिए','Inwarded')+'</div><div class="v num">'+s.inn+'</div></div>'+
+      '<div class="stat"><div class="eyebrow">'+T('यूनिट बाहर','Units out')+'</div><div class="v num">'+fmtQty(s.units)+'</div></div>'+
+      '<div class="stat'+(s.pending?' alert':'')+'"><div class="eyebrow">'+T('अभी बाकी','Still pending')+'</div><div class="v num">'+s.pending+'</div></div>'+
+    '</div>'+
+    ((s.nonAwb||s.rets)?'<div class="small muted mt">'+(s.nonAwb?s.nonAwb+T(' बिना-AWB डिस्पैच',' dispatch'+(s.nonAwb===1?'':'es')+' without AWB'):'')+(s.nonAwb&&s.rets?' · ':'')+(s.rets?s.rets+T(' वापसी',' return'+(s.rets===1?'':'s')):'')+'</div>':'')+
+    (s.who.length?'<div class="small muted mt">'+T('किसने भेजे: ','By: ')+s.who.map(w=>esc(w[0])+' <b class="num">'+w[1]+'</b>').join(' · ')+'</div>':'')+
+  '</div>';
+}
 function vHome(){
   topbar('<div class="brand"><span class="bx">'+LOGO+'</span><span style="font-size:15px">INVENTO<small>'+esc(S.meta.company||'by Trishal')+'</small></span></div>'+acctButtonHTML());
   const st=deepStats(null);const low=lowItems();
@@ -1579,6 +1647,7 @@ function vHome(){
   if(!fresh){
     let days=30;try{days=+localStorage.getItem('invento_homedays')||30}catch(e){}
     const m=homeMetrics(days);
+    h+=ordersCardHTML();
     h+='<div class="section-h"><h2>'+(langHi()?'कारोबार':'Overview')+'</h2>'+(isAdminU()?'<a href="#dash">'+(langHi()?'पूरा डैशबोर्ड':'Full dashboard')+'</a>':'')+'</div>';
     h+='<div class="seg mb" id="hm-p">'+[7,30,90].map(d=>'<button data-hd="'+d+'" class="'+(d===days?'on':'')+'">'+d+(langHi()?' दिन':' days')+'</button>').join('')+'</div>';
     h+='<div class="row wrap mb" style="gap:9px">'+
@@ -1637,6 +1706,12 @@ function vHome(){
 
   const ls=$('#loadSample');if(ls)ls.onclick=async()=>{ls.disabled=true;await loadSample();toast('Sample data loaded','ok');route()};
   $$('#hm-p [data-hd]').forEach(b=>b.onclick=()=>{try{localStorage.setItem('invento_homedays',b.dataset.hd)}catch(e){}vHome()});
+  $$('#or-seg [data-or]').forEach(b=>b.onclick=()=>{
+    const cur=ordersRange();
+    try{localStorage.setItem('invento_ordrange',JSON.stringify(b.dataset.or==='custom'?{k:'custom',a:cur.a||new Date(Date.now()-6*86400000).toISOString().slice(0,10),b:cur.b||new Date().toISOString().slice(0,10)}:{k:b.dataset.or}))}catch(e){}
+    vHome()});
+  const og=$('#or-go');if(og)og.onclick=()=>{const a=$('#or-a').value,b=$('#or-b').value;if(!a||!b){toast(langHi()?'दोनों तारीख चुनें':'Pick both dates','err');return}
+    try{localStorage.setItem('invento_ordrange',JSON.stringify({k:'custom',a:a,b:b}))}catch(e){}vHome()};
 }
 function txHTML(t){
   let d=ACT_LABEL[t.act]||t.act;
@@ -5185,6 +5260,24 @@ async function awbReinward(a){
   if(!a||a.status==='accepted')return false;
   const items=awbItems(a).filter(x=>(+x.outQty||0)>0);
   const what=items.length?items.map(x=>x.name+' ×'+fmtQty(x.outQty)).join(', '):(langHi()?'कोई आइटम दर्ज नहीं':'no items recorded');
+  /* keyboard only: the person must type the AWB themselves. A scan gun cannot do
+     this, so a label scanned again and again can never bring a parcel back in. */
+  const typed=await new Promise(res=>{
+    subOpen('<h3>'+(langHi()?'AWB नंबर टाइप करें':'Type the AWB number')+'</h3>'+
+      '<p class="sub mb">'+(langHi()?'पुष्टि के लिए यह नंबर कीबोर्ड से टाइप करें (स्कैन नहीं चलेगा):':'To confirm, type this number on the keyboard — scanning will not work here:')+
+      ' <b class="mono">'+esc(a.awb)+'</b></p>'+
+      '<div class="field"><input class="in mono" id="rb-t" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="'+esc(a.awb.replace(/./g,'•'))+'"></div>'+
+      '<div class="row"><button class="btn grow" id="rb-no">'+(langHi()?'रद्द':'Cancel')+'</button><button class="btn pri grow" id="rb-ok">'+ico('check')+(langHi()?'आगे':'Continue')+'</button></div>');
+    const el=sub$('#rb-t');setTimeout(()=>{try{el.focus()}catch(e){}},60);
+    let lastLen=0,lastAt=0;
+    /* a gun pastes the whole number in one burst; a person types it. Reject bursts. */
+    el.oninput=()=>{const now=Date.now();if(el.value.length-lastLen>3&&now-lastAt<120){el.value='';toast(langHi()?'टाइप करें, स्कैन नहीं':'Type it — do not scan','err');beep(false)}lastLen=el.value.length;lastAt=now};
+    const go=()=>{if(awbKey(el.value)!==awbKey(a.awb)){toast(langHi()?'नंबर मेल नहीं खाता':'Number does not match','err');beep(false);return}subClose();res(true)};
+    sub$('#rb-ok').onclick=go;
+    el.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();go()}};
+    sub$('#rb-no').onclick=()=>{subClose();res(false)};
+  });
+  if(!typed)return false;
   const why=await reasonDlg(
     langHi()?'डिस्पैच हुआ पार्सल वापस अंदर लें?':'Bring this dispatched parcel back in?',
     '<b class="mono">'+esc(a.awb)+'</b> · '+(langHi()?'बाहर गया ':'went out ')+ago(a.resolvedAt)+(a.resolvedBy?' · '+esc(a.resolvedBy):'')+
@@ -5703,9 +5796,7 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
         r.readAsDataURL(f);pf.value='';};
     }
   }
-  let n=0,cur=null,pend=null,busy=false,lastCode='',lastAt=0,pback=null;
-  /* pback = a dispatched parcel being verified back in. Every barcode that was on
-     it must be scanned again — one label is not proof the whole parcel is back. */
+  let n=0,cur=null,pend=null,busy=false,lastCode='',lastAt=0;
   /* pend = a parcel being built that is NOT saved yet. Nothing is registered until
      an item SKU is scanned — an AWB with no item is not a parcel. */
   const T=(hi,en)=>langHi()?hi:en;
@@ -5715,16 +5806,6 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
   const codesOf=()=>cur?awbCodes(cur):(pend?pend.codes:[]);
   const paintCur=()=>{
     const box=$('#aw-cur'),nx=$('#aw-next');if(!box)return;
-    if(pback){
-      box.innerHTML='<div class="awbmini aging"><div class="awb-no">'+esc(pback.rec.awb)+' <span class="pill low" style="font-size:9px">'+T('वापस लेना है','bringing back in')+'</span></div>'+
-        '<div class="awb-meta">'+pback.got.length+' / '+pback.need.length+' '+T('लेबल स्कैन हुए','labels scanned')+'</div>'+
-        '<div class="sub mono" style="margin-top:3px">'+pback.need.map(c=>{
-          const done=pback.got.some(g=>awbKey(g)===awbKey(c));
-          return '<span style="opacity:'+(done?1:.45)+';'+(done?'color:var(--green)':'')+'">'+(done?'✓ ':'○ ')+esc(c)+'</span>';
-        }).join(' · ')+'</div>'+
-        '<div class="hint" style="margin-top:4px">'+T('बाकी लेबल स्कैन करें, या Enter दबाकर रद्द करें।','Scan the remaining labels, or press Enter to cancel.')+'</div></div>';
-      if(nx)nx.disabled=true;return;
-    }
     if(!cur&&!pend){box.innerHTML='<div class="hint">'+T('अगला लेबल स्कैन करें','Scan the next label to start a parcel')+'</div>';if(nx)nx.disabled=true;return}
     const codes=codesOf(),items=itemsOf(),saved=!!cur;
     box.innerHTML='<div class="awbmini '+(saved?'fresh':'aging')+'"><div class="awb-no">'+esc(codes[0]||'')+
@@ -5749,8 +5830,6 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
     });
   };
   const closeParcel=(quiet)=>{
-    if(pback){const a=pback.rec;pback=null;paintCur();
-      feed.innerHTML='<div class="sub">'+T('रद्द किया — ','cancelled — ')+esc(a.awb)+T(' वापस नहीं लिया गया',' was not brought back in')+'</div>';return}
     if(!cur&&!pend)return;
     if(group&&!itemsOf().length){
       errBox(codesOf()[0]||'',T('पहले आइटम का SKU स्कैन करें — बिना SKU यह पार्सल दर्ज नहीं होगा','scan the item SKU first — without it this parcel is not registered'));
@@ -5794,22 +5873,6 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
     if(code===lastCode&&now-lastAt<1500)return;       // scanner fired twice for one trigger pull
     busy=true;lastCode=code;lastAt=now;inp.value='';
     try{
-      if(group&&pback){
-        /* collecting the rest of a dispatched parcel's labels */
-        const belongs=awbCodes(pback.rec).some(c=>awbKey(c)===awbKey(code));
-        if(!belongs){errBox(code,T('यह इस पार्सल का बारकोड नहीं है','not a barcode from this parcel'));return}
-        if(pback.got.some(c=>awbKey(c)===awbKey(code))){errBox(code,T('यह बारकोड पहले ही स्कैन हो चुका','already scanned for this parcel'));return}
-        pback.got.push(code);
-        const left=pback.need.length-pback.got.length;
-        if(left>0){beep(true);paintCur();okBox(code,pback.got.length+' / '+pback.need.length+T(' स्कैन हुए — ',' scanned — ')+left+T(' बाकी',' left'));return}
-        /* every label is back — now ask for the manual verification */
-        const rec=pback.rec;pback=null;
-        if(await awbReinward(rec)){
-          cur=rec;pend=null;n++;paintCur();
-          okBox(code,T('सारे लेबल मिले — वापस अंदर लिया, अब आइटम का SKU स्कैन करें','all labels verified — brought back in, now scan the item SKU'));
-        } else {paintCur();feed.innerHTML='<div class="sub">'+T('वापस नहीं लिया गया','not brought back in')+'</div>'}
-        return;
-      }
       if(group){
         const it=findByCode(code);
         if(it){
@@ -5859,21 +5922,8 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
           const ex0=ms[0];
           if(ex0&&ex0.status==='accepted'){errBox(code,T('पहले से लिस्ट में है','already scanned inward')+' ('+(ex0.acceptedBy||'')+')');return}
           if(ex0&&(ex0.status==='dispatched'||ex0.status==='returned')){
-            const all=awbCodes(ex0);
-            if(all.length>1){
-              /* several labels were on this parcel — all of them must come back */
-              pback={rec:ex0,need:all.slice(),got:[code]};
-              beep(false);paintCur();
-              feed.innerHTML='<div style="background:var(--amber-bg);border:1px solid var(--amber);border-radius:10px;padding:9px 11px">'+
-                '<b style="color:var(--amber)">'+esc(ex0.awb)+' — '+(ex0.status==='dispatched'?T('डिस्पैच हो चुका है','already dispatched'):T('ऑफिस वापस जा चुका है','returned to office'))+'</b>'+
-                '<div class="sub">'+T('इस पार्सल पर '+all.length+' बारकोड थे। वापस लेने के लिए सारे स्कैन करें।','This parcel had '+all.length+' barcodes. Scan them all to bring it back in.')+'</div></div>';
-              return;
-            }
-            errBox(code,(ex0.status==='dispatched'?T('यह डिस्पैच हो चुका है','already dispatched'):T('यह ऑफिस वापस जा चुका है','already returned to office'))+T(' — हाथ से वापस लेने का विकल्प खुल रहा है…',' — opening manual verification…'));
-            if(await awbReinward(ex0)){
-              cur=ex0;pend=null;n++;paintCur();
-              okBox(code,T('हाथ से वापस अंदर लिया — अब आइटम का SKU स्कैन करें','brought back in by hand — now scan the item SKU'));
-            } else feed.innerHTML='<div class="sub">'+T('वापस नहीं लिया गया','not brought back in')+'</div>';
+            errBox(code,(ex0.status==='dispatched'?T('यह डिस्पैच हो चुका है','already dispatched'):T('यह ऑफिस वापस जा चुका है','already returned to office'))+
+              T(' — वापस लेना है तो AWB स्क्रीन पर "वापस अंदर लें" दबाकर नंबर टाइप करें',' — to bring it back, use "Bring back in" on the AWB screen and type the number'));
             return;
           }
           pend={codes:[code],items:[]};
