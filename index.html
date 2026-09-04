@@ -2415,6 +2415,7 @@ function vScan(mode,arg){
     const now=Date.now();
     if(code===lastCode&&now-lastAt<2200)return;
     lastCode=code;lastAt=now;
+    if(scanKeyOf(code)){beep(false);toast(langHi()?'यह key सिर्फ AWB Inward स्क्रीन पर चलती है':'That key only works on the AWB Inward screen','err');return}
     if(mode==='tocode'){beep(true);sessionStorage.setItem('scannedcode',code);const ret=sessionStorage.getItem('scanret')||'stock';sessionStorage.removeItem('scanret');go('#'+ret);return}
     if(mode==='pick'&&list){scanPick(list,code);return}
     const it=findByCode(code);
@@ -2523,6 +2524,7 @@ function vLabels(){
       '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-tags"> Tags</label>'+
       '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-loc"> '+locTerm()+'</label></div>'+
       '<div class="hint" style="margin-top:8px">Tick only what should print. For items with several SKUs, one label is produced for each SKU.</div></div>';
+  h+='<div class="card pad mb" style="border-left:4px solid var(--saddle)"><div class="row" style="gap:10px;align-items:center"><div class="grow"><b>'+(langHi()?'स्कैनर keys':'Scanner keys')+'</b><div class="small muted">'+(langHi()?'DONE key स्कैन करें = Enter दबाना। पैकिंग टेबल पर चिपकाएँ।':'Scan the DONE key instead of pressing Enter. Stick it on the packing table.')+'</div></div><button class="btn sm pri" id="lb-keys">'+ico('print')+(langHi()?'प्रिंट करें':'Print keys')+'</button></div></div>';
   h+='<div class="row mb"><div class="searchbar grow">'+ico('search')+'<input id="lb-q" type="search" placeholder="Filter items…"></div><button class="btn sm" id="lb-all">Select all</button></div>';
   h+='<div class="ilist mb" id="lb-list" style="max-height:330px;overflow-y:auto"></div>';
   h+='<div class="row"><button class="btn grow" id="lb-prev" disabled>'+ico('label')+'Preview</button><button class="btn pri grow" id="lb-print" disabled>'+ico('print')+'Print / PDF</button></div>';
@@ -2586,8 +2588,28 @@ function vLabels(){
     if(!libOK)toast('Code library offline — labels show text only','err');
     logTx('label',{detail:nLabels+' label'+(nLabels===1?'':'s')+' for '+its.length+' item'+(its.length>1?'s':'')+(by?' · by '+by:'')});
   }
+  $('#lb-keys').onclick=printScanKeys;
   $('#lb-prev').onclick=()=>buildSheet($('#lb-stage'));
   $('#lb-print').onclick=async()=>{if(await buildSheet($('#printArea'))===false)return;printNow()};
+}
+/* Big printable barcode cards for the scanner keys */
+async function printScanKeys(){
+  try{await lazyScript('https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js')}catch(e){toast('Code library offline','err');return}
+  const T=(hi,en)=>langHi()?hi:en;
+  const card=(id,title,sub,tone)=>'<div style="border:3px solid '+tone+';border-radius:14px;padding:12mm 10mm;margin:0 0 12mm;text-align:center;page-break-inside:avoid;break-inside:avoid">'+
+    '<div style="font-size:30pt;font-weight:900;letter-spacing:.06em;color:'+tone+'">'+title+'</div>'+
+    '<div style="font-size:12pt;color:#444;margin:2mm 0 6mm">'+sub+'</div>'+
+    '<svg id="'+id+'"></svg></div>';
+  $('#printArea').innerHTML='<div class="printdoc" style="max-width:150mm;margin:0 auto">'+
+    card('sk-done',T('✓ DONE — पार्सल पूरा','✓ DONE — parcel complete'),T('सारे लेबल और SKU स्कैन करने के बाद इसे स्कैन करें','Scan this after all labels and SKUs — same as pressing Enter'),'#2F7A4D')+
+    card('sk-cancel',T('✕ CANCEL — छोड़ें','✕ CANCEL — drop this parcel'),T('अभी तक दर्ज नहीं हुए पार्सल को छोड़ने के लिए','Drops a parcel that is not registered yet'),'#B23B2A')+
+    '<div style="font-size:9.5pt;color:#666;text-align:center">Invento scanner keys · '+esc(S.meta.company||'')+' · '+fmtDate(Date.now())+'</div></div>';
+  try{
+    JsBarcode('#sk-done',SCAN_KEYS.done,{format:'CODE128',displayValue:true,fontSize:16,height:110,width:3,margin:6,textMargin:6});
+    JsBarcode('#sk-cancel',SCAN_KEYS.cancel,{format:'CODE128',displayValue:true,fontSize:16,height:110,width:3,margin:6,textMargin:6});
+  }catch(e){toast('Could not draw barcode','err');return}
+  logTx('label',{detail:'Scanner keys printed'});
+  printNow();
 }
 function lblByDefault(){try{const v=localStorage.getItem('lbl_by');if(v)return v}catch(e){}const nm=(MODE==='cloud'?userName():S.meta.user)||'';return nm.replace(/[^A-Za-z]/g,'').slice(0,3).toUpperCase()}
 function printNow(){
@@ -4488,6 +4510,7 @@ function wireDispatchLineEvents(){
 }
 
 function addDispatchLineByCode(code){
+  if(scanKeyOf(code)){beep(false);toast(langHi()?'यह key यहाँ नहीं चलती':'That key does not work here','err');return}
   const it=findByCode(code);
   if(!it){alarmSound();toast('⚠ '+code+' — '+(langHi()?'आइटम लिस्ट में नहीं':'not in your item list'),'err')}
   const existing=it?dDraft.lines.find(l=>l.itemId===it.id):dDraft.lines.find(l=>l.code===code&&!l.itemId);
@@ -5135,6 +5158,10 @@ function myOverdueAwbs(){const me=userName();return awbOverdue().filter(a=>(a.ac
 /* Indian labels carry several barcodes: AWB, order number, sometimes a manifest
    or reverse-pickup code. A parcel keeps them all in a.codes[] and ANY of them
    finds it — the packer never has to hunt for the "right" one. */
+/* Scanner keys: printed barcodes that act as buttons. DONE closes the parcel
+   being inwarded (= pressing Enter); CANCEL throws away an unregistered one. */
+const SCAN_KEYS={done:'INV-DONE',cancel:'INV-CANCEL'};
+function scanKeyOf(code){const k=String(code||'').trim().toUpperCase();for(const n in SCAN_KEYS)if(SCAN_KEYS[n]===k)return n;return ''}
 const awbKey=s=>String(s||'').replace(/[\s-]/g,'').toUpperCase();
 function awbCodes(a){
   const out=[],seen={};
@@ -5865,6 +5892,17 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
   const handle=async(code)=>{
     if(SUB_OPEN)return;                               // a question is open — the gun waits
     code=String(code||'').replace(/\s+/g,' ').trim();if(!code)return;
+    const key=scanKeyOf(code);
+    if(key){
+      inp.value='';
+      if(!group){errBox(code,T('यह key सिर्फ Inward में चलती है','this key only works on the Inward screen'));return}
+      if(key==='done'){closeParcel();return}
+      if(key==='cancel'){
+        if(cur){errBox(code,T('यह पार्सल दर्ज हो चुका है — हटाने के लिए AWB स्क्रीन पर वजह लिखें','this parcel is already registered — remove it from the AWB screen with a reason'));return}
+        if(pend){const a=pend.codes[0];pend=null;paintCur();beep(false);feed.innerHTML='<div class="sub">'+T('छोड़ा — ','dropped — ')+esc(a)+T(' दर्ज नहीं हुआ',' was not registered')+'</div>';return}
+        errBox(code,T('छोड़ने को कुछ नहीं','nothing to drop'));return;
+      }
+    }
     const bad=badScan(code);
     if(bad){errBox(code,bad);inp.value='';return}
     const now=Date.now();
