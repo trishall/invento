@@ -46,7 +46,21 @@
 *{box-sizing:border-box;margin:0;padding:0}
 svg[viewBox='0 0 24 24']{width:18px;height:18px}
 .irow>svg,.listcard>svg{width:20px;height:20px;flex:0 0 auto;color:var(--faint)}
-html{-webkit-text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;overflow-x:hidden}
+body{overflow-x:hidden}
+/* a long code, SKU or AWB can no longer stretch its container */
+.mono,.awb-no,.awb-meta,.skutag{overflow-wrap:anywhere;word-break:break-word}
+/* grid and flex children shrink instead of forcing the page wide */
+#main,.awbcol,.awbmini,.awbcard,.card,.irow,.icard,.dline,.listcard,.splitbox{min-width:0;max-width:100%}
+.row{min-width:0}
+.row>*{min-width:0}
+/* the action row under an AWB wraps rather than running off the edge */
+.awbmini .row{flex-wrap:wrap}
+.awbmini .row .btn{flex:1 1 auto;min-width:86px}
+.awbmini .row .btn[style*="flex:0 0 auto"]{flex:0 0 auto}
+img,svg,video,canvas{max-width:100%}
+
+}
 body{font-family:'Archivo',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.45;min-height:100dvh}
 button,input,select,textarea{font:inherit;color:inherit}
 img{display:block;max-width:100%}
@@ -445,6 +459,66 @@ body.printing #printArea{display:block;padding:8mm}
 .prog{height:7px;background:color-mix(in srgb,var(--ink) 8%,var(--card));border-radius:4px;overflow:hidden}
 .prog i{display:block;height:100%;background:var(--green);border-radius:4px;transition:width .2s}
 .dz{border:2px dashed var(--line2);border-radius:var(--r);padding:26px 16px;text-align:center;color:var(--muted);font-size:13.5px;background:var(--card)}
+
+/* ============================================================
+   PHONE LAYOUT
+   Thumb-sized targets, no iOS zoom on inputs, and the numbers a
+   packer reads at arm's length made bigger than the chrome.
+   ============================================================ */
+@media (max-width:680px){
+  body{font-size:15.5px}
+  /* every input at 16px or iOS zooms the page on focus */
+  .in,select.in,textarea.in,.searchbar input{font-size:16px;min-height:50px;border-radius:12px}
+  .field label{font-size:12.5px;margin-bottom:6px}
+  .searchbar{height:50px}
+  /* buttons a gloved thumb can hit */
+  .btn{min-height:50px;font-size:15.5px;border-radius:13px}
+  .btn.sm{min-height:42px;font-size:14px}
+  .btn.block{margin-bottom:2px}
+  .icobtn{width:46px;height:46px}
+  .icobtn svg{width:21px;height:21px}
+  /* the big entry points */
+  .bigbtn{min-height:132px;font-size:18px;padding:24px 12px;gap:10px}
+  .bigbtn svg{width:36px;height:36px}
+  .bigbtn .sub{font-size:12.5px}
+  .quick button{padding:16px 6px;font-size:12.5px;gap:8px;min-height:76px}
+  .quick button svg{width:24px;height:24px}
+  /* AWB cards: number first and large, one clear action */
+  .awbmini{padding:12px 13px;border-left-width:5px}
+  .awb-no{font-size:17px;letter-spacing:.2px}
+  .awb-meta{font-size:12.5px;margin-top:3px}
+  .awbmini .row .btn{min-height:46px;font-size:15px}
+  .awbcol{padding:12px}
+  /* item rows and cards */
+  .irow{padding:12px;gap:12px}
+  .irow .th{width:52px;height:52px}
+  .irow .nm{font-size:15px}
+  .irow .qcol .q{font-size:17px}
+  .icard .nm{font-size:14px}
+  .icard .q{font-size:15px}
+  /* the +/- stepper on the item page */
+  .stepper button{width:62px;height:58px;font-size:27px}
+  .stepper input{height:58px;font-size:23px}
+  /* mode tabs: readable, not cramped */
+  .modeslider button{min-height:46px}
+  .modeslider4 button{font-size:12.5px;padding:11px 4px;gap:4px;min-height:46px}
+  .modeslider4 button svg{width:17px;height:17px}
+  /* sheets sit within thumb reach and clear the home bar */
+  #modal{padding-bottom:calc(26px + env(safe-area-inset-bottom))}
+  #modal h3{font-size:18px}
+  /* the scan field is the whole job on this screen — make it unmissable */
+  #man,#aw-in2,#pc-in{font-size:18px;min-height:56px;font-weight:700;letter-spacing:.5px}
+  /* stop the bottom bar covering the last card */
+  #main{padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 28px)}
+  #bottomnav a{font-size:11px}
+  #bottomnav a svg{width:24px;height:24px}
+  .hint{font-size:12.5px}
+  h1.page{font-size:22px}
+}
+@media (max-width:400px){
+  .modeslider4 button{font-size:11.5px;padding:10px 2px}
+  .bigbtn{min-height:118px;font-size:16.5px}
+  .btn{font-size:15px}
 </style>
 </head>
 <body>
@@ -5203,8 +5277,9 @@ async function dispatchAwbByNo(no,extra){
     const want=+x.qty||0;if(want<=0)continue;
     const have=+it.qty||0;
     const take=Math.min(want,have);
-    let rack;
-    if(take>0&&isMultiRack(it)){
+    let rack=x.rack;                       // chosen at inward, while standing at the rack
+    if(take>0&&rack===undefined&&isMultiRack(it)){
+      /* older parcels have no rack on record — fall back to asking */
       rack=await pickRackDlg(it,take,a.awb);
       if(rack===null||rack===undefined){beep(false);return {ok:false,msg:(langHi()?'रैक नहीं चुना — डिस्पैच नहीं हुआ':'No rack chosen — not dispatched')}}
     }
@@ -5657,7 +5732,7 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
       '<div class="awb-meta">'+codes.length+' '+T('बारकोड इस पार्सल पर','barcode'+(codes.length===1?'':'s')+' on this parcel')+'</div>'+
       '<div class="sub mono" style="margin-top:3px">'+codes.map(c=>esc(c)+(awbShared(c)?' <span class="pill low" style="font-size:9px">'+T('कई लेबल','shared')+'</span>':'')).join(' · ')+'</div>'+
       (items.length
-        ?'<div style="margin-top:6px;border-top:1px solid var(--line2);padding-top:5px">'+items.map((x,xi)=>'<div class="row" style="gap:6px;padding:2px 0;font-size:13px"><span class="grow ellip">'+esc(x.name)+'</span><b class="num">×'+fmtQty(x.qty)+'</b><button class="icobtn ghost" data-rmitem="'+xi+'" style="width:26px;height:26px;flex:0 0 auto">'+ico('x')+'</button></div>').join('')+'</div>'
+        ?'<div style="margin-top:6px;border-top:1px solid var(--line2);padding-top:5px">'+items.map((x,xi)=>'<div class="row" style="gap:6px;padding:2px 0;font-size:13px"><span class="grow ellip">'+esc(x.name)+(x.rack!==undefined?' <span class="skutag" style="font-size:10px">'+esc(shelfName(x.rack))+'</span>':'')+'</span><b class="num">×'+fmtQty(x.qty)+'</b><button class="icobtn ghost" data-rmitem="'+xi+'" style="width:26px;height:26px;flex:0 0 auto">'+ico('x')+'</button></div>').join('')+'</div>'
         :'<div class="hint" style="margin-top:5px;color:var(--amber);font-weight:700">'+T('आइटम का SKU स्कैन करें — तभी यह पार्सल दर्ज होगा','scan an item SKU — the parcel is not registered until you do')+'</div>')+
       '<div class="hint" style="margin-top:4px">'+T('इसी लेबल के और बारकोड और आइटम का SKU स्कैन करें, फिर Enter दबाएँ।','Scan the label\'s other barcodes and each item SKU, then press Enter.')+'</div></div>';
     if(nx)nx.disabled=!items.length;
@@ -5754,10 +5829,16 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
             if(cur)await awbSetItems(cur,items);else pend.items=items;
             okBox(code,esc(it.name)+' × '+fmtQty(q)+T(' (हाथ से भरा)',' (typed)'));paintCur();return;
           }
-          items.push({itemId:it.id,sku:skusOf(it)[0]||code,name:it.name,qty:1});
+          let rack;
+          if(isMultiRack(it)){
+            rack=await pickRackDlg(it,1,(cur?cur.awb:(pend&&pend.codes[0])||''));
+            inp.value='';setTimeout(()=>{try{inp.focus()}catch(e){}},60);
+            if(rack===null||rack===undefined){errBox(code,T('रैक नहीं चुना — आइटम नहीं जुड़ा','no rack chosen — item not added'));return}
+          } else rack=(pilesOf(it)[0]||{}).f;
+          items.push({itemId:it.id,sku:skusOf(it)[0]||code,name:it.name,qty:1,rack:rack});
           if(!cur){ if(!await registerPend())return; }
           await awbSetItems(cur,items);
-          okBox(code,esc(it.name)+' × 1'+T(' · पार्सल दर्ज हुआ',' · parcel registered'));paintCur();return;
+          okBox(code,esc(it.name)+' × 1 · '+esc(shelfName(rack))+T(' · पार्सल दर्ज हुआ',' · parcel registered'));paintCur();return;
         }
         /* a label barcode */
         if(codesOf().some(c=>awbKey(c)===awbKey(code))){errBox(code,T('यह बारकोड पहले ही जुड़ा है','already on this parcel'));return}
