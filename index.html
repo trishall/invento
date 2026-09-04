@@ -5481,8 +5481,12 @@ function vAwb(sub,arg){
       $('#aw-hlist').innerHTML=rows.length?rows.map(a=>'<div class="awbmini"><div class="awb-no">'+esc(a.awb)+'</div><div class="awb-meta">'+
         (a.status==='dispatched'?(langHi()?'डिस्पैच':'dispatched'):(langHi()?'वापस':'returned'))+' · '+ago(a.resolvedAt)+' · '+esc(a.resolvedBy||'—')+
         (a.sku?' · <b>'+esc(a.sku)+'</b>':'')+(a.video?' · 🎬 '+esc(a.video):'')+'</div>'+
-        (a.photo?'<img src="'+esc(a.photo)+'" alt="" style="margin-top:6px;max-width:90px;border-radius:8px">':'')+'</div>').join('')
+        ((a.items&&a.items.length)?'<div class="awb-meta ellip">'+esc(a.items.map(x=>x.name+' ×'+fmtQty(x.outQty||x.qty)).join(', '))+'</div>':'')+
+        (a.photo?'<img src="'+esc(a.photo)+'" alt="" style="margin-top:6px;max-width:90px;border-radius:8px">':'')+
+        '<button class="btn sm block mt" data-awback="'+a.id+'" style="color:var(--saddle);border-color:var(--saddle);font-weight:700">'+ico('undo')+(langHi()?'वापस अंदर लें (नंबर टाइप करना होगा)':'Bring back in (type the number)')+'</button>'+
+        '</div>').join('')
         :'<div class="sub" style="padding:8px 2px">'+(langHi()?'कुछ नहीं मिला':'Nothing found')+'</div>';
+      wireAwbBack();
     };
     paint();const hq=$('#aw-hq');if(hq)hq.oninput=paint;
   };
@@ -5527,6 +5531,14 @@ function startInward(){
   go('#awb/in');
 }
 
+function wireAwbBack(){
+  $$('#main [data-awback]').forEach(b=>b.onclick=async()=>{
+    const a=(S.awbs||[]).find(x=>x.id===b.dataset.awback);
+    if(!a){toast(langHi()?'यह रिकॉर्ड नहीं मिला':'That record is gone','err');return}
+    if(a.status==='accepted'){toast(langHi()?'यह पहले से अंदर है':'This one is already inward','err');return}
+    if(await awbReinward(a))vAwb();
+  });
+}
 function awbColHTML(title,list,kind){
   let h='<div class="awbcol"><div class="awbcol-h">'+esc(title)+' <span class="awbcol-n">'+list.length+'</span></div>';
   if(!list.length)h+='<div class="awbcol-empty">—</div>';
@@ -5554,10 +5566,7 @@ function wireAwbColActions(){
     const r=await dispatchAwbByNo(a.awb);if(r.ok){toast('Dispatched','ok');vAwb();}
   });
   $$('#main [data-awret]').forEach(b=>b.onclick=()=>awbReturnOne(b.dataset.awret));
-  $$('#main [data-awback]').forEach(b=>b.onclick=async()=>{
-    const a=(S.awbs||[]).find(x=>x.id===b.dataset.awback);if(!a)return;
-    if(await awbReinward(a))vAwb();
-  });
+  wireAwbBack();
   $$('#main [data-awdel]').forEach(b=>b.onclick=async()=>{
     if(!isAdminU()){toast(langHi()?'सिर्फ एडमिन AWB डिलीट कर सकते हैं':'Only admins can delete AWB records','err');return}
     const a=(S.awbs||[]).find(x=>x.id===b.dataset.awdel);if(!a)return;
