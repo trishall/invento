@@ -3866,28 +3866,61 @@ function aiContext(){
   'Rules: answer ONLY from the DATA below with exact numbers; if the answer is not in the data, say you do not know; be short and practical for warehouse staff; reply in the same language the user writes (use Devanagari Hindi for Hindi'+(langHi()?'; the app is currently in Hindi mode, so prefer Hindi':'')+'); match loosely-written item names to the closest item and say which one you matched; never invent items, quantities or racks; you cannot change stock — if asked to, explain how to do it in the app (Scan page, Quick command, or item page).\n\n'+
   'DATA\nTOTALS: '+S.items.length+' items · '+units+' units · '+low+' low-stock.\n'+
   'ITEMS (name ~ sku ~ total qty ~ location/racks ~ min ~ price):\n'+lines+'\n\n'+
-  'RECENT MOVEMENTS (newest first · time ~ action ~ item ~ qty ~ detail ~ by):\n'+tx;
+  'RECENT MOVEMENTS (newest first · time ~ action ~ item ~ qty ~ detail ~ by):\n'+tx+
+  '\n\nThe user may attach photos or PDF pages (invoices, packing lists, a photo of a rack). Read them carefully and answer about them. When an attachment names products, match them to the ITEMS list above and give the SKU and the racks. Say plainly when something in the attachment does not match any item.';
 }
 function aiPaint(){
   const box=$('#ai-log');if(!box)return;
   box.innerHTML=AIC.map(m=>{
     const me=m.role==='user';
-    const t=esc(m.text).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');
+    const t=esc(m.text).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>')+
+      ((m.files&&m.files.length)?'<div style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap">'+m.files.map(f=>'<img src="data:'+f.mime+';base64,'+f.b64+'" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid rgba(255,255,255,.25)">').join('')+'</div>':'');
     return '<div style="max-width:88%;padding:10px 13px;border-radius:14px;line-height:1.45;'+(me
       ?'align-self:flex-end;background:var(--saddle);color:#fff;border-bottom-right-radius:4px'
       :'align-self:flex-start;background:var(--card);border:1px solid var(--line2);border-bottom-left-radius:4px')+'">'+t+'</div>';
   }).join('')+($('#ai-log').dataset.busy?'<div class="sub" style="align-self:flex-start;padding:6px 13px">'+(langHi()?'सोच रहा है…':'Thinking…')+'</div>':'');
   box.scrollTop=box.scrollHeight;
 }
+let AIFILES=[];   // photos / PDF pages attached to the next question
+function aiFilesPaint(){
+  const box=$('#ai-files');if(!box)return;
+  box.innerHTML=AIFILES.length?'<div class="row mb" style="gap:6px;flex-wrap:wrap">'+AIFILES.map((f,ix)=>
+    '<span class="chip on" style="gap:6px">'+esc(f.label)+'<button data-aifx="'+ix+'" style="background:none;border:0;color:inherit;font-weight:800;cursor:pointer">✕</button></span>').join('')+'</div>':'';
+  $$('#ai-files [data-aifx]').forEach(b=>b.onclick=()=>{AIFILES.splice(+b.dataset.aifx,1);aiFilesPaint()});
+}
+async function aiAttach(files){
+  const list=Array.from(files||[]);if(!list.length)return;
+  const btn=$('#ai-clip');if(btn){btn.disabled=true;btn.textContent='…'}
+  for(const f of list){
+    try{
+      if(AIFILES.length>=12){toast(langHi()?'ज़्यादा से ज़्यादा 12 पेज':'Up to 12 pages','err');break}
+      if(/pdf$/i.test(f.type)||/\.pdf$/i.test(f.name)){
+        const doc=await pdfPages(f);                       // each page becomes an image
+        for(let p=1;p<=Math.min(doc.n,8)&&AIFILES.length<12;p++){
+          AIFILES.push({label:f.name+' · p'+p,b64:await doc.img(p),mime:'image/jpeg'});
+        }
+      } else if(/^image\//i.test(f.type)){
+        AIFILES.push({label:f.name,b64:await aiShrink(f),mime:'image/jpeg'});
+      } else {
+        toast((langHi()?'यह फ़ाइल नहीं पढ़ सकते: ':'Cannot read this file: ')+f.name,'err');
+      }
+    }catch(e){toast(String(e&&e.message||e).slice(0,80),'err')}
+  }
+  if(btn){btn.disabled=false;btn.innerHTML=ico('paperclip')||'+'}
+  aiFilesPaint();
+}
 async function aiSend(){
-  const inp=$('#ai-q');const q=(inp.value||'').trim();if(!q)return;
-  inp.value='';AIC.push({role:'user',text:q});
+  const inp=$('#ai-q');const q=(inp.value||'').trim();
+  if(!q&&!AIFILES.length)return;
+  const mine=AIFILES.slice();AIFILES=[];aiFilesPaint();
+  inp.value='';AIC.push({role:'user',text:q||(langHi()?'(फ़ाइल देखें)':'(see the attached file)'),files:mine});
   $('#ai-log').dataset.busy='1';aiPaint();$('#ai-send').disabled=true;
   try{
     const model=await aiModelGet();
     const res=await model.generateContent({
       systemInstruction:{role:'system',parts:[{text:aiContext()}]},
-      contents:AIC.map(m=>({role:m.role==='user'?'user':'model',parts:[{text:m.text}]}))
+      contents:AIC.map(m=>({role:m.role==='user'?'user':'model',
+        parts:[{text:m.text}].concat((m.files||[]).map(f=>({inlineData:{mimeType:f.mime,data:f.b64}})))}))
     });
     const out=(res&&res.response&&res.response.text&&res.response.text())||'';
     AIC.push({role:'model',text:out||(langHi()?'AI जवाब नहीं दे पाया':'No answer')});
@@ -3909,13 +3942,30 @@ function vAI(){
     (langHi()?'अपने स्टॉक के बारे में कुछ भी पूछें — जैसे: "शैनन टोट कितने बचे हैं?", "R11C4 में क्या-क्या रखा है?", "आज किसने क्या निकाला?", "कौन से आइटम कम हो रहे हैं?"'
     :'Ask anything about your stock — e.g. "How many Shannon Totes are left?", "What is in R11C4?", "What went out today?", "What is running low?"')+'</div></div></div>';
   h+='<div id="ai-log" data-noi18n style="display:flex;flex-direction:column;gap:10px;margin-bottom:12px;min-height:120px;max-height:52vh;overflow-y:auto"></div>';
-  h+='<div class="row" data-noi18n><input class="in grow" id="ai-q" placeholder="'+(langHi()?'अपने स्टॉक के बारे में पूछें…':'Ask about your inventory…')+'" autocomplete="off"><button class="btn pri" id="ai-send">'+(langHi()?'पूछें':'Ask')+'</button></div>';
+  h+='<div id="ai-files"></div>';
+  h+='<div class="row" data-noi18n style="gap:6px">'+
+     '<button class="btn" id="ai-clip" title="'+(langHi()?'फ़ाइल जोड़ें':'Attach a photo or PDF')+'" style="flex:0 0 auto">'+ico('camera')+'</button>'+
+     '<input class="in grow" id="ai-q" placeholder="'+(langHi()?'अपने स्टॉक के बारे में पूछें…':'Ask about your inventory…')+'" autocomplete="off">'+
+     '<button class="btn pri" id="ai-send" style="flex:0 0 auto">'+(langHi()?'पूछें':'Ask')+'</button></div>';
+  h+='<div class="hint">'+(langHi()?'फोटो या PDF जोड़कर पूछ सकते हैं — जैसे इनवॉइस, रैक की फोटो, या पैकिंग लिस्ट।':'Attach a photo or PDF and ask about it — an invoice, a photo of a rack, a packing list.')+'</div>';
+  h+='<input type="file" id="ai-file" accept="image/*,application/pdf" multiple style="display:none">';
   h+='<div class="row mt"><button class="btn sm" id="ai-clr">'+(langHi()?'चैट साफ़ करें':'Clear chat')+'</button></div>';
   $('#main').innerHTML=h;
-  aiPaint();
+  aiPaint();aiFilesPaint();
   $('#ai-send').onclick=aiSend;
+  $('#ai-clip').onclick=()=>$('#ai-file').click();
+  $('#ai-file').onchange=e=>{aiAttach(e.target.files);e.target.value=''};
   $('#ai-q').addEventListener('keydown',e=>{if(e.key==='Enter')aiSend()});
-  $('#ai-clr').onclick=()=>{AIC=[];aiPaint()};
+  /* drop a file straight onto the page, and paste a screenshot */
+  const main=$('#main');
+  main.addEventListener('dragover',e=>{e.preventDefault()});
+  main.addEventListener('drop',e=>{e.preventDefault();if(e.dataTransfer&&e.dataTransfer.files)aiAttach(e.dataTransfer.files)});
+  $('#ai-q').addEventListener('paste',e=>{
+    const its=(e.clipboardData&&e.clipboardData.items)||[];
+    const fs=[];for(const it of its){if(it.kind==='file'){const f=it.getAsFile();if(f)fs.push(f)}}
+    if(fs.length){e.preventDefault();aiAttach(fs)}
+  });
+  $('#ai-clr').onclick=()=>{AIC=[];AIFILES=[];aiPaint();aiFilesPaint()};
 }
 
 function vMore(){
