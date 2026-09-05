@@ -3955,7 +3955,9 @@ async function shopifyRun(dryRun){
   }catch(e){
     const m=String(e&&e.message||e);
     if(out)out.innerHTML='<div class="card pad" style="border-color:var(--red)"><b style="color:var(--red)">'+(langHi()?'सिंक नहीं हुआ':'Sync failed')+'</b><div class="sub">'+esc(m.slice(0,300))+'</div>'+
-      (/not-found|internal|CORS|failed/i.test(m)?'<div class="hint mt">'+(langHi()?'शायद Cloud Function अभी डिप्लॉय नहीं हुआ है।':'The Cloud Function may not be deployed yet — see the setup steps.')+'</div>':'')+'</div>';
+      (/shop_not_permitted|organization/i.test(m)?'<div class="hint mt">'+(langHi()?'यह स्टोर उसी Shopify organization में नहीं है — Dev Dashboard से ऐप इस स्टोर पर इंस्टॉल करें।':'That store is not in the same Shopify organization — install the app on it from the Dev Dashboard.')+'</div>'
+       :/scope/i.test(m)?'<div class="hint mt">'+(langHi()?'ऐप में scope कम है — Dev Dashboard में जोड़ें, नया version release करें, फिर स्टोर पर approve करें।':'The app is missing a scope — add it in the Dev Dashboard, release a new version, then approve it on the store.')+'</div>'
+       :/not-found|internal|CORS|failed/i.test(m)?'<div class="hint mt">'+(langHi()?'शायद Cloud Function अभी डिप्लॉय नहीं हुआ है।':'The Cloud Function may not be deployed yet — see the setup steps.')+'</div>':'')+'</div>';
     beep(false);
   }
   [btn,dry].forEach(b=>{if(b)b.disabled=false});
