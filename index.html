@@ -579,6 +579,7 @@ body.printing #printArea{display:block;padding:8mm}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
 
 <script>
 /* ============================================================
@@ -1526,8 +1527,8 @@ function route(){
   const h=(location.hash||'#home').slice(1);
   const [p,a,b]=h.split('/');
   const main=$('#main');main.scrollTop=0;window.scrollTo(0,0);
-  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),ai:vAI,flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals,awb:()=>vAwb(a||null,b||null),uniexport:()=>{vMore();setTimeout(exportUnicommerce,30)},backups:vBackups,dash:()=>vDash(30),help:vHelp,aiscan:vAiScan,exportall:()=>{vMore();setTimeout(exportAllItems,30)}};
-  setActiveNav(p==='item'||p==='edit'||p==='folders'?'stock':(p==='list'||p==='po'?'flows':(p==='trash'||p==='import'?'more':((p==='return'||p==='awb'||p==='aiscan')?'dispatch':p))));
+  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),ai:vAI,shopify:vShopify,flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals,awb:()=>vAwb(a||null,b||null),uniexport:()=>{vMore();setTimeout(exportUnicommerce,30)},backups:vBackups,dash:()=>vDash(30),help:vHelp,aiscan:vAiScan,exportall:()=>{vMore();setTimeout(exportAllItems,30)}};
+  setActiveNav(p==='item'||p==='edit'||p==='folders'?'stock':(p==='list'||p==='po'?'flows':((p==='trash'||p==='import'||p==='shopify')?'more':((p==='return'||p==='awb'||p==='aiscan')?'dispatch':p))));
   try{(map[p]||vHome)();}
   catch(e){
     console.error('view error',p,e);
@@ -3935,6 +3936,65 @@ async function aiSend(){
   }
   delete $('#ai-log').dataset.busy;$('#ai-send').disabled=false;aiPaint();
 }
+/* ---------------- Shopify stock sync ----------------
+   Invento is the master for physical stock. This pushes what Invento holds
+   into each connected store. The tokens live in the Cloud Function, never here. */
+async function shopifyRun(dryRun){
+  const btn=$('#sh-run'),dry=$('#sh-dry');
+  [btn,dry].forEach(b=>{if(b)b.disabled=true});
+  const out=$('#sh-out');
+  if(out)out.innerHTML='<div class="sub">'+(langHi()?(dryRun?'जाँच रहे हैं…':'भेज रहे हैं…'):(dryRun?'Checking…':'Sending to Shopify…'))+'</div>';
+  try{
+    const fns=firebase.app().functions('asia-south1');
+    const call=fns.httpsCallable('shopifySync');
+    const res=await call({dryRun:!!dryRun});
+    const rows=(res.data&&res.data.results)||[];
+    if(out)out.innerHTML=rows.map(shopifyResultHTML).join('')||'<div class="sub">No stores configured</div>';
+    logTx('export',{detail:'Shopify sync'+(dryRun?' (check only)':'')+' · '+rows.map(r=>r.shop+': '+(r.error?'error':r.applied+' updated')).join(' · ')});
+    beep(!rows.some(r=>r.error));
+  }catch(e){
+    const m=String(e&&e.message||e);
+    if(out)out.innerHTML='<div class="card pad" style="border-color:var(--red)"><b style="color:var(--red)">'+(langHi()?'सिंक नहीं हुआ':'Sync failed')+'</b><div class="sub">'+esc(m.slice(0,300))+'</div>'+
+      (/not-found|internal|CORS|failed/i.test(m)?'<div class="hint mt">'+(langHi()?'शायद Cloud Function अभी डिप्लॉय नहीं हुआ है।':'The Cloud Function may not be deployed yet — see the setup steps.')+'</div>':'')+'</div>';
+    beep(false);
+  }
+  [btn,dry].forEach(b=>{if(b)b.disabled=false});
+}
+function shopifyResultHTML(r){
+  const T=(hi,en)=>langHi()?hi:en;
+  if(r.error)return '<div class="card pad mb" style="border-left:4px solid var(--red)"><b>'+esc(r.shop||r.store)+'</b><div class="sub" style="color:var(--red)">'+esc(r.error)+'</div></div>';
+  const warn=(r.missingInShopifyCount||0)+(r.missingInInventoCount||0)+(r.untrackedCount||0);
+  return '<div class="card pad mb" style="border-left:4px solid var(--'+(warn?'amber':'green')+')">'+
+    '<div class="row" style="align-items:baseline;gap:8px"><b class="grow">'+esc(r.shop)+'</b>'+(r.dryRun?'<span class="pill low">'+T('सिर्फ जाँच','check only')+'</span>':'<span class="pill ok">'+T('भेजा','sent')+'</span>')+'</div>'+
+    '<div class="stats mt" style="grid-template-columns:repeat(3,1fr)">'+
+      '<div class="stat"><div class="eyebrow">'+T('मिले SKU','SKUs matched')+'</div><div class="v num">'+r.matched+'</div></div>'+
+      '<div class="stat"><div class="eyebrow">'+T('अपडेट हुए','Updated')+'</div><div class="v num">'+(r.dryRun?'—':r.applied)+'</div></div>'+
+      '<div class="stat'+(warn?' alert':'')+'"><div class="eyebrow">'+T('ध्यान दें','Needs a look')+'</div><div class="v num">'+warn+'</div></div>'+
+    '</div>'+
+    (r.missingInShopifyCount?'<div class="mt"><b class="small">'+r.missingInShopifyCount+' '+T('SKU Shopify में नहीं मिले','SKUs not found in Shopify')+'</b><div class="sub mono">'+esc(r.missingInShopify.join(', '))+(r.missingInShopifyCount>r.missingInShopify.length?' …':'')+'</div></div>':'')+
+    (r.missingInInventoCount?'<div class="mt"><b class="small">'+r.missingInInventoCount+' '+T('SKU Shopify में हैं पर Invento में नहीं','SKUs in Shopify but not in Invento')+'</b><div class="sub mono">'+esc(r.missingInInvento.join(', '))+(r.missingInInventoCount>r.missingInInvento.length?' …':'')+'</div></div>':'')+
+    (r.untrackedCount?'<div class="mt"><b class="small">'+r.untrackedCount+' '+T('SKU की ट्रैकिंग Shopify में बंद है','SKUs have inventory tracking off in Shopify')+'</b><div class="sub mono">'+esc(r.untracked.join(', '))+'</div></div>':'')+
+    '<div class="when mt">'+T('जगह','Location')+': '+esc(String(r.locationId||'').split('/').pop())+' · '+(r.ms?Math.round(r.ms/100)/10+'s':'')+'</div></div>';
+}
+function vShopify(){
+  topTitle('Shopify','#more');
+  const T=(hi,en)=>langHi()?hi:en;
+  let h='<h1 class="page">Shopify</h1>';
+  h+='<div class="card pad mb"><div class="sub">'+T('Invento में जो स्टॉक है वही Shopify को भेजा जाता है — एक तरफ़ा। Shopify से कुछ वापस नहीं आता, इसलिए गिनती कभी उल्टी नहीं होगी। SKU से मिलान होता है।','Whatever Invento holds is pushed to Shopify — one way. Nothing comes back, so the counts can never fight each other. Matching is by SKU.')+'</div></div>';
+  h+='<div class="row mb" style="gap:8px"><button class="btn grow" id="sh-dry">'+ico('search')+T('पहले जाँचें (कुछ नहीं बदलेगा)','Check first (changes nothing)')+'</button>'+
+     '<button class="btn pri grow" id="sh-run">'+ico('spark')+T('अभी भेजें','Sync now')+'</button></div>';
+  h+='<div id="sh-out"></div>';
+  h+='<div class="card pad mt"><div class="eyebrow mb">'+T('आखिरी बार','Last run')+'</div><div id="sh-last" class="sub">—</div></div>';
+  $('#main').innerHTML=h;
+  $('#sh-run').onclick=()=>shopifyRun(false);
+  $('#sh-dry').onclick=()=>shopifyRun(true);
+  db.collection('meta').doc('shopify').get().then(d=>{
+    const el=$('#sh-last');if(!el)return;
+    const lr=(d.exists&&d.data().lastRun)||null;
+    if(!lr){el.textContent=T('अभी तक कोई सिंक नहीं','No sync yet');return}
+    el.innerHTML=Object.keys(lr).map(k=>shopifyResultHTML(lr[k])).join('');
+  }).catch(()=>{});
+}
 function vAI(){
   topTitle('AI','#home');
   let h='<h1 class="page">AI</h1>';
@@ -3975,6 +4035,7 @@ function vMore(){
   if(can('export'))rows.push(['#import',ico('csv'),'Import CSV','Bring items in from Excel / Sheets']);
   if(can('export'))rows.push(['#exportall',ico('down'),'Export all items','Download your full catalog as CSV']);
   if(can('export'))rows.push(['#uniexport',ico('down'),'Export to Unicommerce','Inventory adjustment CSV — sync recent stock changes']);
+  if(isAdminU())rows.push(['#shopify',ico('spark'),'Shopify','Push Invento stock into your Shopify stores']);
   rows.push(['#trash',ico('trash'),'Trash','Restore deleted items ('+S.trash.length+')']);
   if(can('dispatch')){const od=awbOverdue().length;rows.push(['#awb',ico('ticket'),'AWB / Shipments'+(od?' ('+od+')':''),'Accept, dispatch & track shipping labels'+(od?' — '+od+' overdue':'')]);}
   if(isAdminU())rows.push(['#orders',ico('truck'),'Dispatch orders','Review orders, SKUs, photos & data used']);
