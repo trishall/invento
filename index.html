@@ -5970,6 +5970,41 @@ async function awbReinward(a){
   toast((wasCancelled?(langHi()?'फिर से खोला · ':'Reopened · '):(langHi()?'वापस अंदर लिया · ':'Back in · '))+a.awb,'ok');
   return true;
 }
+const PACK_KEEP_DAYS=90;
+/* A packing photo is kept for 90 days then deleted. It lives on its own document
+   so a parcel record stays small and fast to load. */
+async function packPhotoSave(awbId,dataUrl){
+  if(!dataUrl)return false;
+  const doc={id:awbId,photo:dataUrl,at:Date.now(),by:userName()};
+  if(MODE==='cloud'){
+    if(!writeOK(1)){wlBlocked();return false}
+    try{await db.collection('packphotos').doc(awbId).set(doc)}catch(e){console.error('packphoto',e);return false}
+  } else {
+    S.packphotos=(S.packphotos||[]).filter(p=>p.id!==awbId).concat([doc]);save('packphotos');
+  }
+  return true;
+}
+async function packPhotoGet(awbId){
+  if(MODE==='cloud'){
+    try{const d=await db.collection('packphotos').doc(awbId).get();return d.exists?d.data():null}catch(e){return null}
+  }
+  return (S.packphotos||[]).find(p=>p.id===awbId)||null;
+}
+async function packPhotoPurge(){
+  const cut=Date.now()-PACK_KEEP_DAYS*86400000;
+  if(MODE==='cloud'){
+    try{
+      const q=await db.collection('packphotos').where('at','<',cut).limit(40).get();
+      if(q.empty)return 0;
+      const b=db.batch();q.forEach(d=>b.delete(d.ref));await b.commit();
+      return q.size;
+    }catch(e){return 0}
+  }
+  const before=(S.packphotos||[]).length;
+  S.packphotos=(S.packphotos||[]).filter(p=>p.at>=cut);
+  if(S.packphotos.length!==before)save('packphotos');
+  return before-(S.packphotos||[]).length;
+}
 async function awbAddCode(a,code){
   code=String(code||'').trim();if(!a||!code)return false;
   if(awbCodes(a).some(c=>awbKey(c)===awbKey(code)))return true;   // already known
