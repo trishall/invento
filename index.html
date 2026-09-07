@@ -1527,8 +1527,8 @@ function route(){
   const h=(location.hash||'#home').slice(1);
   const [p,a,b]=h.split('/');
   const main=$('#main');main.scrollTop=0;window.scrollTo(0,0);
-  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),ai:vAI,shopify:vShopify,flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals,awb:()=>vAwb(a||null,b||null),uniexport:()=>{vMore();setTimeout(exportUnicommerce,30)},backups:vBackups,dash:()=>vDash(30),help:vHelp,aiscan:vAiScan,exportall:()=>{vMore();setTimeout(exportAllItems,30)}};
-  setActiveNav(p==='item'||p==='edit'||p==='folders'?'stock':(p==='list'||p==='po'?'flows':((p==='trash'||p==='import'||p==='shopify')?'more':((p==='return'||p==='awb'||p==='aiscan')?'dispatch':p))));
+  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),ai:vAI,shopify:vShopify,skulink:vSkuLink,flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals,awb:()=>vAwb(a||null,b||null),uniexport:()=>{vMore();setTimeout(exportUnicommerce,30)},backups:vBackups,dash:()=>vDash(30),help:vHelp,aiscan:vAiScan,exportall:()=>{vMore();setTimeout(exportAllItems,30)}};
+  setActiveNav(p==='item'||p==='edit'||p==='folders'?'stock':(p==='list'||p==='po'?'flows':((p==='trash'||p==='import'||p==='shopify'||p==='skulink')?'more':((p==='return'||p==='awb'||p==='aiscan')?'dispatch':p))));
   try{(map[p]||vHome)();}
   catch(e){
     console.error('view error',p,e);
@@ -3691,6 +3691,83 @@ function vReports(r){
 /* ============================================================
    IMPORT (CSV)
    ============================================================ */
+/* ---- Link SKUs ----
+   An item can carry several codes: the old Sortly code, the Unicommerce master
+   code, whatever Shopify uses. Matching anywhere in the app works on ANY of
+   them, so this just attaches the extra code to the item that already exists. */
+function vSkuLink(){
+  if(!can('export')){toast('You do not have permission','err');go('#more');return}
+  const T=(hi,en)=>langHi()?hi:en;
+  topTitle(T('SKU जोड़ें','Link SKUs'),'#more');
+  let rows=[],parsed=null;
+  $('#main').innerHTML='<h1 class="page">'+T('SKU आपस में जोड़ें','Link SKUs')+'</h1>'+
+    '<div class="card pad mb"><p class="sub">'+T('एक ही आइटम के कई कोड हो सकते हैं — पुराना Sortly कोड, Unicommerce का मास्टर कोड, Shopify का कोड। CSV दें: पहला कॉलम वो कोड जो Invento में पहले से है, दूसरा कॉलम नया कोड जो जोड़ना है।','One item can carry several codes — the old Sortly code, the Unicommerce master code, whatever Shopify uses. Give a CSV with two columns: a code Invento already knows, and the code you want to add to that same item.')+'</p>'+
+    '<div class="hint mt mono">existing_sku,new_sku<br>SAL60T1487,MTLB0000077<br>SAL60T1681,MTBP0000077</div></div>'+
+    '<div class="dz" id="sl-dz">'+ico('csv')+'<div style="margin-top:8px;font-weight:700">'+T('CSV चुनें','Choose a CSV')+'</div><div class="sub">'+T('या यहाँ खींचकर छोड़ें','or drop it here')+'</div></div>'+
+    '<input type="file" id="sl-file" accept=".csv,text/csv" style="display:none">'+
+    '<div id="sl-prev" class="mt"></div>';
+  const dz=$('#sl-dz'),fi=$('#sl-file');
+  dz.onclick=()=>fi.click();
+  dz.ondragover=e=>{e.preventDefault();dz.classList.add('on')};
+  dz.ondragleave=()=>dz.classList.remove('on');
+  dz.ondrop=e=>{e.preventDefault();dz.classList.remove('on');if(e.dataTransfer.files[0])read(e.dataTransfer.files[0])};
+  fi.onchange=e=>{if(e.target.files[0])read(e.target.files[0])};
+  function read(f){
+    const r=new FileReader();
+    r.onload=()=>{
+      const lines=String(r.result||'').split(/\r?\n/).filter(l=>l.trim());
+      if(!lines.length){toast(T('फ़ाइल खाली है','The file is empty'),'err');return}
+      const first=lines[0].toLowerCase();
+      const start=(first.indexOf('sku')>=0||first.indexOf('code')>=0)?1:0;   // skip a header row
+      rows=[];
+      for(let i=start;i<lines.length;i++){
+        const c=lines[i].split(',').map(s=>s.trim().replace(/^"|"$/g,''));
+        if(c.length<2||!c[0]||!c[1])continue;
+        rows.push({from:c[0],to:c[1]});
+      }
+      preview();
+    };
+    r.readAsText(f);
+  }
+  function preview(){
+    let ok=0,already=0,noItem=0,clash=0;
+    parsed=rows.map(r=>{
+      const it=findByCode(r.from);
+      if(!it)  {noItem++;  return Object.assign({},r,{state:'noitem'})}
+      if(skusOf(it).some(s=>String(s).toLowerCase()===r.to.toLowerCase())){already++;return Object.assign({},r,{state:'already',item:it})}
+      const other=findByCode(r.to);
+      if(other&&other.id!==it.id){clash++;return Object.assign({},r,{state:'clash',item:it,other:other})}
+      ok++;return Object.assign({},r,{state:'ok',item:it});
+    });
+    const badge=(n,label,tone)=>'<div class="stat'+(tone==='alert'?' alert':'')+'"><div class="eyebrow">'+label+'</div><div class="v num">'+n+'</div></div>';
+    $('#sl-prev').innerHTML='<div class="stats mb" style="grid-template-columns:repeat(4,1fr)">'+
+        badge(ok,T('जुड़ेंगे','Will link'),'')+badge(already,T('पहले से','Already'),'')+
+        badge(noItem,T('आइटम नहीं मिला','No item'),noItem?'alert':'')+badge(clash,T('टकराव','Conflict'),clash?'alert':'')+'</div>'+
+      '<div class="card" style="padding:2px 12px;max-height:44dvh;overflow:auto">'+parsed.slice(0,300).map(p=>{
+        const tone=p.state==='ok'?'var(--green)':p.state==='already'?'var(--muted)':'var(--red)';
+        const note=p.state==='ok'?p.item.name:p.state==='already'?T('पहले से जुड़ा','already linked'):
+          p.state==='noitem'?T('यह कोड Invento में नहीं है','no item with this code'):
+          T('यह कोड दूसरे आइटम का है: ','that code belongs to: ')+p.other.name;
+        return '<div class="row" style="padding:6px 0;border-bottom:1px solid var(--line2);gap:8px;font-size:13px"><span class="mono grow ellip">'+esc(p.from)+' → '+esc(p.to)+'</span><span style="color:'+tone+'" class="ellip">'+esc(note)+'</span></div>';
+      }).join('')+(parsed.length>300?'<div class="hint">+'+(parsed.length-300)+' more</div>':'')+'</div>'+
+      (ok?'<button class="btn pri block mt" id="sl-go">'+ico('check')+T('जोड़ें: ','Link ')+ok+T(' आइटम',' item'+(ok===1?'':'s'))+'</button>':'<div class="sub mt">'+T('जोड़ने लायक कुछ नहीं','Nothing to link')+'</div>');
+    const b=$('#sl-go');if(b)b.onclick=apply;
+  }
+  async function apply(){
+    const list=parsed.filter(p=>p.state==='ok');
+    const b=$('#sl-go');if(b){b.disabled=true;b.textContent=T('जोड़ रहे हैं…','Linking…')}
+    let n=0;
+    for(const p of list){
+      const it=p.item;
+      it.skus=(Array.isArray(it.skus)?it.skus:[]).concat([p.to]);
+      it.updatedAt=Date.now();n++;
+    }
+    await saveNow('items');
+    logTx('imported',{detail:'Linked '+n+' extra SKUs (CSV) · by '+userName()});
+    toast(n+T(' आइटम से नया SKU जुड़ा',' item'+(n===1?'':'s')+' now carry the extra SKU'),'ok');
+    preview();
+  }
+}
 function vImport(){
   if(!can('export')){toast('You do not have permission to import','err');go('#more');return}
   topTitle('Import CSV','#more');
@@ -4037,6 +4114,7 @@ function vMore(){
   if(can('export'))rows.push(['#import',ico('csv'),'Import CSV','Bring items in from Excel / Sheets']);
   if(can('export'))rows.push(['#exportall',ico('down'),'Export all items','Download your full catalog as CSV']);
   if(can('export'))rows.push(['#uniexport',ico('down'),'Export to Unicommerce','Inventory adjustment CSV — sync recent stock changes']);
+  if(can('export'))rows.push(['#skulink',ico('csv'),'Link SKUs','Give an item a second code — Sortly, Unicommerce or Shopify']);
   if(isAdminU())rows.push(['#shopify',ico('spark'),'Shopify','Push Invento stock into your Shopify stores']);
   rows.push(['#trash',ico('trash'),'Trash','Restore deleted items ('+S.trash.length+')']);
   if(can('dispatch')){const od=awbOverdue().length;rows.push(['#awb',ico('ticket'),'AWB / Shipments'+(od?' ('+od+')':''),'Accept, dispatch & track shipping labels'+(od?' — '+od+' overdue':'')]);}
