@@ -6057,9 +6057,8 @@ async function dispatchAwbByNo(no,extra){
   if(a&&a.status==='cancelled'){beep(false);alarmSound();return {ok:false,msg:(langHi()?'यह ऑर्डर रद्द हो चुका है — बाहर नहीं जा सकता':'This shipment was cancelled — it cannot go out')}}
   if(a&&a.status==='dispatched'){beep(false);return {ok:false,msg:(langHi()?'यह पहले ही डिस्पैच हो चुका है · ':'Already dispatched · ')+ago(a.resolvedAt)+' · '+(a.resolvedBy||'')+(awbKey(no)!==awbKey(a.awb)?' · AWB '+a.awb:'')}}
   if(a&&a.status==='returned'){beep(false);return {ok:false,msg:(langHi()?'यह ऑफिस वापस जा चुका है · ':'Was returned to office · ')+ago(a.resolvedAt)}}
-  /* HARD RULE: a parcel must go through Packing before it can go out. */
-  if(a&&a.status==='accepted'){beep(false);alarmSound();
-    return {ok:false,msg:(langHi()?'यह पैक नहीं हुआ — पहले Packing स्क्रीन पर ले जाएँ':'Not packed yet — take it through the Packing screen first')}}
+  /* PACKING GATE IS OFF IN THIS BUILD — parcels can go out unpacked.
+     Swap in the main index.html to make packing compulsory again. */
   if(!a){ /* going OUT but never scanned IN — must never pass quietly */
     alarmSound();    toast('⚠ '+no+' — '+(langHi()?'अंदर स्कैन नहीं हुआ':'never scanned inward'),'err');
     return {ok:false,msg:(langHi()?'पहले Inward स्कैन करें':'Scan it inward first')};
