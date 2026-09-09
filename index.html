@@ -665,65 +665,65 @@ function fmtDate(ts){const d=new Date(ts);return d.toLocaleDateString(locale(),{
 function fmtDT(ts){const d=new Date(ts);return fmtDate(ts)+', '+d.toLocaleTimeString(locale(),{hour:'numeric',minute:'2-digit'})}
 function ago(ts){const s=(Date.now()-ts)/1000;if(s<60)return 'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';if(s<86400*7)return Math.floor(s/86400)+'d ago';return fmtDate(ts)}
 function download(name,content,mime){const b=content instanceof Blob?content:new Blob([content],{type:mime||'text/plain'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(u);a.remove()},400)}
-function beep(ok){
-  try{
-    const ctx=beep.ctx||(beep.ctx=new (window.AudioContext||window.webkitAudioContext)());
-    if(ctx.state==='suspended')ctx.resume();
-    /* square wave + hard attack and a clean cut = a sharp scanner-gun beep
-       that carries over machine noise instead of a soft round tone */
-    const tone=(at,dur,freq)=>{
-      const t=ctx.currentTime+at;
-      const o=ctx.createOscillator(),g=ctx.createGain();
-      o.type='square';o.frequency.setValueAtTime(freq,t);
-      o.connect(g);g.connect(ctx.destination);
-      g.gain.setValueAtTime(0.0001,t);
-      g.gain.exponentialRampToValueAtTime(.16,t+.004);   // instant attack — the "crack"
-      g.gain.setValueAtTime(.16,t+dur-.012);             // hold flat
-      g.gain.exponentialRampToValueAtTime(0.0001,t+dur); // clean cut, no click
-      o.start(t);o.stop(t+dur+.01);
-    };
-    if(ok)tone(0,.20,2100);                       // correct — one sharp high beep
-    else{tone(0,.18,420);tone(.26,.18,420)}       // wrong — two sharp low beeps
-  }catch(e){}
-  if(navigator.vibrate)navigator.vibrate(ok?60:[110,90,110]);
+/* ============================================================
+   SOUNDS
+   Each one says which direction the stock moved, so a packer knows what
+   happened without looking up:
+     inward  → two notes RISING   (something came in)
+     outward → two notes FALLING  (something went out)
+     problem → one short low buzz (not piercing — it happens often)
+     alarm   → the only high, urgent one, for things that must not happen
+   ============================================================ */
+function audioCtx(){
+  const c=beep.ctx||(beep.ctx=new (window.AudioContext||window.webkitAudioContext)());
+  if(c.state==='suspended')c.resume();
+  return c;
 }
-/* Scan alarm: three sharp low blasts — reserved for "this should not have happened"
-   (an AWB going out that never came in, a barcode not in the catalog). */
-/* Parcel completed: a short rising three-note chime. Deliberately unlike the
-   single scan beep, so the packer knows the whole parcel landed, not just a scan. */
+/* one note: square wave, instant attack, clean cut — carries over machine noise */
+function tone(ctx,at,dur,freq,vol,type){
+  const t=ctx.currentTime+at;
+  const o=ctx.createOscillator(),g=ctx.createGain();
+  o.type=type||'square';o.frequency.setValueAtTime(freq,t);
+  o.connect(g);g.connect(ctx.destination);
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(vol,t+.004);
+  g.gain.setValueAtTime(vol,t+Math.max(.02,dur-.012));
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.start(t);o.stop(t+dur+.01);
+}
+/* stock coming IN — two notes going up */
+function soundIn(){
+  try{const c=audioCtx();tone(c,0,.09,760,.15);tone(c,.10,.13,1140,.15)}catch(e){}
+  if(navigator.vibrate)navigator.vibrate(55);
+}
+/* stock going OUT — the same shape, going down */
+function soundOut(){
+  try{const c=audioCtx();tone(c,0,.09,1140,.15);tone(c,.10,.13,760,.15)}catch(e){}
+  if(navigator.vibrate)navigator.vibrate(55);
+}
+/* something is wrong — short, low, blunt. Deliberately not piercing:
+   a refused scan happens many times a day and should not hurt. */
+function soundBad(){
+  try{const c=audioCtx();tone(c,0,.13,196,.19,'square');tone(c,0,.13,155,.10,'sawtooth')}catch(e){}
+  if(navigator.vibrate)navigator.vibrate([90,70,90]);
+}
+/* the ordinary scan beep. ok=true is a plain acknowledgement, not a direction. */
+function beep(ok){
+  if(!ok){soundBad();return}
+  try{tone(audioCtx(),0,.11,1000,.14)}catch(e){}
+  if(navigator.vibrate)navigator.vibrate(45);
+}
+/* a whole parcel finished — three notes up, warmer than a scan beep */
 function successChime(){
-  try{
-    const ctx=beep.ctx||(beep.ctx=new (window.AudioContext||window.webkitAudioContext)());
-    if(ctx.state==='suspended')ctx.resume();
-    [[0,880],[.10,1320],[.20,1760]].forEach(([at,f])=>{
-      const t=ctx.currentTime+at;
-      const o=ctx.createOscillator(),g=ctx.createGain();
-      o.type='square';o.frequency.setValueAtTime(f,t);
-      o.connect(g);g.connect(ctx.destination);
-      g.gain.setValueAtTime(0.0001,t);
-      g.gain.exponentialRampToValueAtTime(.15,t+.004);
-      g.gain.setValueAtTime(.15,t+.11);
-      g.gain.exponentialRampToValueAtTime(0.0001,t+.14);
-      o.start(t);o.stop(t+.15);
-    });
-  }catch(e){}
+  try{const c=audioCtx();tone(c,0,.10,700,.14);tone(c,.11,.10,1050,.14);tone(c,.22,.17,1400,.15)}catch(e){}
   if(navigator.vibrate)navigator.vibrate([50,40,50,40,90]);
 }
+/* THE ONLY HIGH, URGENT SOUND. Reserved for what must not happen: a parcel
+   going out that never came in, an unknown barcode, a forced dispatch. */
 function alarmSound(){
   try{
-    const ctx=beep.ctx||(beep.ctx=new (window.AudioContext||window.webkitAudioContext)());
-    if(ctx.state==='suspended')ctx.resume();
-    [0,.30,.60].forEach(at=>{
-      const t=ctx.currentTime+at;
-      const o=ctx.createOscillator(),g=ctx.createGain();
-      o.type='square';o.frequency.setValueAtTime(300,t);
-      o.connect(g);g.connect(ctx.destination);
-      g.gain.setValueAtTime(0.0001,t);
-      g.gain.exponentialRampToValueAtTime(.22,t+.004);
-      g.gain.setValueAtTime(.22,t+.22-.012);
-      g.gain.exponentialRampToValueAtTime(0.0001,t+.22);
-      o.start(t);o.stop(t+.23);
-    });
+    const c=audioCtx();
+    [0,.20,.40].forEach(at=>{tone(c,at,.15,1900,.26);tone(c,at,.15,1425,.13,'sawtooth')});
   }catch(e){}
   if(navigator.vibrate)navigator.vibrate([160,90,160,90,260]);
 }
@@ -2112,6 +2112,7 @@ function vItem(id){
     if(dir<0){const pp=pilesOf(i).find(p=>String(p.f||'')===String(pf||''));const cap=pp?pp.q:0;if(n>cap+1e-9){toast('Only '+fmtQty(cap)+' in '+shelfName(pf),'err');return}}
     let g=null;
     if(dir<0){g=await manualOutGate(i,n,shelfName(pf),reason);if(!g)return}
+    (dir>0?soundIn:soundOut)();
     const wasMulti=isMultiRack(i);
     if(dir>0)pileAdd(i,pf,n);else pileDrain(i,n,pf);
     const nv=+i.qty||0;save('items');
@@ -6058,6 +6059,7 @@ async function acceptAwb(no,extra){
   await saveNow('awbs');
   logTx('shipment',{detail:'AWB accepted · '+no+(rec.orderNo?' · order '+rec.orderNo:'')+(rec.customer?' · '+rec.customer:'')});
   awbLastIn=rec;awbLastInAt=Date.now();
+  soundIn();
   return {ok:true,rec};
 }
 async function dispatchAwbByNo(no,extra){
@@ -6119,6 +6121,7 @@ async function dispatchAwbByNo(no,extra){
   if(extra&&extra.video)a.video=extra.video;
   await saveNow('awbs');
   logTx('dispatch',{detail:'AWB dispatched · '+no+(awbKey(no)!==awbKey(a.awb)?' (AWB '+a.awb+')':'')+(moved.length?' · '+moved.join(', '):'')});
+  soundOut();
   updateBadges();
   return {ok:true,rec:a};
 }
