@@ -6885,17 +6885,12 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
       toast(T('हटाया','Removed'),'ok');paintCur();
     });
   };
-  /* amaz09092601 → amaz09092602. Saves retyping a long prefix all day.
-     The packer can overwrite or clear it; nothing is stored unless it is there. */
-  function nextOrderNo(used){
+  /* The box is cleared after each parcel — order numbers do not run in sequence
+     here, so guessing the next one would only invite a wrong number. */
+  function clearOrderNo(){
     const el=$('#aw-ord'),hint=$('#aw-ord-hint');
-    if(!el)return;
-    if(!used){el.value='';if(hint)hint.textContent='';return}
-    const m=String(used).match(/^(.*?)(\d+)$/);
-    if(!m){el.value='';if(hint)hint.textContent=(langHi()?'पिछला: ':'last: ')+used;return}
-    const next=m[1]+String(+m[2]+1).padStart(m[2].length,'0');
-    el.value=next;
-    if(hint)hint.innerHTML=(langHi()?'पिछला ':'after ')+'<b>'+esc(used)+'</b> — '+(langHi()?'अगला अपने आप भरा। गलत हो तो बदल दें।':'next one filled in. Change or clear it if wrong.');
+    if(el)el.value='';
+    if(hint)hint.textContent='';
   }
   const closeParcel=async(quiet)=>{
     if(!cur&&!pend)return;
@@ -6945,7 +6940,7 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
     await awbSetItems(rec,pend.items);
     if(ord){rec.orderNo=ord;rec.market=getMarket();await saveNow('awbs')}
     n++;
-    nextOrderNo(ord);          // offer the next number in the run
+    clearOrderNo();            // blank for the next parcel
     return rec;
   };
   /* A scan gun misfire produces fragments: a couple of characters, control codes,
