@@ -667,63 +667,93 @@ function ago(ts){const s=(Date.now()-ts)/1000;if(s<60)return 'just now';if(s<360
 function download(name,content,mime){const b=content instanceof Blob?content:new Blob([content],{type:mime||'text/plain'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(u);a.remove()},400)}
 /* ============================================================
    SOUNDS
-   Each one says which direction the stock moved, so a packer knows what
-   happened without looking up:
+   Bell-like tones, not buzzer square waves: a sine core with a little harmonic
+   on top, an instant attack and a natural decay, run through a low-pass filter
+   so nothing sounds harsh over a long shift.
+
      inward  → two notes RISING   (something came in)
      outward → two notes FALLING  (something went out)
-     problem → one short low buzz (not piercing — it happens often)
-     alarm   → the only high, urgent one, for things that must not happen
+     problem → one soft low thud  (happens often — must not hurt)
+     alarm   → the only bright, urgent one, for what must not happen
    ============================================================ */
 function audioCtx(){
   const c=beep.ctx||(beep.ctx=new (window.AudioContext||window.webkitAudioContext)());
   if(c.state==='suspended')c.resume();
   return c;
 }
-/* one note: square wave, instant attack, clean cut — carries over machine noise */
-function tone(ctx,at,dur,freq,vol,type){
-  const t=ctx.currentTime+at;
-  const o=ctx.createOscillator(),g=ctx.createGain();
-  o.type=type||'square';o.frequency.setValueAtTime(freq,t);
-  o.connect(g);g.connect(ctx.destination);
-  g.gain.setValueAtTime(0.0001,t);
-  g.gain.exponentialRampToValueAtTime(vol,t+.004);
-  g.gain.setValueAtTime(vol,t+Math.max(.02,dur-.012));
-  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
-  o.start(t);o.stop(t+dur+.01);
+/* One struck note. `bright` adds an octave harmonic; `glide` bends the pitch. */
+function note(ctx,at,freq,dur,vol,opt){
+  opt=opt||{};
+  const t0=ctx.currentTime+at;
+  const filt=ctx.createBiquadFilter();
+  filt.type='lowpass';
+  filt.frequency.setValueAtTime(Math.min(9000,freq*(opt.open||5)),t0);
+  filt.frequency.exponentialRampToValueAtTime(Math.max(400,freq*1.4),t0+dur);
+  filt.Q.value=.6;
+  const g=ctx.createGain();
+  g.gain.setValueAtTime(0.0001,t0);
+  g.gain.exponentialRampToValueAtTime(vol,t0+.008);            // struck, not clicked
+  g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);          // natural decay
+  filt.connect(g);g.connect(ctx.destination);
+  const mk=(type,f,lvl)=>{
+    const o=ctx.createOscillator();
+    o.type=type;o.frequency.setValueAtTime(f,t0);
+    if(opt.glide)o.frequency.exponentialRampToValueAtTime(f*opt.glide,t0+dur*.9);
+    const gg=ctx.createGain();gg.gain.value=lvl;
+    o.connect(gg);gg.connect(filt);
+    o.start(t0);o.stop(t0+dur+.02);
+  };
+  mk('sine',freq,1);                                            // the body
+  if(opt.bright)mk('triangle',freq*2,opt.bright);               // a little shine
+  if(opt.body)mk('sine',freq/2,opt.body);                       // weight underneath
 }
-/* stock coming IN — two notes going up */
+/* stock coming IN — a rising fifth, bright and quick */
 function soundIn(){
-  try{const c=audioCtx();tone(c,0,.09,760,.15);tone(c,.10,.13,1140,.15)}catch(e){}
-  if(navigator.vibrate)navigator.vibrate(55);
+  try{const c=audioCtx();
+    note(c,0,784,.16,.20,{bright:.22});                         // G5
+    note(c,.085,1175,.30,.22,{bright:.26});                     // D6
+  }catch(e){}
+  if(navigator.vibrate)navigator.vibrate(50);
 }
-/* stock going OUT — the same shape, going down */
+/* stock going OUT — the same interval, falling */
 function soundOut(){
-  try{const c=audioCtx();tone(c,0,.09,1140,.15);tone(c,.10,.13,760,.15)}catch(e){}
-  if(navigator.vibrate)navigator.vibrate(55);
+  try{const c=audioCtx();
+    note(c,0,1175,.16,.20,{bright:.22});
+    note(c,.085,784,.34,.22,{bright:.20,body:.25});
+  }catch(e){}
+  if(navigator.vibrate)navigator.vibrate(50);
 }
-/* something is wrong — short, low, blunt. Deliberately not piercing:
-   a refused scan happens many times a day and should not hurt. */
+/* something is wrong — a soft low thud that bends downward. Low and short so it
+   can be heard fifty times a day without wearing anyone out. */
 function soundBad(){
-  try{const c=audioCtx();tone(c,0,.13,196,.19,'square');tone(c,0,.13,155,.10,'sawtooth')}catch(e){}
-  if(navigator.vibrate)navigator.vibrate([90,70,90]);
+  try{const c=audioCtx();
+    note(c,0,196,.26,.30,{glide:.72,body:.55,open:3});
+  }catch(e){}
+  if(navigator.vibrate)navigator.vibrate([70,60,70]);
 }
-/* the ordinary scan beep. ok=true is a plain acknowledgement, not a direction. */
+/* the ordinary scan acknowledgement — one clean tick */
 function beep(ok){
   if(!ok){soundBad();return}
-  try{tone(audioCtx(),0,.11,1000,.14)}catch(e){}
-  if(navigator.vibrate)navigator.vibrate(45);
+  try{note(audioCtx(),0,1046,.13,.17,{bright:.2})}catch(e){}
+  if(navigator.vibrate)navigator.vibrate(40);
 }
-/* a whole parcel finished — three notes up, warmer than a scan beep */
+/* a whole parcel finished — a three-note major chord, warm */
 function successChime(){
-  try{const c=audioCtx();tone(c,0,.10,700,.14);tone(c,.11,.10,1050,.14);tone(c,.22,.17,1400,.15)}catch(e){}
+  try{const c=audioCtx();
+    note(c,0,784,.18,.18,{bright:.2});      // G5
+    note(c,.10,988,.20,.18,{bright:.2});    // B5
+    note(c,.20,1319,.42,.22,{bright:.3});   // E6
+  }catch(e){}
   if(navigator.vibrate)navigator.vibrate([50,40,50,40,90]);
 }
-/* THE ONLY HIGH, URGENT SOUND. Reserved for what must not happen: a parcel
-   going out that never came in, an unknown barcode, a forced dispatch. */
+/* THE ONLY URGENT SOUND. Two bright notes alternating three times, like a
+   hospital alert — impossible to mistake for a refused scan. */
 function alarmSound(){
-  try{
-    const c=audioCtx();
-    [0,.20,.40].forEach(at=>{tone(c,at,.15,1900,.26);tone(c,at,.15,1425,.13,'sawtooth')});
+  try{const c=audioCtx();
+    [0,.34,.68].forEach(at=>{
+      note(c,at,1568,.15,.34,{bright:.5,open:7});
+      note(c,at+.15,1245,.17,.32,{bright:.5,open:7});
+    });
   }catch(e){}
   if(navigator.vibrate)navigator.vibrate([160,90,160,90,260]);
 }
@@ -4464,6 +4494,16 @@ function vMore(){
   h+='<div class="ilist mb">'+
     rows
     .map(x=>'<div class="irow" data-go="'+x[0]+'"><span class="th" style="background:var(--saddle-bg);color:var(--saddle)">'+x[1]+'</span><div class="grow"><div class="nm">'+x[2]+'</div><div class="meta">'+x[3]+'</div></div>'+ico('chev','muted')+'</div>').join('')+'</div>';
+  h+='<div class="section-h"><h2>'+(langHi()?'आवाज़ें':'Sounds')+'</h2></div>'+
+    '<div class="card pad mb"><div class="sub mb">'+(langHi()?'दबाकर सुनें — स्कैन करते वक्त यही सुनाई देगा।':'Tap to hear each one — this is what the floor hears.')+'</div>'+
+    '<div class="actgrid">'+
+      '<button class="btn" data-snd="in">'+ico('down')+(langHi()?'अंदर आया':'Inward')+'</button>'+
+      '<button class="btn" data-snd="out">'+ico('truck')+(langHi()?'बाहर गया':'Outward')+'</button>'+
+      '<button class="btn" data-snd="ok">'+ico('check')+(langHi()?'स्कैन ठीक':'Scan ok')+'</button>'+
+      '<button class="btn" data-snd="done">'+ico('spark')+(langHi()?'पार्सल पूरा':'Parcel done')+'</button>'+
+      '<button class="btn" data-snd="bad">'+ico('x')+(langHi()?'गड़बड़':'Problem')+'</button>'+
+      '<button class="btn danger" data-snd="alarm">'+ico('bolt')+(langHi()?'अलार्म':'Alarm')+'</button>'+
+    '</div></div>';
   h+='<div class="section-h"><h2>Settings</h2></div><div class="card pad mb">'+
     '<div class="field"><label>Company / shop name</label><input class="in" id="st-co" value="'+esc(S.meta.company)+'" placeholder="Classy Leather Bags" '+(isAdminU()?'':'disabled')+'></div>'+
     '<div class="field"><label>Your name (shown in activity)</label><input class="in" id="st-us" value="'+esc(MODE==='cloud'?userName():S.meta.user)+'" placeholder="Trishal"></div>'+
@@ -4493,6 +4533,12 @@ function vMore(){
   if(isAdminU())h+='<button class="btn danger block" id="st-wipe">'+ico('trash')+'Erase all data</button>';
   $('#main').innerHTML=h;
   $$('#main [data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
+  $$('#main [data-snd]').forEach(b=>b.onclick=()=>{
+    const k=b.dataset.snd;
+    if(k==='in')soundIn();else if(k==='out')soundOut();
+    else if(k==='ok')beep(true);else if(k==='done')successChime();
+    else if(k==='bad')soundBad();else alarmSound();
+  });
   const pr=$('#mo-packreq');
   if(pr)pr.onclick=async()=>{
     const on=packRequired();
