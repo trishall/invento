@@ -4492,6 +4492,20 @@ function vMore(){
   if(isAdminU())h+='<button class="btn danger block" id="st-wipe">'+ico('trash')+'Erase all data</button>';
   $('#main').innerHTML=h;
   $$('#main [data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
+  const pr=$('#mo-packreq');
+  if(pr)pr.onclick=async()=>{
+    const on=packRequired();
+    const ok=await confirmDlg(
+      on?(langHi()?'पैकिंग ज़रूरी हटाएँ?':'Make packing optional again?'):(langHi()?'पैकिंग ज़रूरी करें?':'Make packing compulsory?'),
+      on?(langHi()?'इसके बाद बिना पैक हुए पार्सल भी बाहर जा सकेंगे।':'Unpacked parcels will be able to go out again.')
+        :(langHi()?'इसके बाद जो पार्सल पैक नहीं हुआ वो बाहर नहीं जाएगा। जो पार्सल अभी पेंडिंग हैं उन्हें पहले पैक करना होगा।':'From then on, a parcel that has not been packed cannot go out. Parcels already pending will have to be packed first.'),
+      on?(langHi()?'हाँ, हटाएँ':'Yes, make it optional'):(langHi()?'हाँ, ज़रूरी करें':'Yes, make it compulsory'),true);
+    if(!ok)return;
+    await setPackRequired(!on);
+    logTx('shipment',{detail:'Packing gate turned '+(!on?'ON':'OFF')+' · by '+userName()});
+    toast(!on?(langHi()?'अब पैकिंग ज़रूरी है':'Packing is now compulsory'):(langHi()?'पैकिंग अब ज़रूरी नहीं':'Packing is optional again'),'ok');
+    vMore();
+  };
   $('#st-save').onclick=async()=>{
     if(isAdminU()){
       S.meta.company=$('#st-co').value.trim();
@@ -5971,6 +5985,10 @@ async function awbReinward(a){
   return true;
 }
 const PACK_KEEP_DAYS=90;
+/* Packing gate. While OFF a parcel may go out unpacked — it only warns and marks
+   the record. Turn it on from More → Settings once the team is used to packing. */
+function packRequired(){return !!(S.meta&&S.meta.packRequired)}
+async function setPackRequired(v){S.meta.packRequired=!!v;await saveNow('meta')}
 /* A packing photo is kept for 90 days then deleted. It lives on its own document
    so a parcel record stays small and fast to load. */
 async function packPhotoSave(awbId,dataUrl){
@@ -6057,8 +6075,16 @@ async function dispatchAwbByNo(no,extra){
   if(a&&a.status==='cancelled'){beep(false);alarmSound();return {ok:false,msg:(langHi()?'यह ऑर्डर रद्द हो चुका है — बाहर नहीं जा सकता':'This shipment was cancelled — it cannot go out')}}
   if(a&&a.status==='dispatched'){beep(false);return {ok:false,msg:(langHi()?'यह पहले ही डिस्पैच हो चुका है · ':'Already dispatched · ')+ago(a.resolvedAt)+' · '+(a.resolvedBy||'')+(awbKey(no)!==awbKey(a.awb)?' · AWB '+a.awb:'')}}
   if(a&&a.status==='returned'){beep(false);return {ok:false,msg:(langHi()?'यह ऑफिस वापस जा चुका है · ':'Was returned to office · ')+ago(a.resolvedAt)}}
-  /* PACKING GATE IS OFF IN THIS BUILD — parcels can go out unpacked.
-     Swap in the main index.html to make packing compulsory again. */
+  /* Packing gate — refuses only when the rule is switched on. While off it still
+     tells the packer and marks the parcel, so the habit forms before it bites. */
+  if(a&&a.status==='accepted'){
+    if(packRequired()){
+      beep(false);alarmSound();
+      return {ok:false,msg:(langHi()?'यह पैक नहीं हुआ — पहले Packing स्क्रीन पर ले जाएँ':'Not packed yet — take it through the Packing screen first')};
+    }
+    a.wentOutUnpacked=true;
+    toast((langHi()?'⚠ पैक नहीं हुआ था — फिर भी भेजा · ':'⚠ Was not packed — sent anyway · ')+a.awb,'err');
+  }
   if(!a){ /* going OUT but never scanned IN — must never pass quietly */
     alarmSound();    toast('⚠ '+no+' — '+(langHi()?'अंदर स्कैन नहीं हुआ':'never scanned inward'),'err');
     return {ok:false,msg:(langHi()?'पहले Inward स्कैन करें':'Scan it inward first')};
@@ -6374,7 +6400,8 @@ function shipmentDlg(preQ){
           (a.status==='dispatched'?'<div class="h"><span class="dot"></span><div class="grow"><b>'+T('बाहर गया','Dispatched')+'</b> · '+esc(a.resolvedBy||'—')+(a.outCode&&awbKey(a.outCode)!==awbKey(a.awb)?' · '+T('स्कैन','scanned ')+esc(a.outCode):'')+
             '<div class="when">'+fmtDT(a.resolvedAt)+(moved.length?' · '+T('स्टॉक घटा: ','stock out: ')+esc(moved.map(x=>x.name+' ×'+fmtQty(x.outQty)+' ('+shelfName(x.outRack)+')').join(', ')):'')+'</div></div></div>':'')+
           (a.status==='returned'?'<div class="h"><span class="dot"></span><div class="grow"><b>'+T('ऑफिस वापस','Returned to office')+'</b> · '+esc(a.resolvedBy||'—')+'<div class="when">'+fmtDT(a.resolvedAt)+'</div></div></div>':'')+
-          (a.forced?'<div class="h"><span class="dot" style="background:var(--amber)"></span><div class="grow" style="color:var(--amber)"><b>'+T('ज़बरदस्ती डिस्पैच','Force dispatched')+'</b> · '+esc(a.forcedBy||'—')+' · '+esc(a.forcedWhy||'')+'<div class="when">'+T('यह अंदर स्कैन नहीं हुआ था','this parcel never came through Inward')+'</div></div></div>':'')+
+          (a.wentOutUnpacked?'<div class="h"><span class="dot" style="background:var(--amber)"></span><div class="grow" style="color:var(--amber)"><b>'+T('बिना पैक हुए बाहर गया','Went out without packing')+'</b><div class="when">'+T('उस समय पैकिंग ज़रूरी नहीं थी','packing was not compulsory at the time')+'</div></div></div>':'')+
+        (a.forced?'<div class="h"><span class="dot" style="background:var(--amber)"></span><div class="grow" style="color:var(--amber)"><b>'+T('ज़बरदस्ती डिस्पैच','Force dispatched')+'</b> · '+esc(a.forcedBy||'—')+' · '+esc(a.forcedWhy||'')+'<div class="when">'+T('यह अंदर स्कैन नहीं हुआ था','this parcel never came through Inward')+'</div></div></div>':'')+
           (a.reinwarded?'<div class="h"><span class="dot"></span><div class="grow"><b>'+T('हाथ से वापस लिया','Brought back in by hand')+'</b> ×'+a.reinwarded+(a.reinwardWhy?' · '+esc(a.reinwardWhy):'')+'</div></div>':'')+
           (a.status==='cancelled'?'<div class="h"><span class="dot" style="background:var(--red)"></span><div class="grow" style="color:var(--red)"><b>'+T('रद्द — रिकॉर्ड मिटा दिया','CANCELLED — record cleared')+'</b> · '+esc(a.cancelledBy||'—')+' · '+esc(a.cancelReason||'')+'<div class="when">'+fmtDT(a.cancelledAt)+' · '+T('पूरा ब्यौरा एक्टिविटी लॉग में','full detail is in the activity log')+'</div></div></div>':'')+
         '</div>'+
@@ -6798,6 +6825,9 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
        '<button class="btn" id="aw-cam" style="flex:0 0 auto">'+ico('camera')+'</button></div>'+
        '<input type="file" id="aw-pf" accept="image/*" capture="environment" style="display:none"><div id="aw-pv" class="mb"></div>';
   }
+  if(group)h+='<div class="field" style="margin-bottom:10px"><label>'+(langHi()?'ऑर्डर नंबर (ज़रूरी नहीं)':'Order number (optional)')+'</label>'+
+    '<div class="row" style="gap:6px"><input class="in mono grow" id="aw-ord" placeholder="'+(langHi()?'जैसे 54226 या amaz09092601':'e.g. 54226 or amaz09092601')+'" autocomplete="off" autocapitalize="off"><button class="btn" id="aw-ord-x" style="flex:0 0 auto" title="'+(langHi()?'खाली करें':'Clear')+'">'+ico('x')+'</button></div>'+
+    '<div class="hint" id="aw-ord-hint"></div></div>';
   if(group)h+='<div class="splitbox mb" id="aw-count" style="background:var(--green-bg);border:1px solid var(--green)"><div class="sl"><span>'+(langHi()?'अब तक इनवर्ड हुए':'Parcels inwarded so far')+'</span><b class="num" id="aw-n">0</b></div></div>';
   if(group)h+='<div id="aw-cur" style="margin-bottom:8px"></div>';
   h+='<div id="aw-feed2" class="sub" style="min-height:40px;margin-bottom:8px"></div>';
@@ -6832,7 +6862,8 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
     const codes=codesOf(),items=itemsOf(),saved=!!cur;
     box.innerHTML='<div class="awbmini '+(saved?'fresh':'aging')+'"><div class="awb-no">'+esc(codes[0]||'')+
       (saved?'':' <span class="pill low" style="font-size:9px">'+T('अभी दर्ज नहीं','not registered yet')+'</span>')+'</div>'+
-      '<div class="awb-meta">'+codes.length+' '+T('बारकोड इस पार्सल पर','barcode'+(codes.length===1?'':'s')+' on this parcel')+'</div>'+
+      '<div class="awb-meta">'+codes.length+' '+T('बारकोड इस पार्सल पर','barcode'+(codes.length===1?'':'s')+' on this parcel')+
+        (()=>{const e=$('#aw-ord'),v=e?(e.value||'').trim():'';return v?' · '+T('ऑर्डर ','order ')+'<span class="mono">'+esc(v)+'</span>':''})()+'</div>'+
       '<div class="sub mono" style="margin-top:3px">'+codes.map(c=>esc(c)+(awbShared(c)?' <span class="pill low" style="font-size:9px">'+T('कई लेबल','shared')+'</span>':'')).join(' · ')+'</div>'+
       (items.length
         ?'<div style="margin-top:6px;border-top:1px solid var(--line2);padding-top:5px">'+items.map((x,xi)=>'<div class="row" style="gap:6px;padding:2px 0;font-size:13px"><span class="grow ellip">'+esc(x.name)+(x.rack!==undefined?' <span class="skutag" style="font-size:10px">'+esc(shelfName(x.rack))+'</span>':'')+(x.manual?' <span class="pill warn" style="font-size:9px">'+T('नाम से','by name')+'</span>':'')+'</span><b class="num">×'+fmtQty(x.qty)+'</b><button class="icobtn ghost" data-rmitem="'+xi+'" style="width:26px;height:26px;flex:0 0 auto">'+ico('x')+'</button></div>').join('')+'</div>'
@@ -6854,6 +6885,18 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
       toast(T('हटाया','Removed'),'ok');paintCur();
     });
   };
+  /* amaz09092601 → amaz09092602. Saves retyping a long prefix all day.
+     The packer can overwrite or clear it; nothing is stored unless it is there. */
+  function nextOrderNo(used){
+    const el=$('#aw-ord'),hint=$('#aw-ord-hint');
+    if(!el)return;
+    if(!used){el.value='';if(hint)hint.textContent='';return}
+    const m=String(used).match(/^(.*?)(\d+)$/);
+    if(!m){el.value='';if(hint)hint.textContent=(langHi()?'पिछला: ':'last: ')+used;return}
+    const next=m[1]+String(+m[2]+1).padStart(m[2].length,'0');
+    el.value=next;
+    if(hint)hint.innerHTML=(langHi()?'पिछला ':'after ')+'<b>'+esc(used)+'</b> — '+(langHi()?'अगला अपने आप भरा। गलत हो तो बदल दें।':'next one filled in. Change or clear it if wrong.');
+  }
   const closeParcel=async(quiet)=>{
     if(!cur&&!pend)return;
     if(group&&!itemsOf().length){
@@ -6893,12 +6936,16 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
         return false;
       }
     }
+    const ordEl=$('#aw-ord');
+    const ord=ordEl?(ordEl.value||'').trim():'';
     const r=await onCode(pend.codes[0]);
     if(!r||!r.ok){errBox(pend.codes[0],(r&&r.msg));return false}
     const rec=r.rec;
     for(const c of pend.codes.slice(1))await awbAddCode(rec,c);
     await awbSetItems(rec,pend.items);
+    if(ord){rec.orderNo=ord;rec.market=getMarket();await saveNow('awbs')}
     n++;
+    nextOrderNo(ord);          // offer the next number in the run
     return rec;
   };
   /* A scan gun misfire produces fragments: a couple of characters, control codes,
@@ -7050,6 +7097,8 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
   inp.onkeydown=e=>{if(SUB_OPEN)return;if(e.key==='Enter'){e.preventDefault();const v=inp.value.trim();inp.value='';if(v)handle(v);else if(group)closeParcel()}};   /* closeParcel is async; fire-and-forget is fine here */
   if(group)paintCur();
   const nx=$('#aw-next');if(nx)nx.onclick=()=>{closeParcel();refocusSafe()};
+  const ox=$('#aw-ord-x');if(ox)ox.onclick=()=>{const e=$('#aw-ord');if(e){e.value='';e.focus()}const hh=$('#aw-ord-hint');if(hh)hh.textContent=''};
+  const oe=$('#aw-ord');if(oe)oe.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();refocusSafe()}};   /* Enter jumps to the scan field */
   function refocusSafe(){try{inp.focus()}catch(e){}}
   const refocus=()=>{try{inp.focus()}catch(e){}};refocus();
   let fi=null,stop=null;
