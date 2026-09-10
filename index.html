@@ -844,7 +844,7 @@ function can(act){
 const cap1=s=>{s=String(s||'');return s?s.charAt(0).toUpperCase()+s.slice(1):s};
 const shadows={};
 const dirty={};
-const SYNC_COLS=['items','folders','lists','pos','trash','dispatches','approvals','awbs'];
+const SYNC_COLS=['items','folders','lists','pos','trash','dispatches','approvals','awbs','workers'];
 
 function getSavedCfg(){
   if(FB_CONFIG && FB_CONFIG.projectId) return FB_CONFIG;
@@ -908,7 +908,7 @@ const store={
 
 /* ---------- app state ---------- */
 const DEFAULT_META=()=>({company:'',user:'',currency:'$',lowDefault:5,view:'grid',sort:'updated',seq:{pl:0,po:0,ds:0,rt:0},setup:{},market:'dom',locTerm:'Location',locTermPlural:'',perms:{additem:true,delitem:true,adjqty:true,editloc:true,trash:true,export:true,dispatch:true,awbAccept:true,awbDispatch:true,awbReturn:true,awbDelete:false}});
-const S={meta:DEFAULT_META(),folders:[],items:[],txns:[],lists:[],pos:[],trash:[],dispatches:[],approvals:[],awbs:[],packphotos:[]};
+const S={meta:DEFAULT_META(),folders:[],items:[],txns:[],lists:[],pos:[],trash:[],dispatches:[],approvals:[],awbs:[],packphotos:[],workers:[]};
 const UNITS=['unit','pcs','pair','set','box','pack','roll','sq.ft','sq.m','m','cm','ft','kg','g','L','ml','dozen'];
 
 function clean(o){const c=JSON.parse(JSON.stringify(o));Object.keys(c).forEach(k=>{if(k[0]==='_')delete c[k]});return c}
@@ -1087,6 +1087,7 @@ async function initCloud(cfg){
   wireCol('pos',db.collection('pos'),s=>mergeCol('pos',s.docs),true);
   wireCol('dispatches',db.collection('dispatches').orderBy('ts','desc').limit(400),s=>mergeCol('dispatches',s.docs),true);
   wireCol('approvals',db.collection('approvals'),s=>mergeCol('approvals',s.docs),true);
+  wireCol('workers',db.collection('workers'),s=>mergeCol('workers',s.docs),true);
   wireCol('awbs',db.collection('awbs').orderBy('acceptedAt','desc').limit(1000),s=>mergeCol('awbs',s.docs),true);
   wireCol('trash',db.collection('trash').orderBy('deletedAt','desc'),s=>mergeCol('trash',s.docs),true);
   wireCol('txns',db.collection('txns').where('ts','>=',Date.now()-30*86400000).orderBy('ts','desc').limit(1200),s=>{S.txns=s.docs.map(d=>{const x=d.data();x.id=d.id;return x})},true);
@@ -1134,11 +1135,47 @@ async function loadAll(){
 
 
 /* ---------- activity log ---------- */
+/* ================= WHO IS WORKING =================
+   One admin signs in on the warehouse machine and everyone shares it. Each
+   person taps their name and types a 6-digit code, so every movement is logged
+   against the person who actually did it — not the account that is logged in.
+   It changes NOTHING about permissions: the login still decides what is allowed. */
+const OP_KEY='invento.operator', OP_HOURS=10;
+let OPERATOR=null;
+function opLoad(){
+  try{
+    const raw=localStorage.getItem(OP_KEY);if(!raw)return null;
+    const o=JSON.parse(raw);
+    if(!o||!o.name||!o.at)return null;
+    if(Date.now()-o.at>OP_HOURS*3600000)return null;    // a new shift starts clean
+    return o;
+  }catch(e){return null}
+}
+function opSet(w){
+  OPERATOR=w?{id:w.id,name:w.name,at:Date.now()}:null;
+  try{OPERATOR?localStorage.setItem(OP_KEY,JSON.stringify(OPERATOR)):localStorage.removeItem(OP_KEY)}catch(e){}
+  updateBadges();
+}
+function opName(){return OPERATOR&&OPERATOR.name?OPERATOR.name:''}
+/* a 6-digit code, stored as a salted hash — never in plain text */
+async function pinHash(code,salt){
+  const data=new TextEncoder().encode(String(salt||'')+'|'+String(code));
+  const buf=await crypto.subtle.digest('SHA-256',data);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function workers(){return (S.workers||[]).filter(w=>!w.disabled).sort((a,b)=>String(a.name).localeCompare(String(b.name)))}
 function userName(){
+  const o=opName();
+  if(o)return o;                       // the person at the machine wins
   if(MODE==='cloud'&&fbUser){
     const n=(myProfile&&myProfile.name)||fbUser.displayName||String(fbUser.email||'').split('@')[0];
     return cap1(n)||'User';
   }
+  return S.meta.user||'You';
+}
+/* the account that is signed in, whatever name is on the front */
+function accountName(){
+  if(MODE==='cloud'&&fbUser)return cap1((myProfile&&myProfile.name)||fbUser.displayName||String(fbUser.email||'').split('@')[0])||'User';
   return S.meta.user||'You';
 }
 function logTx(act,o){
@@ -1456,7 +1493,10 @@ function roleLabel(){
 function signedIn(){return MODE!=='cloud'?bootDone:(!!fbUser && !!myProfile && myProfile.status==='active' && bootDone)}
 function acctButtonHTML(){
   if(!signedIn())return '<button class="icobtn ghost right" id="theme-only" aria-label="Theme">'+ico(getTheme()==='dark'?'sun':'moon')+'</button>';
-  return '<div class="tb-acct right"><button class="av" id="acct-btn" aria-label="Account">'+acctInitial()+'</button><div class="acctmenu" id="acct-menu"></div></div>';
+  const who=opName();
+  return (workers().length?'<button class="btn sm" id="who-btn" style="margin-right:6px;padding:5px 10px;min-height:0;'+(who?'':'border-color:var(--amber);color:var(--amber)')+'">'+
+      (who?ico('user')+esc(who.split(' ')[0]):ico('user')+(langHi()?'आप कौन?':'Who?'))+'</button>':'')+
+    '<div class="tb-acct right"><button class="av" id="acct-btn" aria-label="Account">'+acctInitial()+'</button><div class="acctmenu" id="acct-menu"></div></div>';
 }
 function refreshAcctMenu(){
   const m=$('#acct-menu');if(!m)return;
@@ -1498,6 +1538,21 @@ function setHwScanner(on){try{localStorage.setItem('invento_hwscan',on?'1':'0')}
 function closeAcct(){const m=$('#acct-menu');if(m)m.classList.remove('show')}
 function wireAcct(){
   const t=$('#theme-only');if(t)t.onclick=()=>{toggleTheme();const t2=$('#theme-only');if(t2)t2.innerHTML=ico(getTheme()==='dark'?'sun':'moon')};
+  const wb=$('#who-btn');
+  if(wb)wb.onclick=async()=>{
+    if(!opName()){await whoDlg(false);return}
+    const T=(hi,en)=>langHi()?hi:en;
+    openModal('<h3>'+esc(opName())+'</h3><p class="sub mb">'+T('अभी आपके नाम पर एंट्री दर्ज हो रही हैं।','Entries are being recorded against your name right now.')+'</p>'+
+      '<button class="btn pri block mb" id="wo-sw">'+T('कोई और काम करेगा','Someone else is taking over')+'</button>'+
+      '<button class="btn block mb" id="wo-off">'+T('काम बंद (नाम हटाएँ)','Finished — clear my name')+'</button>'+
+      '<button class="btn block" id="wo-x">'+T('वापस','Back')+'</button>');
+    $('#wo-sw').onclick=()=>{closeModal();whoDlg(false)};
+    $('#wo-off').onclick=()=>{
+      logTx('shipment',{detail:'Finished working: '+opName()});
+      opSet(null);closeModal();toast(T('नाम हटा दिया','Name cleared'),'ok');route();
+    };
+    $('#wo-x').onclick=closeModal;
+  };
   const b=$('#acct-btn');if(!b)return;
   b.onclick=e=>{e.stopPropagation();const m=$('#acct-menu');const open=m.classList.contains('show');closeAcct();if(!open){refreshAcctMenu();m.classList.add('show')}};
 }
@@ -1557,8 +1612,8 @@ function route(){
   const h=(location.hash||'#home').slice(1);
   const [p,a,b]=h.split('/');
   const main=$('#main');main.scrollTop=0;window.scrollTo(0,0);
-  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),ai:vAI,shopify:vShopify,skulink:vSkuLink,pack:vPack,flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals,awb:()=>vAwb(a||null,b||null),uniexport:()=>{vMore();setTimeout(exportUnicommerce,30)},backups:vBackups,dash:()=>vDash(30),help:vHelp,aiscan:vAiScan,exportall:()=>{vMore();setTimeout(exportAllItems,30)}};
-  setActiveNav(p==='item'||p==='edit'||p==='folders'?'stock':(p==='list'||p==='po'?'flows':((p==='trash'||p==='import'||p==='shopify'||p==='skulink')?'more':((p==='return'||p==='awb'||p==='aiscan'||p==='pack')?'dispatch':p))));
+  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),ai:vAI,shopify:vShopify,skulink:vSkuLink,pack:vPack,workers:vWorkers,flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals,awb:()=>vAwb(a||null,b||null),uniexport:()=>{vMore();setTimeout(exportUnicommerce,30)},backups:vBackups,dash:()=>vDash(30),help:vHelp,aiscan:vAiScan,exportall:()=>{vMore();setTimeout(exportAllItems,30)}};
+  setActiveNav(p==='item'||p==='edit'||p==='folders'?'stock':(p==='list'||p==='po'?'flows':((p==='trash'||p==='import'||p==='shopify'||p==='skulink'||p==='workers')?'more':((p==='return'||p==='awb'||p==='aiscan'||p==='pack')?'dispatch':p))));
   try{(map[p]||vHome)();}
   catch(e){
     console.error('view error',p,e);
@@ -4185,6 +4240,7 @@ async function forceDispatchDlg(preCode){
 }
 function vPack(){
   const T=(hi,en)=>langHi()?hi:en;
+  if(workers().length&&!opName()){whoDlg(true).then(ok=>{if(ok)vPack();else go('#awb')});return}
   topTitle(T('पैकिंग','Packing'),'#awb');
   let cur=null,stage='wait',shot='',busy=false,lastCode='',lastAt=0,done=0,stream=null,orderNo='',tries=0;
   let got=[],skipped=[],shotInfo=null;   // barcodes scanned / ones that could not be read / photo size
@@ -4420,6 +4476,127 @@ function vPack(){
   paint();focus();
   packPhotoPurge();
 }
+/* Tap your name, type your code. Nothing else changes. */
+async function whoDlg(force){
+  const T=(hi,en)=>langHi()?hi:en;
+  const list=workers();
+  if(!list.length){
+    if(isAdminU()){
+      const go=await confirmDlg(T('अभी कोई नाम नहीं जुड़ा','No names added yet'),
+        T('पहले टीम के नाम जोड़ने होंगे — More → काम कौन कर रहा है।','Add your team first — More → Who is working.'),T('अभी जोड़ें','Add them now'),false);
+      if(go)go2('#workers');
+    } else toast(T('एडमिन से नाम जुड़वाएँ','Ask an admin to add your name'),'err');
+    return false;
+  }
+  return await new Promise(res=>{
+    let picked=null,code='',bad=0;
+    const draw=()=>{
+      if(!picked){
+        openModal('<h3>'+T('आप कौन हैं?','Who is working?')+'</h3><p class="sub mb">'+T('अपना नाम दबाएँ — फिर 6 अंक का कोड।','Tap your name, then type your 6-digit code.')+'</p>'+
+          '<div class="ilist" style="max-height:52dvh;overflow-y:auto">'+list.map(w=>
+            '<div class="irow" data-w="'+w.id+'" style="cursor:pointer"><span class="th" style="background:var(--saddle-bg);color:var(--saddle);font-weight:800">'+esc(cap1(String(w.name).charAt(0)))+'</span><div class="grow"><div class="nm">'+esc(w.name)+'</div></div>'+ico('chev','muted')+'</div>').join('')+'</div>'+
+          (force?'':'<button class="btn block mt" id="w-x">'+T('अभी नहीं','Not now')+'</button>'));
+        $$('#modal [data-w]').forEach(el=>el.onclick=()=>{picked=list.find(w=>w.id===el.dataset.w);code='';draw()});
+        const x=$('#w-x');if(x)x.onclick=()=>{closeModal();res(false)};
+        return;
+      }
+      openModal('<h3>'+esc(picked.name)+'</h3><p class="sub mb">'+T('अपना 6 अंक का कोड लिखें','Type your 6-digit code')+'</p>'+
+        '<input class="in mono" id="w-pin" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" style="font-size:30px;letter-spacing:.32em;text-align:center;padding:14px" placeholder="······">'+
+        '<div id="w-msg" class="hint" style="min-height:20px;text-align:center"></div>'+
+        '<div class="row mt"><button class="btn grow" id="w-back">'+T('दूसरा नाम','Different name')+'</button>'+
+        '<button class="btn pri grow" id="w-go">'+T('शुरू करें','Start')+'</button></div>');
+      const pin=$('#w-pin'),msg=$('#w-msg');
+      setTimeout(()=>{try{pin.focus()}catch(e){}},60);
+      pin.oninput=()=>{pin.value=pin.value.replace(/\D/g,'').slice(0,6);if(pin.value.length===6)check()};
+      pin.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();check()}};
+      $('#w-back').onclick=()=>{picked=null;draw()};
+      $('#w-go').onclick=check;
+      async function check(){
+        const v=(pin.value||'').replace(/\D/g,'');
+        if(v.length!==6){msg.textContent=T('6 अंक चाहिए','6 digits needed');return}
+        const h=await pinHash(v,picked.id);
+        if(h!==picked.pin){
+          bad++;pin.value='';
+          msg.innerHTML='<span style="color:var(--red);font-weight:700">'+T('कोड गलत है','That code is wrong')+(bad>=3?' · '+T('एडमिन से नया कोड लें','ask an admin to reset it'):'')+'</span>';
+          beep(false);return;
+        }
+        opSet(picked);
+        logTx('shipment',{detail:'Started working: '+picked.name+' (on '+accountName()+"'s login)"});
+        closeModal();beep(true);
+        toast(T('नमस्ते ','Hello ')+picked.name,'ok');
+        res(true);route();
+      }
+    };
+    draw();
+  });
+}
+function go2(h){closeModal();go(h)}
+
+/* Admin: add people and give them a code */
+function vWorkers(){
+  const T=(hi,en)=>langHi()?hi:en;
+  if(!isAdminU()){toast(T('सिर्फ एडमिन','Admins only'),'err');go('#more');return}
+  topTitle(T('काम कौन कर रहा है','Who is working'),'#more');
+  const all=(S.workers||[]).slice().sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+  let h='<h1 class="page">'+T('काम कौन कर रहा है','Who is working')+'</h1>'+
+    '<div class="card pad mb"><div class="sub">'+T('एक ही लॉगिन पर सब काम करते हैं। हर व्यक्ति अपना नाम दबाकर 6 अंक का कोड डालेगा — तब हर एंट्री उसी के नाम पर दर्ज होगी। इससे किसी का अधिकार नहीं बदलता।','Everyone shares one login. Each person taps their name and types a 6-digit code, so every entry is recorded against them. It does not change what anyone is allowed to do.')+'</div></div>'+
+    '<button class="btn pri block mb" id="wk-add">'+ico('plus')+T('नया नाम जोड़ें','Add a person')+'</button>';
+  h+=all.length?('<div class="ilist">'+all.map(w=>
+      '<div class="irow" style="cursor:default"><span class="th" style="background:var(--saddle-bg);color:var(--saddle);font-weight:800">'+esc(cap1(String(w.name).charAt(0)))+'</span>'+
+      '<div class="grow"><div class="nm">'+esc(w.name)+(w.disabled?' <span class="pill low">'+T('बंद','off')+'</span>':'')+'</div>'+
+      '<div class="meta">'+(w.lastAt?T('आखिरी बार ','last worked ')+ago(w.lastAt):T('अभी तक नहीं','not yet used'))+'</div></div>'+
+      '<div class="row" style="width:100%;margin-top:9px;gap:7px;flex-wrap:wrap">'+
+        '<button class="btn sm" data-wpin="'+w.id+'">'+T('कोड बदलें','New code')+'</button>'+
+        '<button class="btn sm" data-wtog="'+w.id+'">'+(w.disabled?T('चालू करें','Turn on'):T('बंद करें','Turn off'))+'</button>'+
+        '<button class="btn sm danger" data-wdel="'+w.id+'">'+ico('trash')+T('हटाएँ','Remove')+'</button>'+
+      '</div></div>').join('')+'</div>')
+    :'<div class="empty">'+ico('users')+'<div class="t">'+T('अभी कोई नाम नहीं','No names yet')+'</div><div class="s">'+T('अपनी टीम के नाम जोड़ें','Add the people who work here')+'</div></div>';
+  $('#main').innerHTML=h;
+  $('#wk-add').onclick=()=>editWorker(null);
+  $$('#main [data-wpin]').forEach(b=>b.onclick=()=>editWorker((S.workers||[]).find(w=>w.id===b.dataset.wpin),true));
+  $$('#main [data-wtog]').forEach(b=>b.onclick=async()=>{
+    const w=(S.workers||[]).find(x=>x.id===b.dataset.wtog);if(!w)return;
+    w.disabled=!w.disabled;await saveNow('workers');
+    if(w.disabled&&OPERATOR&&OPERATOR.id===w.id)opSet(null);
+    vWorkers();
+  });
+  $$('#main [data-wdel]').forEach(b=>b.onclick=async()=>{
+    const w=(S.workers||[]).find(x=>x.id===b.dataset.wdel);if(!w)return;
+    if(!await confirmDlg(T('हटाएँ?','Remove?'),esc(w.name)+T(' को हटा दें? पुरानी एंट्री वैसी ही रहेंगी।',' will be removed. Past entries keep their name.'),T('हटाएँ','Remove'),true))return;
+    S.workers=(S.workers||[]).filter(x=>x.id!==w.id);await saveNow('workers');
+    if(OPERATOR&&OPERATOR.id===w.id)opSet(null);
+    vWorkers();
+  });
+}
+async function editWorker(w,pinOnly){
+  const T=(hi,en)=>langHi()?hi:en;
+  const isNew=!w;
+  openModal('<h3>'+(isNew?T('नया नाम','Add a person'):esc(w.name))+'</h3>'+
+    (pinOnly?'':'<div class="field"><label>'+T('नाम','Name')+'</label><input class="in" id="wk-n" value="'+esc(w?w.name:'')+'" placeholder="'+T('जैसे रमेश','e.g. Ramesh')+'" autocomplete="off"></div>')+
+    '<div class="field"><label>'+T('6 अंक का कोड','6-digit code')+'</label><input class="in mono" id="wk-p" inputmode="numeric" maxlength="6" placeholder="······" autocomplete="off" style="font-size:24px;letter-spacing:.28em;text-align:center"></div>'+
+    '<div class="hint">'+T('यह कोड उसी व्यक्ति को बताएँ। बाद में देखा नहीं जा सकता — भूल जाएँ तो नया बना दें।','Give this code to that person only. It cannot be read back later — if they forget it, make a new one.')+'</div>'+
+    '<div id="wk-msg" class="hint" style="min-height:18px"></div>'+
+    '<div class="row mt"><button class="btn grow" id="wk-x">'+T('रद्द','Cancel')+'</button><button class="btn pri grow" id="wk-s">'+T('सेव','Save')+'</button></div>');
+  $('#wk-x').onclick=closeModal;
+  $('#wk-p').oninput=e=>{e.target.value=e.target.value.replace(/\D/g,'').slice(0,6)};
+  $('#wk-s').onclick=async()=>{
+    const msg=$('#wk-msg');
+    const name=pinOnly?w.name:($('#wk-n').value||'').trim();
+    const code=($('#wk-p').value||'').replace(/\D/g,'');
+    if(!name){msg.innerHTML='<span style="color:var(--red)">'+T('नाम लिखें','Type a name')+'</span>';return}
+    if(code.length!==6){msg.innerHTML='<span style="color:var(--red)">'+T('कोड 6 अंक का होना चाहिए','The code must be 6 digits')+'</span>';return}
+    if(/^(\d)\1{5}$/.test(code)||code==='123456'||code==='654321'){msg.innerHTML='<span style="color:var(--red)">'+T('यह कोड बहुत आसान है','That code is too easy to guess')+'</span>';return}
+    const id=w?w.id:uid('wk');
+    const rec=w||{id:id,createdAt:Date.now()};
+    rec.name=name;rec.pin=await pinHash(code,id);rec.disabled=!!rec.disabled;
+    if(!w)S.workers=(S.workers||[]).concat([rec]);
+    await saveNow('workers');
+    logTx('shipment',{detail:(isNew?'Added ':'New code for ')+name+' · by '+accountName()});
+    closeModal();toast(isNew?T('जुड़ गया','Added'):T('नया कोड बन गया','New code set'),'ok');
+    vWorkers();
+  };
+  setTimeout(()=>{try{(pinOnly?$('#wk-p'):$('#wk-n')).focus()}catch(e){}},60);
+}
 function vShopify(){
   topTitle('Shopify','#more');
   const T=(hi,en)=>langHi()?hi:en;
@@ -4479,6 +4656,7 @@ function vMore(){
   if(can('export'))rows.push(['#import',ico('csv'),'Import CSV','Bring items in from Excel / Sheets']);
   if(can('export'))rows.push(['#exportall',ico('down'),'Export all items','Download your full catalog as CSV']);
   if(can('export'))rows.push(['#uniexport',ico('down'),'Export to Unicommerce','Inventory adjustment CSV — sync recent stock changes']);
+  if(isAdminU())rows.push(['#workers',ico('users'),'Who is working','Add your team and give each one a 6-digit code']);
   if(can('export'))rows.push(['#skulink',ico('csv'),'Link SKUs','Give an item a second code — Sortly, Unicommerce or Shopify']);
   if(isAdminU())rows.push(['#shopify',ico('spark'),'Shopify','Push Invento stock into your Shopify stores']);
   rows.push(['#trash',ico('trash'),'Trash','Restore deleted items ('+S.trash.length+')']);
@@ -7933,6 +8111,7 @@ function bootLoaderHTML(msg,sub){
   if(res==='login'){vLogin();return}
   if(res==='pending'){vPending();return}
   if(res==='revoked'){vRevoked();return}
+  OPERATOR=opLoad();      // the person from earlier in the shift, if the code is still fresh
   bootDone=true;
   scheduleAutoPO();
   setTimeout(()=>{autoRecoveryCheck()},4000);
