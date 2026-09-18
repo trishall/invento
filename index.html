@@ -2402,14 +2402,42 @@ function cloneDlg(i){
     '<div class="f2"><div class="field"><label>Copies</label><input class="in num" id="cl-n" inputmode="numeric" value="1"></div>'+
     '<div class="field"><label>Quantity each</label><input class="in num" id="cl-q" inputmode="decimal" value="'+fmtQty(i.qty)+'"></div></div>'+
     '<div class="field"><label>Into '+locL()+'</label><select class="in" id="cl-f">'+folderSelect(i.folder)+'</select></div>'+
+    '<div class="field"><label>Name'+(langHi()?'':'')+'</label><input class="in" id="cl-name" value="'+esc(i.name)+'" autocomplete="off"></div>'+
+    '<div class="field"><label>SKU</label><input class="in mono" id="cl-sku" placeholder="'+(langHi()?'खाली छोड़ें तो अपने आप बनेगा':'leave blank to generate one')+'" autocomplete="off"></div>'+
     '<label class="row mb" style="gap:8px;font-size:14px"><input type="checkbox" id="cl-suffix" checked> Add “(copy)” to the name</label>'+
+    '<div class="hint" id="cl-prev"></div>'+
     '<button class="btn pri block" id="cl-go">'+ico('copy')+'Clone</button>');
+  /* show exactly what the copies will be called before anything is created */
+  const nameOf=(base,sfx,n,k)=>base+(sfx?' (copy'+(n>1?' '+(k+1):'')+')':(n>1?' '+(k+1):''));
+  const preview=()=>{
+    const el=$('#cl-prev');if(!el)return;
+    const base=($('#cl-name').value||'').trim()||i.name;
+    const n=clamp(parseInt($('#cl-n').value)||1,1,50);
+    const sfx=$('#cl-suffix').checked;
+    const names=[];
+    for(let k=0;k<Math.min(n,3);k++)names.push(nameOf(base,sfx,n,k));
+    el.innerHTML=(langHi()?'बनेंगे: ':'Will create: ')+'<b>'+names.map(esc).join('</b>, <b>')+'</b>'+(n>3?' … +'+(n-3):'');
+  };
+  ['#cl-name','#cl-n'].forEach(s=>{const e=$(s);if(e)e.oninput=preview});
+  $('#cl-suffix').onchange=preview;
+  preview();
   $('#cl-go').onclick=async()=>{
     const n=clamp(parseInt($('#cl-n').value)||1,1,50);const q=round4(parseFloat($('#cl-q').value)||0);const f=$('#cl-f').value||null;const sfx=$('#cl-suffix').checked;
+    const base=($('#cl-name').value||'').trim()||i.name;
+    const sku=($('#cl-sku').value||'').trim();
+    if(sku){
+      if(n>1){toast(langHi()?'एक ही SKU कई कॉपी पर नहीं — कॉपी 1 रखें या SKU खाली छोड़ें':'One SKU cannot go on several copies — set copies to 1, or leave the SKU blank','err');return}
+      const clash=findByCode(sku);
+      if(clash){toast((langHi()?'यह SKU पहले से है: ':'That SKU already belongs to: ')+clash.name,'err');return}
+    }
     const ps=await getPhotos(i.id);
     for(let k=0;k<n;k++){
-      const c=newItem(Object.assign(JSON.parse(JSON.stringify(i)),{id:uid('i'),folder:f,qty:q,name:i.name+(sfx?' (copy'+(n>1?' '+(k+1):'')+')':''),createdAt:Date.now(),updatedAt:Date.now()}));
-      delete c._thumbCand;S.items.push(c);
+      const c=newItem(Object.assign(JSON.parse(JSON.stringify(i)),{id:uid('i'),folder:f,qty:q,name:nameOf(base,sfx,n,k),createdAt:Date.now(),updatedAt:Date.now()}));
+      delete c._thumbCand;
+      /* a copy must never carry the original's codes */
+      c.sku='';c.code='';c.alt=[];
+      c.skus=sku?[sku]:[];
+      S.items.push(c);
       if(ps.length)await setPhotos(c.id,ps);
       logTx('cloned',{itemId:c.id,itemName:c.name,detail:'from '+i.name});
     }
