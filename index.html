@@ -828,6 +828,10 @@ const CLOUD_ENABLED = true;
 let MODE='local';
 let db=null, fbApp=null, fbUser=null, cloudReady=false, authErr='', activeCfg=null, bootDone=false;
 const MAINFRAME_ID='trishal';
+/* Owner logins. These always hold the top role — if the profile ever loses it,
+   it is put back at sign-in, so the owner can never be locked out of the app. */
+const OWNER_EMAILS=['trishallohar1994@gmail.com', MAINFRAME_ID+'@invento.app'];
+const isOwnerLogin=()=>!!(fbUser&&fbUser.email&&OWNER_EMAILS.indexOf(String(fbUser.email).toLowerCase())>=0);
 let myProfile=null;
 const isAdminU=()=>MODE!=='cloud'||(myProfile&&(myProfile.role==='admin'||myProfile.role==='mainframe'));
 const isMF=()=>MODE==='cloud'&&myProfile&&myProfile.role==='mainframe';
@@ -1045,11 +1049,21 @@ async function initCloud(cfg){
   MODE='cloud';
   // --- my profile (role/status) ---
   const uref=db.collection('users').doc(fbUser.uid);
-  let us;try{us=await uref.get()}catch(e){throw new Error('Could not read your user profile — check the security rules were published. ('+(e.message||e)+')')}
+  let us,fromServer=false;
+  try{us=await uref.get({source:'server'});fromServer=true}
+  catch(e){
+    /* offline, or the read was refused. Fall back to the cache but do NOT treat
+       a cache miss as "this person has no profile". */
+    try{us=await uref.get({source:'cache'})}catch(e2){us=null}
+    if(!us||!us.exists)throw new Error('Could not reach the server to read your profile. Check the connection and try again — nothing has been changed. ('+((e&&e.message)||e)+')');
+  }
+  if(!us.exists&&!fromServer){
+    throw new Error('Could not confirm your profile with the server. Try again when the connection is back.');
+  }
   if(!us.exists){
     const em=String(fbUser.email||'');
     const uidName=em?em.split('@')[0].toLowerCase():('ph'+String(fbUser.phoneNumber||'').replace(/\D/g,'').slice(-4));
-    const isMF0=em===(MAINFRAME_ID+'@invento.app');
+    const isMF0=OWNER_EMAILS.indexOf(em.toLowerCase())>=0;
     const prof={id:fbUser.uid,userid:uidName,name:fbUser.displayName||cap1(uidName),
       role:isMF0?'mainframe':'user',
       status:isMF0?'active':'pending',createdAt:Date.now()};
@@ -1060,6 +1074,13 @@ async function initCloud(cfg){
     // if the user completed an email change (verifyBeforeUpdateEmail), sync it to the profile
     if(fbUser.email && fbUser.email.indexOf('@invento.app')<0 && myProfile.email!==fbUser.email){
       try{await uref.set({email:fbUser.email},{merge:true});myProfile.email=fbUser.email}catch(e){}
+    }
+    /* an owner who has lost the top role gets it back, quietly */
+    if(isOwnerLogin()&&(myProfile.role!=='mainframe'||myProfile.status!=='active')){
+      try{
+        await uref.set({role:'mainframe',status:'active'},{merge:true});
+        myProfile.role='mainframe';myProfile.status='active';
+      }catch(e){console.error('owner restore',e)}
     }
   }
   if(myProfile.status!=='active')return myProfile.status==='revoked'?'revoked':'pending';
