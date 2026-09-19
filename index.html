@@ -738,14 +738,18 @@ function beep(ok){
   try{const c=audioCtx();partial(c,0,2093,.085,.16);partial(c,0,4186,.05,.05)}catch(e){}
   if(navigator.vibrate)navigator.vibrate(35);
 }
-/* a soft low thud — no sting, heard fifty times a day */
+/* WRONG. Two blunt notes falling, with a hard edge on them — heard across a
+   noisy godown and impossible to mistake for the "ok" tick, but still low
+   enough that hearing it fifty times a day does not wear anyone down. */
 function soundBad(){
   try{const c=audioCtx();
-    partial(c,0,180,.30,.30);
-    partial(c,0,120,.34,.20);
-    partial(c,.02,240,.18,.10,'triangle');
+    partial(c,0,330,.16,.34,'square');
+    partial(c,0,165,.20,.24);
+    partial(c,.13,247,.30,.34,'square');
+    partial(c,.13,123,.34,.24);
+    partial(c,.13,494,.16,.10,'triangle');
   }catch(e){}
-  if(navigator.vibrate)navigator.vibrate([70,60,70]);
+  if(navigator.vibrate)navigator.vibrate([110,70,150]);
 }
 /* a whole parcel finished — a short warm arpeggio */
 function successChime(){
@@ -759,12 +763,15 @@ function successChime(){
 /* THE ONLY URGENT SOUND — two bright notes alternating three times */
 function alarmSound(){
   try{const c=audioCtx();
-    [0,.34,.68].forEach(at=>{
-      partial(c,at,1568,.14,.30,'triangle');partial(c,at,3136,.10,.12);
-      partial(c,at+.15,1245,.16,.30,'triangle');partial(c,at+.15,2490,.11,.12);
+    /* must stay clearly above the wrong-scan sound — this one means STOP */
+    [0,.30,.60].forEach(at=>{
+      partial(c,at,1568,.20,.46,'square');partial(c,at,3136,.14,.20);
+      partial(c,at,784,.18,.16);
+      partial(c,at+.14,1245,.22,.46,'square');partial(c,at+.14,2490,.15,.20);
+      partial(c,at+.14,622,.20,.16);
     });
   }catch(e){}
-  if(navigator.vibrate)navigator.vibrate([160,90,160,90,260]);
+  if(navigator.vibrate)navigator.vibrate([200,80,200,80,320]);
 }
 function toast(msg,kind){const t=document.createElement('div');t.className='toast'+(kind?' '+kind:'');t.textContent=msg;$('#toasts').appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .3s'},2400);setTimeout(()=>t.remove(),2800)}
 function lazyScript(src){lazyScript.c=lazyScript.c||{};if(lazyScript.c[src])return lazyScript.c[src];lazyScript.c[src]=new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('load failed'));document.head.appendChild(s)});return lazyScript.c[src]}
@@ -4780,12 +4787,9 @@ function vMore(){
     '<label class="row mt" style="gap:8px;font-size:13.5px"><input type="checkbox" id="bk-ph" checked> Include photos (bigger file)</label></div>';
   if(!S.items.length&&!S.folders.length)h+='<button class="btn block mb" id="st-sample">Load sample leather-goods data</button>';
   h+='<div class="section-h"><h2>About</h2></div><div class="card pad mb"><p class="sub"><b>Invento</b> — team inventory that syncs live to every device and keeps working offline. For camera scanning, open the file in Chrome on your phone. Developed by <b>Trishal</b>.</p></div>';
-  /* Erasing everything is hidden. Only the owner can reach it, and only by
-     typing the word below — there is no button to hit by accident. */
-  if(isOwnerLogin())h+='<div class="hint" style="margin-top:14px;opacity:.5">'+
-    (langHi()?'सब कुछ मिटाने के लिए नीचे <b>ERASE ALL DATA</b> टाइप करें।':'To erase everything, type <b>ERASE ALL DATA</b> below.')+
-    '</div><input class="in mono" id="st-wipekey" placeholder="" autocomplete="off" style="opacity:.5;margin-top:6px">'+
-    '<div id="st-wipebox"></div>';
+  /* There is no "erase all data" any more. Wiping the whole warehouse was one
+     tap from a screen the team uses daily. Items go to Trash; a real reset is a
+     job for the Firebase console, deliberately. */
   $('#main').innerHTML=h;
   $$('#main [data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
   $$('#main [data-snd]').forEach(b=>b.onclick=()=>{
@@ -4861,54 +4865,6 @@ function vMore(){
     r.readAsText(f);
   };
   const sm=$('#st-sample');if(sm)sm.onclick=async()=>{sm.disabled=true;await loadSample();toast('Sample data loaded','ok');route()};
-  const wk=$('#st-wipekey');
-  if(wk)wk.oninput=()=>{
-    const box=$('#st-wipebox');
-    if((wk.value||'').trim().toUpperCase()!=='ERASE ALL DATA'){box.innerHTML='';return}
-    box.innerHTML='<button class="btn danger block mt" id="st-wipe">'+ico('trash')+(langHi()?'सब कुछ मिटाएँ':'Erase all data')+'</button>';
-    wireWipe();
-  };
-  function wireWipe(){
-  const wb=$('#st-wipe');if(wb)wb.onclick=async()=>{
-    const n=(S.items||[]).length,f=(S.folders||[]).length;
-    const ok=await confirmDlg(langHi()?'सब कुछ मिटाएँ?':'Erase everything?',
-      (langHi()?'<b>'+n+'</b> आइटम, <b>'+f+'</b> जगह, सारी हिस्ट्री और फोटो हमेशा के लिए मिट जाएँगी'
-               :'<b>'+n+'</b> items, <b>'+f+'</b> '+locLP()+', all history and all photos will be permanently deleted')+
-      (MODE==='cloud'?(langHi()?' — पूरी टीम के लिए।':' for the whole team.'):'.')+
-      (langHi()?' पहले बैकअप ले लें।':' Take a backup first.'),
-      langHi()?'सब मिटाएँ':'Erase all',true);
-    if(!ok)return;
-    /* last gate: the owner's own password */
-    if(MODE==='cloud'&&fbUser&&fbUser.email){
-      const pw=await promptDlg(langHi()?'अपना पासवर्ड डालें':'Type your password',
-        langHi()?'मिटाने से पहले पहचान पक्की करनी है।':'Confirming it is really you before anything is deleted.','password');
-      if(!pw)return;
-      try{
-        const cred=firebase.auth.EmailAuthProvider.credential(fbUser.email,pw);
-        await fbUser.reauthenticateWithCredential(cred);
-      }catch(e){toast(langHi()?'पासवर्ड गलत — कुछ नहीं मिटाया':'Wrong password — nothing was deleted','err');return}
-    }
-    $('#st-wipe').disabled=true;$('#st-wipe').textContent='Erasing…';
-    if(MODE==='cloud'){
-      try{
-        for(const c of ['items','folders','txns','lists','pos','trash','photos']){
-          let q=await db.collection(c).limit(400).get();
-          while(!q.empty){const b=db.batch();q.docs.forEach(d=>b.delete(d.ref));await b.commit();q=await db.collection(c).limit(400).get()}
-        }
-        await db.collection('meta').doc('app').delete();
-      }catch(e){toast('Erase failed: '+(e.message||e),'err');route();return}
-      Object.keys(shadows).forEach(k=>delete shadows[k]);
-      S.meta=DEFAULT_META();S.folders=[];S.items=[];S.txns=[];S.lists=[];S.pos=[];S.trash=[];
-      await saveNow('meta');
-    } else {
-      const keys=await store.listPhotoKeys();
-      for(const k of keys)await store.del(k);
-      S.meta=DEFAULT_META();S.folders=[];S.items=[];S.txns=[];S.lists=[];S.pos=[];S.trash=[];
-      await Promise.all(['meta','folders','items','txns','lists','pos','trash','dispatches','approvals','awbs'].map(saveNow));
-    }
-    toast('All data erased');paintNav();go('#home');
-  };
-  }   /* end wireWipe */
 }
 
 function vTrash(){
