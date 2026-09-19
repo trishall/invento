@@ -667,92 +667,101 @@ function ago(ts){const s=(Date.now()-ts)/1000;if(s<60)return 'just now';if(s<360
 function download(name,content,mime){const b=content instanceof Blob?content:new Blob([content],{type:mime||'text/plain'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(u);a.remove()},400)}
 /* ============================================================
    SOUNDS
-   Bell-like tones, not buzzer square waves: a sine core with a little harmonic
-   on top, an instant attack and a natural decay, run through a low-pass filter
-   so nothing sounds harsh over a long shift.
+   Built from partials rather than plain tones, so they sound like struck metal
+   instead of a buzzer.
 
-     inward  → two notes RISING   (something came in)
-     outward → two notes FALLING  (something went out)
-     problem → one soft low thud  (happens often — must not hurt)
-     alarm   → the only bright, urgent one, for what must not happen
+     inward  → a till "ka-ching": bright bell over a coin-tray click (a sale)
+     outward → a firm two-note fall, the parcel leaving
+     scan ok → one crisp supermarket tick
+     problem → a soft low thud (heard all day — must not sting)
+     alarm   → the only urgent sound in the app
    ============================================================ */
 function audioCtx(){
   const c=beep.ctx||(beep.ctx=new (window.AudioContext||window.webkitAudioContext)());
   if(c.state==='suspended')c.resume();
   return c;
 }
-/* One struck note. `bright` adds an octave harmonic; `glide` bends the pitch. */
-function note(ctx,at,freq,dur,vol,opt){
-  opt=opt||{};
+/* One partial of a struck sound. Real bells are inharmonic — the overtones are
+   not whole multiples — which is what gives the metal its ring. */
+function partial(ctx,at,freq,dur,vol,type){
   const t0=ctx.currentTime+at;
-  const filt=ctx.createBiquadFilter();
-  filt.type='lowpass';
-  filt.frequency.setValueAtTime(Math.min(9000,freq*(opt.open||5)),t0);
-  filt.frequency.exponentialRampToValueAtTime(Math.max(400,freq*1.4),t0+dur);
-  filt.Q.value=.6;
-  const g=ctx.createGain();
+  const o=ctx.createOscillator(),g=ctx.createGain();
+  o.type=type||'sine';o.frequency.setValueAtTime(freq,t0);
+  o.connect(g);g.connect(ctx.destination);
   g.gain.setValueAtTime(0.0001,t0);
-  g.gain.exponentialRampToValueAtTime(vol,t0+.008);            // struck, not clicked
-  g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);          // natural decay
-  filt.connect(g);g.connect(ctx.destination);
-  const mk=(type,f,lvl)=>{
-    const o=ctx.createOscillator();
-    o.type=type;o.frequency.setValueAtTime(f,t0);
-    if(opt.glide)o.frequency.exponentialRampToValueAtTime(f*opt.glide,t0+dur*.9);
-    const gg=ctx.createGain();gg.gain.value=lvl;
-    o.connect(gg);gg.connect(filt);
-    o.start(t0);o.stop(t0+dur+.02);
-  };
-  mk('sine',freq,1);                                            // the body
-  if(opt.bright)mk('triangle',freq*2,opt.bright);               // a little shine
-  if(opt.body)mk('sine',freq/2,opt.body);                       // weight underneath
+  g.gain.exponentialRampToValueAtTime(vol,t0+.004);
+  /* setTargetAtTime decays the way a struck object really does — the ring
+     hangs on instead of collapsing, which is what makes it read as metal. */
+  g.gain.setTargetAtTime(0.0001,t0+.005,dur/3.2);
+  o.start(t0);o.stop(t0+dur+.05);
 }
-/* stock coming IN — a rising fifth, bright and quick */
+/* A struck bell: a fundamental plus inharmonic overtones that fade faster. */
+function bell(ctx,at,freq,dur,vol){
+  partial(ctx,at,freq,dur,vol);
+  partial(ctx,at,freq*2.02,dur*.72,vol*.55);      // slightly sharp — metallic shimmer
+  partial(ctx,at,freq*2.76,dur*.48,vol*.32);
+  partial(ctx,at,freq*4.18,dur*.30,vol*.18);
+}
+/* the coin-tray click under a till sound: a very short noise burst */
+function clack(ctx,at,vol){
+  const len=Math.floor(ctx.sampleRate*.05);
+  const buf=ctx.createBuffer(1,len,ctx.sampleRate);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,7);
+  const s=ctx.createBufferSource();s.buffer=buf;
+  const bp=ctx.createBiquadFilter();bp.type='bandpass';bp.frequency.value=2600;bp.Q.value=1.1;
+  const g=ctx.createGain();g.gain.value=vol;
+  s.connect(bp);bp.connect(g);g.connect(ctx.destination);
+  s.start(ctx.currentTime+at);
+}
+/* INWARD — a sale rang up on a till */
 function soundIn(){
   try{const c=audioCtx();
-    note(c,0,784,.16,.20,{bright:.22});                         // G5
-    note(c,.085,1175,.30,.22,{bright:.26});                     // D6
+    clack(c,0,.22);                 // the drawer
+    bell(c,.012,1568,.62,.17);      // G6
+    bell(c,.075,2093,.85,.15);      // C7 — the shimmer that says "ka-ching"
   }catch(e){}
-  if(navigator.vibrate)navigator.vibrate(50);
+  if(navigator.vibrate)navigator.vibrate(55);
 }
-/* stock going OUT — the same interval, falling */
+/* OUTWARD — firm, downward, done */
 function soundOut(){
   try{const c=audioCtx();
-    note(c,0,1175,.16,.20,{bright:.22});
-    note(c,.085,784,.34,.22,{bright:.20,body:.25});
+    bell(c,0,1175,.26,.17);
+    bell(c,.10,784,.55,.18);
+    partial(c,.10,392,.42,.09);     // a little weight underneath
   }catch(e){}
   if(navigator.vibrate)navigator.vibrate(50);
 }
-/* something is wrong — a soft low thud that bends downward. Low and short so it
-   can be heard fifty times a day without wearing anyone out. */
+/* one crisp tick, like a supermarket scanner */
+function beep(ok){
+  if(!ok){soundBad();return}
+  try{const c=audioCtx();partial(c,0,2093,.085,.16);partial(c,0,4186,.05,.05)}catch(e){}
+  if(navigator.vibrate)navigator.vibrate(35);
+}
+/* a soft low thud — no sting, heard fifty times a day */
 function soundBad(){
   try{const c=audioCtx();
-    note(c,0,196,.26,.30,{glide:.72,body:.55,open:3});
+    partial(c,0,180,.30,.30);
+    partial(c,0,120,.34,.20);
+    partial(c,.02,240,.18,.10,'triangle');
   }catch(e){}
   if(navigator.vibrate)navigator.vibrate([70,60,70]);
 }
-/* the ordinary scan acknowledgement — one clean tick */
-function beep(ok){
-  if(!ok){soundBad();return}
-  try{note(audioCtx(),0,1046,.13,.17,{bright:.2})}catch(e){}
-  if(navigator.vibrate)navigator.vibrate(40);
-}
-/* a whole parcel finished — a three-note major chord, warm */
+/* a whole parcel finished — a short warm arpeggio */
 function successChime(){
   try{const c=audioCtx();
-    note(c,0,784,.18,.18,{bright:.2});      // G5
-    note(c,.10,988,.20,.18,{bright:.2});    // B5
-    note(c,.20,1319,.42,.22,{bright:.3});   // E6
+    bell(c,0,1046,.30,.14);
+    bell(c,.10,1319,.34,.14);
+    bell(c,.20,1568,.70,.17);
   }catch(e){}
   if(navigator.vibrate)navigator.vibrate([50,40,50,40,90]);
 }
-/* THE ONLY URGENT SOUND. Two bright notes alternating three times, like a
-   hospital alert — impossible to mistake for a refused scan. */
+/* THE ONLY URGENT SOUND — two bright notes alternating three times */
 function alarmSound(){
   try{const c=audioCtx();
     [0,.34,.68].forEach(at=>{
-      note(c,at,1568,.15,.34,{bright:.5,open:7});
-      note(c,at+.15,1245,.17,.32,{bright:.5,open:7});
+      partial(c,at,1568,.14,.30,'triangle');partial(c,at,3136,.10,.12);
+      partial(c,at+.15,1245,.16,.30,'triangle');partial(c,at+.15,2490,.11,.12);
     });
   }catch(e){}
   if(navigator.vibrate)navigator.vibrate([160,90,160,90,260]);
