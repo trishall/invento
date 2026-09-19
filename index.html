@@ -4617,6 +4617,20 @@ function vWorkers(){
     vWorkers();
   });
 }
+/* ask for something sensitive without echoing it anywhere */
+function promptDlg(title,sub,type){
+  return new Promise(res=>{
+    openModal('<h3>'+esc(title)+'</h3>'+(sub?'<p class="sub mb">'+esc(sub)+'</p>':'')+
+      '<input class="in" id="pd-v" type="'+(type||'text')+'" autocomplete="off">'+
+      '<div class="row mt"><button class="btn grow" id="pd-x">'+(langHi()?'रद्द':'Cancel')+'</button>'+
+      '<button class="btn pri grow" id="pd-ok">'+(langHi()?'ठीक है':'Continue')+'</button></div>');
+    const v=$('#pd-v');setTimeout(()=>{try{v.focus()}catch(e){}},60);
+    const done=val=>{closeModal();res(val)};
+    v.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();done(v.value||'')}};
+    $('#pd-ok').onclick=()=>done(v.value||'');
+    $('#pd-x').onclick=()=>done('');
+  });
+}
 async function editWorker(w,pinOnly){
   const T=(hi,en)=>langHi()?hi:en;
   const isNew=!w;
@@ -4757,7 +4771,12 @@ function vMore(){
     '<label class="row mt" style="gap:8px;font-size:13.5px"><input type="checkbox" id="bk-ph" checked> Include photos (bigger file)</label></div>';
   if(!S.items.length&&!S.folders.length)h+='<button class="btn block mb" id="st-sample">Load sample leather-goods data</button>';
   h+='<div class="section-h"><h2>About</h2></div><div class="card pad mb"><p class="sub"><b>Invento</b> — team inventory that syncs live to every device and keeps working offline. For camera scanning, open the file in Chrome on your phone. Developed by <b>Trishal</b>.</p></div>';
-  if(isAdminU())h+='<button class="btn danger block" id="st-wipe">'+ico('trash')+'Erase all data</button>';
+  /* Erasing everything is hidden. Only the owner can reach it, and only by
+     typing the word below — there is no button to hit by accident. */
+  if(isOwnerLogin())h+='<div class="hint" style="margin-top:14px;opacity:.5">'+
+    (langHi()?'सब कुछ मिटाने के लिए नीचे <b>ERASE ALL DATA</b> टाइप करें।':'To erase everything, type <b>ERASE ALL DATA</b> below.')+
+    '</div><input class="in mono" id="st-wipekey" placeholder="" autocomplete="off" style="opacity:.5;margin-top:6px">'+
+    '<div id="st-wipebox"></div>';
   $('#main').innerHTML=h;
   $$('#main [data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
   $$('#main [data-snd]').forEach(b=>b.onclick=()=>{
@@ -4833,9 +4852,33 @@ function vMore(){
     r.readAsText(f);
   };
   const sm=$('#st-sample');if(sm)sm.onclick=async()=>{sm.disabled=true;await loadSample();toast('Sample data loaded','ok');route()};
+  const wk=$('#st-wipekey');
+  if(wk)wk.oninput=()=>{
+    const box=$('#st-wipebox');
+    if((wk.value||'').trim().toUpperCase()!=='ERASE ALL DATA'){box.innerHTML='';return}
+    box.innerHTML='<button class="btn danger block mt" id="st-wipe">'+ico('trash')+(langHi()?'सब कुछ मिटाएँ':'Erase all data')+'</button>';
+    wireWipe();
+  };
+  function wireWipe(){
   const wb=$('#st-wipe');if(wb)wb.onclick=async()=>{
-    const ok=await confirmDlg('Erase everything?','Items, folders, lists, POs, history and photos will be permanently deleted'+(MODE==='cloud'?' for the whole team':'')+'. Take a backup first if in doubt.','Erase all',true);
+    const n=(S.items||[]).length,f=(S.folders||[]).length;
+    const ok=await confirmDlg(langHi()?'सब कुछ मिटाएँ?':'Erase everything?',
+      (langHi()?'<b>'+n+'</b> आइटम, <b>'+f+'</b> जगह, सारी हिस्ट्री और फोटो हमेशा के लिए मिट जाएँगी'
+               :'<b>'+n+'</b> items, <b>'+f+'</b> '+locLP()+', all history and all photos will be permanently deleted')+
+      (MODE==='cloud'?(langHi()?' — पूरी टीम के लिए।':' for the whole team.'):'.')+
+      (langHi()?' पहले बैकअप ले लें।':' Take a backup first.'),
+      langHi()?'सब मिटाएँ':'Erase all',true);
     if(!ok)return;
+    /* last gate: the owner's own password */
+    if(MODE==='cloud'&&fbUser&&fbUser.email){
+      const pw=await promptDlg(langHi()?'अपना पासवर्ड डालें':'Type your password',
+        langHi()?'मिटाने से पहले पहचान पक्की करनी है।':'Confirming it is really you before anything is deleted.','password');
+      if(!pw)return;
+      try{
+        const cred=firebase.auth.EmailAuthProvider.credential(fbUser.email,pw);
+        await fbUser.reauthenticateWithCredential(cred);
+      }catch(e){toast(langHi()?'पासवर्ड गलत — कुछ नहीं मिटाया':'Wrong password — nothing was deleted','err');return}
+    }
     $('#st-wipe').disabled=true;$('#st-wipe').textContent='Erasing…';
     if(MODE==='cloud'){
       try{
@@ -4856,6 +4899,7 @@ function vMore(){
     }
     toast('All data erased');paintNav();go('#home');
   };
+  }   /* end wireWipe */
 }
 
 function vTrash(){
