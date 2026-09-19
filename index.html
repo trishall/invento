@@ -2270,7 +2270,7 @@ function vEdit(id,folderArg){
   h+='<div class="f2"><div class="field"><label>SKU</label><input class="in mono" id="f-sku" value="'+esc(i.sku)+'" placeholder="CLB-DUF-001"></div>'+
      '<div class="field"><label>Min qty (low-stock alert)</label><input class="in num" id="f-min" inputmode="decimal" value="'+esc(i.min)+'" placeholder="e.g. '+S.meta.lowDefault+'"><label class="row" style="gap:8px;margin-top:8px;font-weight:600;font-size:13px;cursor:pointer;align-items:flex-start"><input type="checkbox" id="f-autopo" style="width:19px;height:19px;margin-top:1px;accent-color:var(--saddle)" '+(i.autoPO?'checked':'')+'><span>Auto-add to purchase order when stock falls below min</span></label></div></div>';
   h+='<div class="field"><label>Barcode / QR value</label><div class="row"><input class="in mono grow" id="f-code" value="'+esc(i.code)+'" placeholder="Scan or type a code"><button class="btn" id="f-scan" type="button">'+ico('scan')+'</button></div><div class="hint">Used to find this item when scanning, and printed on labels. Defaults to SKU if left blank.</div></div>';
-  h+='<div class="field"><label>More SKUs / barcodes (optional)</label><input class="in mono" id="f-alt" value="'+esc((i.alt||[]).join(', '))+'" placeholder="ETSY-WAL-101, VENDOR-77 (comma separated)"><div class="hint">A product can carry several SKUs (different channels/vendors). Scanning any of them finds this item, and you can print a label per SKU.</div></div>';
+  h+='<div class="field"><label>More SKUs / barcodes (optional)</label><input class="in mono" id="f-alt" value="'+esc(skusOf(i).filter(s=>s&&s!==i.sku&&s!==i.code).join(', '))+'" placeholder="MTWB0000001, ETSY-WAL-101 (comma separated)"><div class="hint">A product can carry several SKUs — Unicommerce, Shopify, a vendor code. Scanning any of them finds this item, and you can print a label per SKU.</div></div>';
   h+='<div class="field"><label>Tags</label><input class="in" id="f-tags" value="'+esc((i.tags||[]).join(', '))+'" placeholder="duffle, bestseller (comma separated)"></div>';
   h+='<div class="field"><label>Image link <span class="muted">(Shopify image URL — no storage used)</span></label><input class="in" id="f-img" type="url" inputmode="url" autocapitalize="none" spellcheck="false" placeholder="https://cdn.shopify.com/…/bag.jpg" value="'+esc(i.img||'')+'"></div>';
   h+='<div class="field"><label>Notes</label><textarea class="in" id="f-notes" placeholder="Supplier, dimensions, leather type…">'+esc(i.notes)+'</textarea></div>';
@@ -2285,7 +2285,10 @@ function vEdit(id,folderArg){
   function saveDraft(){/* keep typed values when hopping to scanner */
     sessionStorage.setItem('draft',JSON.stringify(readForm()));
   }
-  function readForm(){return{name:$('#f-name').value.trim(),qty:isNew?(parseFloat($('#f-qty').value)||0):(+i.qty||0),unit:$('#f-unit').value,folder:(($('#f-sel')&&['__rc__','__new__'].indexOf($('#f-sel').value)<0)?($('#f-sel').value||null):(i.folder||null)),price:$('#f-price').value.trim(),cost:$('#f-cost').value.trim(),sku:$('#f-sku').value.trim(),min:$('#f-min').value.trim(),code:$('#f-code').value.trim(),alt:$('#f-alt').value.split(',').map(s=>s.trim()).filter(Boolean),tags:$('#f-tags').value.split(',').map(s=>s.trim()).filter(Boolean),notes:$('#f-notes').value.trim(),img:($('#f-img')?$('#f-img').value.trim():''),autoPO:!!($('#f-autopo')&&$('#f-autopo').checked)}}
+  function readForm(){return{name:$('#f-name').value.trim(),qty:isNew?(parseFloat($('#f-qty').value)||0):(+i.qty||0),unit:$('#f-unit').value,folder:(($('#f-sel')&&['__rc__','__new__'].indexOf($('#f-sel').value)<0)?($('#f-sel').value||null):(i.folder||null)),price:$('#f-price').value.trim(),cost:$('#f-cost').value.trim(),sku:$('#f-sku').value.trim(),min:$('#f-min').value.trim(),code:$('#f-code').value.trim(),alt:$('#f-alt').value.split(',').map(s=>s.trim()).filter(Boolean),
+    skus:(()=>{const ex=$('#f-alt').value.split(',').map(s=>s.trim()).filter(Boolean);
+      const all=[$('#f-sku').value.trim(),$('#f-code').value.trim()].concat(ex).filter(Boolean);
+      return all.filter((s,ix)=>all.findIndex(x=>x.toLowerCase()===s.toLowerCase())===ix)})(),tags:$('#f-tags').value.split(',').map(s=>s.trim()).filter(Boolean),notes:$('#f-notes').value.trim(),img:($('#f-img')?$('#f-img').value.trim():''),autoPO:!!($('#f-autopo')&&$('#f-autopo').checked)}}
   // restore draft after scan hop
   const draft=sessionStorage.getItem('draft');const scanned=sessionStorage.getItem('scannedcode');
   if(draft&&scanned!=null){try{const d=JSON.parse(draft);$('#f-name').value=d.name;$('#f-qty').value=d.qty;$('#f-unit').value=d.unit;if($('#f-sel'))$('#f-sel').value=d.folder||'';$('#f-price').value=d.price;$('#f-cost').value=d.cost;$('#f-sku').value=d.sku;$('#f-min').value=d.min;$('#f-tags').value=d.tags.join(', ');$('#f-notes').value=d.notes;$('#f-code').value=scanned||d.code}catch(e){}sessionStorage.removeItem('draft');sessionStorage.removeItem('scannedcode')}
@@ -3586,7 +3589,9 @@ function parseCSV(text){
 }
 function exportItemsCSV(its){
   const rows=[['Name','Location','Quantity','Unit','Price','Cost','Min quantity','SKU','Barcode','Other SKUs','Tags','Notes','Image URL','Value','Updated']];
-  its.forEach(i=>rows.push([i.name,pileSummary(i),i.qty,i.unit,i.price,i.cost,i.min,i.sku,i.code,(i.alt||[]).join('; '),(i.tags||[]).join('; '),i.notes,i.img||'',itemValue(i),new Date(i.updatedAt).toISOString()]));
+  /* every code the item answers to, minus the two already in their own columns */
+  const others=i=>skusOf(i).filter(s=>s&&s!==i.sku&&s!==i.code).join('; ');
+  its.forEach(i=>rows.push([i.name,pileSummary(i),i.qty,i.unit,i.price,i.cost,i.min,i.sku,i.code,others(i),(i.tags||[]).join('; '),i.notes,i.img||'',itemValue(i),new Date(i.updatedAt).toISOString()]));
   download('invento-items-'+new Date().toISOString().slice(0,10)+'.csv',buildCSV(rows),'text/csv');
   logTx('export',{detail:its.length+' items to CSV'});
   toast('CSV downloaded','ok');
