@@ -1001,7 +1001,7 @@ async function pushDiff(col){
 }
 /* auto-sync state is written only by transaction — never by a whole-meta push,
    so a device with a stale copy can't clobber the shared lock */
-function metaPushable(){const c=clean(S.meta);delete c.shAuto;delete c.shAutoRun;delete c.shModes;return c}
+function metaPushable(){const c=clean(S.meta);delete c.shAuto;delete c.shAutoRun;delete c.shModes;delete c.shDir;delete c.shDirBy;delete c.shDirAt;delete c.shDirCfg;return c}
 async function pushMeta(){
   const c=metaPushable();const j=JSON.stringify(c);
   if(shadows.meta===j)return;
@@ -4195,9 +4195,9 @@ async function shopifyRun(dryRun){
   try{
     const fns=firebase.app().functions('asia-south1');
     const call=fns.httpsCallable('shopifySync');
-    const res=await call({dryRun:!!dryRun,modes:shModesMap()});
+    const res=await call({dryRun:!!dryRun,mode:shDir(),modes:shModesMap()});
     const rows=(res.data&&res.data.results)||[];
-    if(dryRun){shLastCheck={at:Date.now(),rows:rows,modesOK:(res.data&&res.data.modesSupported===true)};try{shAutoPaint()}catch(e){}}
+    if(dryRun){shLastCheck={at:Date.now(),rows:rows,modesOK:(res.data&&res.data.modesSupported===true)};try{shAutoPaint();shDirPaint()}catch(e){}}
     if(out)out.innerHTML=rows.map(shopifyResultHTML).join('')||'<div class="sub">No stores configured</div>';
     logTx('export',{detail:'Shopify sync'+(dryRun?' (check only)':'')+' · '+rows.map(r=>r.shop+': '+(r.error?'error':r.applied+' updated')).join(' · ')});
     beep(!rows.some(r=>r.error));
@@ -4267,50 +4267,91 @@ function shId(r){return String(r&&(r.shop||r.store)||'')}
 function shName(d){return SHA_NAMES[d]||d}
 function shAutoStores(m){const a=((m||S.meta)||{}).shAuto;return (a&&Array.isArray(a.stores))?a.stores.filter(Boolean):[]}
 function shAutoOn(){return MODE==='cloud'&&shAutoStores().length>0}
-/* Direction per store: 'both' (default), 'up' = only ever raise Shopify's number,
-   'down' = only ever lower it. Applies to Check, Sync now and auto-sync alike.
-   Stored as meta/app.shModes = [{shop, mode}]. Enforced by the Cloud Function,
-   which compares against Shopify's current quantity — so it needs the update. */
+/* Sync direction — a saved setting (meta/app.shDirCfg), used by every future sync
+   until changed: Check, Sync now, auto-sync and Push specific SKUs.
+     scope 'all'  → one direction for both stores
+     scope 'each' → its own direction per store (unlisted store = Both ways)
+   'both' = Shopify set to Invento's number · 'up' = only raise · 'down' = only lower.
+   Enforced by the Cloud Function, which compares against Shopify's current quantity. */
 var SHA_MODES=['both','up','down'];
-function shModeOf(d,m){const a=((m||S.meta)||{}).shModes;const x=Array.isArray(a)?a.find(e=>e&&e.shop===d):null;return x&&SHA_MODES.indexOf(x.mode)>=0?x.mode:'both'}
-function shModesMap(m){const o={};const a=((m||S.meta)||{}).shModes;(Array.isArray(a)?a:[]).forEach(e=>{if(e&&e.shop&&e.mode&&e.mode!=='both')o[e.shop]=e.mode});return o}
-function shModesActive(){return Object.keys(shModesMap()).length>0}
+var _shDirDraft=null;
+function shDirCfg(m){
+  const src=(m||S.meta)||{};const c=src.shDirCfg;
+  const ok=v=>SHA_MODES.indexOf(v)>=0?v:'both';
+  if(c&&typeof c==='object'){const st={};(Array.isArray(c.stores)?c.stores:[]).forEach(e=>{if(e&&e.shop)st[e.shop]=ok(e.mode)});
+    return {scope:c.scope==='each'?'each':'all',all:ok(c.all),stores:st,by:c.by||'',at:c.at||0}}
+  return {scope:'all',all:ok(src.shDir),stores:{},by:'',at:0};   // legacy single value
+}
+function shDir(m){const c=shDirCfg(m);return c.scope==='all'?c.all:'both'}          // default sent as data.mode
+function shModeOf(d,m){const c=shDirCfg(m);return c.scope==='each'?(c.stores[d]||'both'):c.all}
+function shModesMap(m,shops){const o={};(shops||shKnownShops()).forEach(d=>{const v=shModeOf(d,m);if(d&&v!=='both')o[d]=v});return o}
+function shModesActive(){const c=shDirCfg();return c.scope==='all'?c.all!=='both':Object.keys(c.stores).some(k=>c.stores[k]!=='both')}
 function shModeLabel(mode){const T=(hi,en)=>langHi()?hi:en;return mode==='up'?T('सिर्फ़ बढ़ाएँ','Only add'):mode==='down'?T('सिर्फ़ घटाएँ','Only reduce'):T('दोनों तरफ़','Both ways')}
-async function shModeSet(shop,mode,sel){
+function shCfgSame(a,b){return JSON.stringify([a.scope,a.all,Object.keys(a.stores).sort().map(k=>[k,a.stores[k]])])===JSON.stringify([b.scope,b.all,Object.keys(b.stores).sort().map(k=>[k,b.stores[k]])])}
+function shDirHTML(){
   const T=(hi,en)=>langHi()?hi:en;
-  const prev=shModeOf(shop);
-  const undo=()=>{if(sel)sel.value=prev};
-  if(!isAdminU()){toast(T('सिर्फ एडमिन','Admins only'),'err');undo();return}
-  if(mode===prev)return;
-  if(mode!=='both'){
-    toast(T('जाँच रहे हैं…','Checking this store…'));
-    let d;
-    try{d=(await firebase.app().functions('asia-south1').httpsCallable('shopifySync')({dryRun:true,stores:[shop],modes:{[shop]:mode}})).data||{}}
-    catch(e){undo();toast(T('जाँच नहीं हुई','Check failed')+': '+String(e&&e.message||e).slice(0,80),'err');return}
-    if(d.modesSupported!==true||d.scoped!==true){
-      undo();
+  const saved=shDirCfg(),adm=isAdminU();
+  const d=_shDirDraft||JSON.parse(JSON.stringify(saved));
+  const seg=(key,cur)=>'<div class="row" style="gap:6px">'+SHA_MODES.map(m=>'<button class="btn grow sh-dir'+(m===cur?' pri':'')+'" data-k="'+esc(key)+'" data-dir="'+m+'" '+(adm?'':'disabled')+'>'+shModeLabel(m)+'</button>').join('')+'</div>';
+  let h='<div class="card pad mb"><div class="eyebrow">'+T('सिंक की दिशा','Sync direction')+'</div>'+
+    '<div class="row" style="gap:6px;margin:8px 0 10px">'+
+      '<button class="btn grow sh-scope'+(d.scope==='all'?' dark':'')+'" data-scope="all" '+(adm?'':'disabled')+'>'+T('दोनों स्टोर एक साथ','Both stores together')+'</button>'+
+      '<button class="btn grow sh-scope'+(d.scope==='each'?' dark':'')+'" data-scope="each" '+(adm?'':'disabled')+'>'+T('हर स्टोर अलग','Each store separately')+'</button></div>';
+  if(d.scope==='all')h+=seg('*',d.all);
+  else{
+    const shops=shKnownShops();
+    h+=shops.length?shops.map(sh=>'<div style="margin-bottom:10px"><div class="small" style="margin-bottom:4px"><b>'+esc(shName(sh))+'</b> <span class="muted mono">'+esc(sh)+'</span></div>'+seg(sh,d.stores[sh]||'both')+'</div>').join('')
+      :'<div class="sub">'+T('स्टोर दिखाने के लिए पहले "पहले जाँचें" चलाएँ।','Run "Check first" once to list your stores here.')+'</div>';
+  }
+  const dirty=!shCfgSame(d,saved);
+  const now=saved.scope==='all'?T('दोनों स्टोर: ','Both stores: ')+shModeLabel(saved.all)
+    :shKnownShops().map(sh=>shName(sh)+': '+shModeLabel(saved.stores[sh]||'both')).join(' · ');
+  h+='<div class="hint mt">'+T('सेव: ','Saved: ')+'<b>'+esc(now)+'</b>'+(saved.by?' · '+esc(saved.by)+' · '+ago(saved.at):'')+'<br>'+
+     T('सिर्फ़ बढ़ाएँ = स्टॉक वापस आया तो दिखेगा, कुछ घटेगा नहीं। सिर्फ़ घटाएँ = ओवरसेलिंग रुकेगी, कुछ बढ़ेगा नहीं।','Only add = restocks go live, nothing is lowered. Only reduce = stops overselling, nothing is raised.')+'</div>';
+  if(adm)h+='<div class="row mt" style="gap:8px"><button class="btn grow" id="sh-dir-undo" '+(dirty?'':'disabled')+'>'+T('रद्द','Discard')+'</button><button class="btn pri grow" id="sh-dir-save" '+(dirty?'':'disabled')+'>'+T('सेव करें','Save')+'</button></div>';
+  return h+'</div>';
+}
+function shDirPaint(){
+  const w=$('#sh-dir-wrap');if(!w)return;
+  w.innerHTML=shDirHTML();w.dataset.d=JSON.stringify(shDirCfg());
+  const draft=()=>{if(!_shDirDraft)_shDirDraft=JSON.parse(JSON.stringify(shDirCfg()));return _shDirDraft};
+  $$('.sh-scope').forEach(b=>b.onclick=()=>{draft().scope=b.dataset.scope;shDirPaint()});
+  $$('.sh-dir').forEach(b=>b.onclick=()=>{const d=draft();if(b.dataset.k==='*')d.all=b.dataset.dir;else d.stores[b.dataset.k]=b.dataset.dir;shDirPaint()});
+  const u=$('#sh-dir-undo');if(u)u.onclick=()=>{_shDirDraft=null;shDirPaint()};
+  const sv=$('#sh-dir-save');if(sv)sv.onclick=()=>shDirSave();
+}
+async function shDirSave(){
+  const T=(hi,en)=>langHi()?hi:en;
+  if(!isAdminU()||!_shDirDraft)return;
+  const d=_shDirDraft;
+  const shops=shKnownShops();
+  const modes={};shops.forEach(sh=>{const v=d.scope==='each'?(d.stores[sh]||'both'):d.all;if(v!=='both')modes[sh]=v});
+  const sv=$('#sh-dir-save');if(sv)sv.disabled=true;
+  if(Object.keys(modes).length||(d.scope==='all'&&d.all!=='both')){
+    // Probe: dry run with the new setting. Writes nothing. The function must confirm it understands it.
+    toast(T('जाँच रहे हैं…','Checking…'));
+    let r;
+    try{r=(await firebase.app().functions('asia-south1').httpsCallable('shopifySync')({dryRun:true,mode:d.scope==='all'?d.all:'both',modes:modes})).data||{}}
+    catch(e){if(sv)sv.disabled=false;toast(T('जाँच नहीं हुई','Check failed')+': '+String(e&&e.message||e).slice(0,80),'err');return}
+    if(r.modesSupported!==true){
+      if(sv)sv.disabled=false;
       openModal('<h3>'+T('Cloud Function अपडेट चाहिए','Cloud Function update needed')+'</h3><p class="sub" style="margin-bottom:16px">'+
-        T('अभी का function "सिर्फ़ बढ़ाएँ / सिर्फ़ घटाएँ" नहीं समझता — वह मात्रा दोनों तरफ़ बदल देगा। Function अपडेट करके deploy करें, फिर यह चुनें।',
-          'The deployed function doesn\'t understand "Only add / Only reduce" yet — it would still move quantities both ways. Deploy the update to <b>shopifySync</b>, then pick this again.')+
+        T('अभी का function "सिर्फ़ बढ़ाएँ / सिर्फ़ घटाएँ" नहीं समझता — वह मात्रा दोनों तरफ़ बदल देगा, इसलिए यह सेटिंग सेव नहीं की गई। Function अपडेट करके deploy करें, फिर सेव करें।',
+          'The deployed function doesn\'t understand Only add / Only reduce yet — it would still move quantities both ways, so this setting was <b>not saved</b>. Deploy the update to <b>shopifySync</b>, then Save again. Your choice is kept on screen.')+
         '</p><div class="row"><button class="btn pri grow" id="sm-ok">OK</button></div>');
       $('#sm-ok').onclick=closeModal;return;
     }
   }
+  const v={scope:d.scope,all:d.all,stores:Object.keys(d.stores).map(k=>({shop:k,mode:d.stores[k]})),by:userName(),at:Date.now()};
   try{
-    const ref=db.collection('meta').doc('app');
-    const next=await db.runTransaction(async t=>{
-      const s=await t.get(ref);const m=s.exists?(s.data()||{}):{};
-      const a=(Array.isArray(m.shModes)?m.shModes:[]).filter(e=>e&&e.shop&&e.shop!==shop);
-      if(mode!=='both')a.push({shop:shop,mode:mode,by:userName(),at:Date.now()});
-      t.set(ref,{shModes:a},{merge:true});
-      return a;
-    });
-    S.meta.shModes=next;
-    shLastCheck=null;
-    logTx('export',{detail:'Shopify '+shName(shop)+' sync direction → '+shModeLabel(mode)});
-    toast(shName(shop)+': '+shModeLabel(mode));
-  }catch(e){undo();toast(T('सेव नहीं हुआ','Could not save')+': '+String(e&&e.message||e).slice(0,80),'err')}
-  shAutoPaint();
+    await db.collection('meta').doc('app').set({shDirCfg:v},{merge:true});
+    S.meta.shDirCfg=v;_shDirDraft=null;shLastCheck=null;_mpOK=null;
+    const c=shDirCfg();
+    const txt=c.scope==='all'?'both stores → '+shModeLabel(c.all):shops.map(sh=>shName(sh)+' → '+shModeLabel(c.stores[sh]||'both')).join(', ');
+    logTx('export',{detail:'Shopify sync direction saved: '+txt});
+    toast(T('सेव हो गया','Saved'));
+  }catch(e){toast(T('सेव नहीं हुआ','Could not save')+': '+String(e&&e.message||e).slice(0,80),'err')}
+  shDirPaint();try{mpPaint()}catch(e){}
 }
 function shKnownShops(){
   const set={};
@@ -4346,7 +4387,7 @@ async function autoSyncRun(){
   let wait=0,skip=false,stores=[],modes={};
   const got=await db.runTransaction(async t=>{
     const s=await t.get(ref);const m=s.exists?(s.data()||{}):{};
-    stores=shAutoStores(m);modes=shModesMap(m);
+    stores=shAutoStores(m);modes=shModesMap(m,stores);
     if(!stores.length)return false;
     const r=m.shAutoRun||{};const now=Date.now();
     if(r.at&&r.at>dirty&&!r.lockUntil){skip=true;return false}          // someone synced after our change
@@ -4360,7 +4401,7 @@ async function autoSyncRun(){
   const started=Date.now();
   let ok=false,note='';
   try{
-    const res=await firebase.app().functions('asia-south1').httpsCallable('shopifySync')({dryRun:false,stores:stores,modes:modes});
+    const res=await firebase.app().functions('asia-south1').httpsCallable('shopifySync')({dryRun:false,stores:stores,mode:'both',modes:modes});
     const d=res.data||{},rows=d.results||[];
     const stray=rows.map(shId).filter(x=>stores.indexOf(x)<0);
     const modeMiss=Object.keys(modes).some(k=>stores.indexOf(k)>=0)&&d.modesSupported!==true;
@@ -4397,14 +4438,11 @@ function shAutoRowsHTML(){
   return shops.map(d=>'<label class="row" style="gap:10px;align-items:center;padding:8px 0;cursor:'+(adm?'pointer':'default')+'">'+
     '<input type="checkbox" class="sh-auto-t" data-shop="'+esc(d)+'" style="width:22px;height:22px;accent-color:var(--saddle)" '+(on.indexOf(d)>=0?'checked ':'')+(adm?'':'disabled ')+'>'+
     '<span class="grow"><b>'+esc(shName(d))+'</b><br><span class="small muted mono">'+esc(d)+'</span></span>'+
-    (on.indexOf(d)>=0?'<span class="pill ok">'+T('ऑटो','Auto')+'</span>':'<span class="pill">'+T('हाथ से','Manual')+'</span>')+'</label>'+
-    '<div class="row" style="gap:8px;align-items:center;margin:0 0 10px 32px"><span class="small muted">'+T('दिशा','Direction')+'</span>'+
-    '<select class="in sh-mode" data-shop="'+esc(d)+'" style="max-width:190px;padding:6px 8px" '+(adm?'':'disabled')+'>'+
-    SHA_MODES.map(m=>'<option value="'+m+'"'+(shModeOf(d)===m?' selected':'')+'>'+shModeLabel(m)+'</option>').join('')+'</select></div>').join('');
+    (on.indexOf(d)>=0?'<span class="pill ok">'+T('ऑटो','Auto')+'</span>':'<span class="pill">'+T('हाथ से','Manual')+'</span>')+'</label>').join('');
 }
 function shAutoPaint(){
   const rows=$('#sh-auto-rows'),st=$('#sh-auto-st');
-  if(rows){rows.innerHTML=shAutoRowsHTML();$$('.sh-auto-t').forEach(b=>b.onchange=()=>shAutoToggle(b.dataset.shop,b.checked,b));$$('.sh-mode').forEach(x=>x.onchange=()=>shModeSet(x.dataset.shop,x.value,x))}
+  if(rows){rows.innerHTML=shAutoRowsHTML();$$('.sh-auto-t').forEach(b=>b.onchange=()=>shAutoToggle(b.dataset.shop,b.checked,b))}
   if(st)st.innerHTML=shAutoStatusHTML();
   const sel=$('#mp-shop');
   if(sel){const cur=sel.value,shops=shKnownShops();if(shops.length&&sel.options.length!==shops.length){
@@ -4418,7 +4456,7 @@ async function shAutoToggle(shop,want,box){
     // Probe: a dry run for this one store. Writes nothing. Proves the function scopes.
     toast(T('जाँच रहे हैं…','Checking this store…'));
     let d;
-    try{d=(await firebase.app().functions('asia-south1').httpsCallable('shopifySync')({dryRun:true,stores:[shop],modes:shModeOf(shop)==='both'?{}:{[shop]:shModeOf(shop)}})).data||{}}
+    try{d=(await firebase.app().functions('asia-south1').httpsCallable('shopifySync')({dryRun:true,stores:[shop],mode:shDir(),modes:shModesMap(null,[shop])})).data||{}}
     catch(e){undo();toast(T('जाँच नहीं हुई','Check failed')+': '+String(e&&e.message||e).slice(0,80),'err');return}
     const rows=d.results||[],stray=rows.map(shId).filter(x=>x!==shop),mine=rows.filter(r=>shId(r)===shop);
     if(d.scoped!==true||stray.length||(shModeOf(shop)!=='both'&&d.modesSupported!==true)){
@@ -4462,11 +4500,12 @@ async function shAutoToggle(shop,want,box){
 var _mpOK=null;   // fingerprint of the last clean preview
 function mpParse(){const t=($('#mp-skus')||{}).value||'';const seen={},out=[];t.split(/[\s,;]+/).forEach(x=>{x=x.trim();if(!x)return;const k=x.toUpperCase();if(!seen[k]){seen[k]=1;out.push(x)}});return out}
 function mpInvQty(sku){const lc=sku.toLowerCase();let n=0,hit=false;S.items.forEach(i=>{if(skusOf(i).some(s=>String(s).toLowerCase()===lc)){hit=true;n+=Number(i.qty)||0}});return hit?n:null}
-function mpFp(){return JSON.stringify([mpParse().map(s=>s.toUpperCase()).sort(),($('#mp-shop')||{}).value,($('#mp-mode')||{}).value])}
+function mpFp(){return JSON.stringify([mpParse().map(s=>s.toUpperCase()).sort(),($('#mp-shop')||{}).value,shModeOf(($('#mp-shop')||{}).value)])}
 function mpPaint(){
   const T=(hi,en)=>langHi()?hi:en;
   const list=mpParse(),el=$('#mp-list'),push=$('#mp-push');
   if(push)push.disabled=!(_mpOK&&_mpOK===mpFp());
+  const pd=$('#mp-dir');if(pd)pd.textContent=shModeLabel(shModeOf(($('#mp-shop')||{}).value));
   if(!el)return;
   if(!list.length){el.innerHTML='';return}
   el.innerHTML='<div class="small muted mb">'+list.length+T(' SKU',' SKUs')+'</div>'+list.slice(0,200).map(s=>{const q=mpInvQty(s);
@@ -4478,12 +4517,12 @@ function mpCardHTML(){
   if(!isAdminU())return '';
   const shops=shKnownShops();
   return '<div class="card pad mb"><div class="eyebrow">'+T('चुने हुए SKU भेजें','Push specific SKUs')+'</div>'+
-    '<div class="hint" style="margin:4px 0 8px">'+T('सिर्फ़ इन SKU की मात्रा Shopify पर जाएगी। स्कैनर से भी डाल सकते हैं — हर स्कैन नई लाइन।','Only these SKUs are sent. Paste them, or scan — each scan lands on a new line. Good for items that were out of stock and are back.')+'</div>'+
+    '<div class="hint" style="margin:4px 0 8px">'+T('सिर्फ़ इन SKU की मात्रा Shopify पर जाएगी। स्कैनर से भी डाल सकते हैं — हर स्कैन नई लाइन।','Only these SKUs are sent, using the sync direction above. Paste them, or scan — each scan lands on a new line.')+'</div>'+
     '<textarea class="in mono" id="mp-skus" rows="4" placeholder="MTWB0000066&#10;MTBT0000209" style="width:100%;resize:vertical"></textarea>'+
     '<div id="mp-list" style="max-height:220px;overflow:auto;margin:8px 0"></div>'+
     '<div class="row wrap" style="gap:8px;margin-bottom:10px">'+
       '<select class="in" id="mp-shop" style="flex:1;min-width:160px">'+(shops.length?shops.map(d=>'<option value="'+esc(d)+'">'+esc(shName(d))+'</option>').join(''):'<option value="">'+T('पहले "पहले जाँचें" चलाएँ','Run "Check first" to list stores')+'</option>')+'</select>'+
-      '<select class="in" id="mp-mode" style="flex:1;min-width:140px">'+['up','down','both'].map(m=>'<option value="'+m+'">'+shModeLabel(m)+'</option>').join('')+'</select></div>'+
+      '<span class="pill info" id="mp-dir" style="align-self:center">'+shModeLabel(shModeOf(shops[0]||''))+'</span></div>'+
     '<div class="row" style="gap:8px"><button class="btn grow" id="mp-prev">'+T('पहले देखें','Preview')+'</button><button class="btn pri grow" id="mp-push" disabled>'+T('भेजें','Push')+'</button></div>'+
     '<div id="mp-out" class="mt"></div></div>';
 }
@@ -4497,7 +4536,7 @@ function mpNeedFn(extra){
 }
 async function mpCall(dryRun){
   const T=(hi,en)=>langHi()?hi:en;
-  const skus=mpParse(),shop=$('#mp-shop').value,mode=$('#mp-mode').value,fp=mpFp();
+  const skus=mpParse(),shop=$('#mp-shop').value,mode=shModeOf($('#mp-shop').value),fp=mpFp();
   if(!skus.length){toast(T('SKU डालें','Enter at least one SKU'),'err');return}
   if(!shop){toast(T('स्टोर चुनें','Pick a store'),'err');return}
   if(skus.length>500){toast(T('एक बार में 500 तक','Up to 500 SKUs at a time'),'err');return}
@@ -4511,7 +4550,7 @@ async function mpCall(dryRun){
   [bp,bs].forEach(b=>{if(b)b.disabled=true});
   if(out)out.innerHTML='<div class="sub">'+(dryRun?T('जाँच रहे हैं…','Checking…'):T('भेज रहे हैं…','Sending…'))+'</div>';
   try{
-    const res=await firebase.app().functions('asia-south1').httpsCallable('shopifySync')({dryRun:!!dryRun,stores:[shop],skus:skus,modes:mode==='both'?{}:{[shop]:mode}});
+    const res=await firebase.app().functions('asia-south1').httpsCallable('shopifySync')({dryRun:!!dryRun,stores:[shop],skus:skus,mode:'both',modes:mode==='both'?{}:{[shop]:mode}});
     const d=res.data||{},rows=d.results||[];
     const stray=rows.map(shId).filter(x=>x!==shop);
     if(d.scoped!==true||d.skusSupported!==true||stray.length||(mode!=='both'&&d.modesSupported!==true)){
@@ -4530,7 +4569,7 @@ async function mpCall(dryRun){
 function mpWire(){
   const box=$('#mp-skus');if(!box)return;
   box.oninput=()=>{mpPaint()};
-  ['#mp-shop','#mp-mode'].forEach(s=>{const x=$(s);if(x)x.onchange=()=>mpPaint()});
+  const xs=$('#mp-shop');if(xs)xs.onchange=()=>mpPaint();
   $('#mp-prev').onclick=()=>mpCall(true);
   $('#mp-push').onclick=()=>mpCall(false);
   mpPaint();
@@ -5020,10 +5059,12 @@ function vShopify(){
   let h='<h1 class="page">Shopify</h1>';
   h+='<div class="card pad mb"><div class="sub">'+T('Invento में जो स्टॉक है वही Shopify को भेजा जाता है — एक तरफ़ा। Shopify से कुछ वापस नहीं आता, इसलिए गिनती कभी उल्टी नहीं होगी। SKU से मिलान होता है।','Whatever Invento holds is pushed to Shopify — one way. Nothing comes back, so the counts can never fight each other. Matching is by SKU.')+'</div>'+
      '<div class="hint mt">'+T('ध्यान दें: "अभी भेजें" सभी जुड़े हुए स्टोर पर एक साथ जाता है — किसी एक को अलग नहीं भेजा जा सकता।','Note: "Sync now" writes to every connected store in one press — a single store cannot be sent on its own.')+'</div></div>';
+  _shDirDraft=null;
+  h+='<div id="sh-dir-wrap"></div>';
   h+='<div class="row mb" style="gap:8px"><button class="btn grow" id="sh-dry">'+ico('search')+T('पहले जाँचें (कुछ नहीं बदलेगा)','Check first (changes nothing)')+'</button>'+
      '<button class="btn pri grow" id="sh-run">'+ico('spark')+T('अभी भेजें','Sync now')+'</button></div>';
-  h+='<div class="card pad mb"><div class="eyebrow">'+T('स्टोर सेटिंग','Store settings')+'</div>'+
-     '<div class="hint" style="margin:4px 0 6px">'+T('हर स्टोर अलग से। ऑटो: स्टॉक बदलने के 2 मिनट बाद, हर 10 मिनट में अधिकतम एक बार। दिशा — जाँच, अभी भेजें और ऑटो, तीनों पर लागू।','Per store. Auto pushes 2 min after any stock change, at most once every 10 min. Direction applies to Check, Sync now and auto-sync.')+(isAdminU()?'':' '+T('सिर्फ एडमिन बदल सकते हैं।','Only admins can change this.'))+'</div>'+
+  h+='<div class="card pad mb"><div class="eyebrow">'+T('अपने-आप सिंक','Automatic sync')+'</div>'+
+     '<div class="hint" style="margin:4px 0 6px">'+T('अपने-आप सिंक, हर स्टोर अलग से। स्टॉक बदलने के 2 मिनट बाद, हर 10 मिनट में अधिकतम एक बार।','Automatic sync, per store. Pushes 2 min after any stock change, at most once every 10 min.')+(isAdminU()?'':' '+T('सिर्फ एडमिन बदल सकते हैं।','Only admins can change this.'))+'</div>'+
      '<div id="sh-auto-rows"></div><div id="sh-auto-st" style="border-top:1px solid var(--line);padding-top:10px;margin-top:4px"></div></div>';
   h+='<div id="mp-wrap">'+mpCardHTML()+'</div>';
   h+='<div id="sh-out"></div>';
@@ -5031,13 +5072,14 @@ function vShopify(){
   $('#main').innerHTML=h;
   $('#sh-run').onclick=shopifySyncGuard;
   $('#sh-dry').onclick=()=>shopifyRun(true);
+  shDirPaint();
   shAutoPaint();
   mpWire();
-  const shIv=setInterval(()=>{const el=$('#sh-auto-st');if(!el){clearInterval(shIv);return}el.innerHTML=shAutoStatusHTML()},15000);
+  const shIv=setInterval(()=>{const el=$('#sh-auto-st');if(!el){clearInterval(shIv);return}el.innerHTML=shAutoStatusHTML();const w=$('#sh-dir-wrap');if(w&&!_shDirDraft&&w.dataset.d!==JSON.stringify(shDirCfg()))shDirPaint()},15000);
   db.collection('meta').doc('shopify').get().then(d=>{
     const el=$('#sh-last');if(!el)return;
     const lr=(d.exists&&d.data().lastRun)||null;
-    if(lr){_shKnown=Object.keys(lr).map(k=>shId(lr[k])||k);shAutoPaint()}
+    if(lr){_shKnown=Object.keys(lr).map(k=>shId(lr[k])||k);shAutoPaint();shDirPaint()}
     if(!lr){el.textContent=T('अभी तक कोई सिंक नहीं','No sync yet');return}
     el.innerHTML=Object.keys(lr).map(k=>shopifyResultHTML(lr[k])).join('');
   }).catch(()=>{});
