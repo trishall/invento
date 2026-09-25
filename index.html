@@ -1652,8 +1652,8 @@ function route(){
   const h=(location.hash||'#home').slice(1);
   const [p,a,b]=h.split('/');
   const main=$('#main');main.scrollTop=0;window.scrollTo(0,0);
-  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),ai:vAI,shopify:vShopify,skulink:vSkuLink,pack:vPack,workers:vWorkers,flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals,awb:()=>vAwb(a||null,b||null),uniexport:()=>{vMore();setTimeout(exportUnicommerce,30)},backups:vBackups,dash:()=>vDash(30),help:vHelp,aiscan:vAiScan,exportall:()=>{vMore();setTimeout(exportAllItems,30)}};
-  setActiveNav(p==='item'||p==='edit'||p==='folders'?'stock':(p==='list'||p==='po'?'flows':((p==='trash'||p==='import'||p==='shopify'||p==='skulink'||p==='workers')?'more':((p==='return'||p==='awb'||p==='aiscan'||p==='pack')?'dispatch':p))));
+  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),ai:vAI,shopify:vShopify,skulink:vSkuLink,pack:vPack,workers:vWorkers,flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals,awb:()=>vAwb(a||null,b||null),uniexport:()=>{vMore();setTimeout(exportUnicommerce,30)},backups:vBackups,importfix:vImportFix,dash:()=>vDash(30),help:vHelp,aiscan:vAiScan,exportall:()=>{vMore();setTimeout(exportAllItems,30)}};
+  setActiveNav(p==='item'||p==='edit'||p==='folders'?'stock':(p==='list'||p==='po'?'flows':((p==='trash'||p==='import'||p==='importfix'||p==='shopify'||p==='skulink'||p==='workers')?'more':((p==='return'||p==='awb'||p==='aiscan'||p==='pack')?'dispatch':p))));
   try{(map[p]||vHome)();}
   catch(e){
     console.error('view error',p,e);
@@ -1941,14 +1941,14 @@ function rowHTML(i,opt){
         :'<div class="nm ellip">'+esc(i.name)+'</div>')+'<div class="meta">'+
       (i.sku?'<span class="skutag">'+esc(i.sku)+'</span>':'')+
       '<span class="ellip">'+esc(pileSummary(i))+'</span>'+
-      (isLow(i)?'<span class="pill low">Low</span>':'')+'</div></div>'+
+      (i.uncounted?'<span class="pill low" style="background:var(--red);color:#fff">NOT COUNTED</span>':(isLow(i)?'<span class="pill low">Low</span>':''))+'</div></div>'+
     '<div class="qcol"><div class="q num">'+fmtQty(i.qty)+' <small style="font-weight:600;color:var(--muted)">'+esc(i.unit||'')+'</small></div>'+(+i.price?'<div class="v num">'+fmtMoney(itemValue(i),0)+'</div>':'')+'</div></div>';
 }
 function cardHTML(i){
   const selected=view.sel.has(i.id);
-  return '<div class="icard'+(selected?' sel':'')+'" data-item="'+i.id+'">'+
+  return '<div class="icard'+(selected?' sel':'')+'" data-item="'+i.id+'"'+(i.uncounted?' style="border:2px solid var(--red)"':'')+'>'+
     '<span class="selbox">'+ico('check')+'</span>'+
-    (isLow(i)?'<span class="pill low lowdot">Low</span>':'')+
+    (i.uncounted?'<span class="pill low lowdot" style="background:var(--red);color:#fff">NOT COUNTED</span>':(isLow(i)?'<span class="pill low lowdot">Low</span>':''))+
     '<div class="ph">'+((i.img||i.thumb)?'<img src="'+esc(i.img||i.thumb)+'" alt="" loading="lazy" referrerpolicy="no-referrer">':ico('photo'))+'</div>'+
     '<div class="bd"><div class="nm'+(String(i.name||'').length>60?' xlong':(String(i.name||'').length>34?' long':''))+'" title="'+esc(i.name)+'">'+esc(i.name)+'</div><div class="qv"><span class="q num">'+fmtQty(i.qty)+' <small>'+esc(i.unit||'')+'</small></span>'+(+i.price?'<span class="pr num">'+fmtMoney(+i.price,0)+'</span>':'')+'</div></div></div>';
 }
@@ -2169,6 +2169,7 @@ function vItem(id){
   h+='<div class="gallery mb" id="gal"><div class="g">'+((i.img||i.thumb)?'<img src="'+esc(i.img||i.thumb)+'" alt="" referrerpolicy="no-referrer">':ico('photo'))+'</div></div>';
   h+='<div class="row mb wrap"><h1 class="page" style="margin:0" id="iname">'+esc(i.name)+'</h1>'+(low?'<span class="pill low">Low stock</span>':((+i.qty||0)===0?'<span class="pill zero">Out of stock</span>':''))+'</div>';
   if((i.tags||[]).length)h+='<div class="row wrap mb">'+(i.tags||[]).map(t=>'<span class="tag">'+esc(t)+'</span>').join(' ')+'</div>';
+  h+=uncountedBoxHTML(i);
   h+='<div class="card pad mb"><div class="eyebrow" style="margin-bottom:7px">Quantity on hand</div>'+
     '<div class="row" style="justify-content:space-between;align-items:baseline"><div class="num" id="qbig" style="font-size:34px;font-weight:800;letter-spacing:-.01em">'+fmtQty(i.qty)+'<span class="muted" style="font-size:15px;font-weight:600"> '+esc(i.unit||'')+'</span></div><span class="num muted" id="qval" style="font-size:13px">Value '+fmtMoney(itemValue(i))+'</span></div>'+
     (i.min!==''&&i.min!=null?'<div class="small muted" style="margin-top:2px">Low-stock alert at '+fmtQty(i.min)+'</div>':'')+
@@ -2249,6 +2250,7 @@ function vItem(id){
   };
   if($('#adj-out'))$('#adj-out').onclick=()=>adj(-1);
   if($('#adj-in'))$('#adj-in').onclick=()=>adj(1);
+  wireUncounted(i);
 }
 
 /* ============================================================
@@ -4915,6 +4917,101 @@ async function editWorker(w,pinOnly){
   };
   setTimeout(()=>{try{(pinOnly?$('#wk-p'):$('#wk-n')).focus()}catch(e){}},60);
 }
+
+/* ================= IMPORT CLEANUP (one-time, 22 Sep 2026) =================
+   The Shopify import of 19 Sep created 363 items from Shopify's own numbers.
+   128 of them are duplicates of products already counted on real racks (e.g.
+   "Jefferson Briefcase Green 16 Inch" 74 pcs duplicating the real 12+52 on
+   R1C3/R1C4). Because only the duplicate carried the Shopify SKU, Shopify was
+   fed the uncounted number and real dispatches never reached it.
+   This screen, run once by an admin:
+     1. puts each duplicate's Shopify SKU(s) onto the real item(s)
+     2. takes orders already scanned against a duplicate off the real stock
+     3. points pending/dispatched AWB lines at the real item
+     4. moves the 128 duplicates to Trash (restorable)
+     5. flags the other 235 imported items NOT COUNTED (shown in red, kept out
+        of Shopify sync until someone counts them)
+   Every step checks what is already done, so running it twice changes nothing. */
+const IMPORT_FIX={"L":{"imqatjpilhp2fj":["MTLB0000041"],"imqatjpioiqp15":["MTWL0000062"],"imqatjpipna0pb":["MHLB0000081"],"imqatjpilncc2q":["MTWL0000084","MTWL0000046"],"imqatjpimpycva":["MTWL0000083"],"imqatjpijk43zo":["MTWB0000002"],"imqatjpisfp0ui":["MTLB0000160"],"imqatjpiq6yx73":["MTBP0000077"],"imqatjpijibtep":["MTWB0000070"],"imqatjpin21tph":["MTLB0000067"],"imqatjpijzsc5i":["MTWL0000015"],"imqatjpijfbp8t":["MTLB0000002"],"imqatjpirl1egz":["MTWB0000148"],"imqatjpijlt7qt":["MTMS0000011"],"imqatjpijepci8":["MTLB0000009","MTLB0000001"],"imqatjpin3uzui":["MTBP0000067"],"imqatjpisktb7z":["MTBT0000184"],"imqatjpimrdk3o":["MTBP0000029"],"imqatjpil19y13":["MTLB0000030"],"imqatjpimc2tzw":["MTBP0000028"],"imqatjpik8hahu":["MTLB0000024"],"imqatjpin3gykl":["MTLB0000134"],"imqatjpiopwozd":["MTDF0000095"],"imqatjpinya2wx":["MTLB0000202"],"imqatjpilf5eb7":["MTLB0000037"],"imqatjpioecn5n":["MTBP0000052"],"imqatjpilcm5mr":["MTBP0000022"],"imqatjpiod8vcq":["MTDF0000064"],"imqatjpipqsuzc":["MTMS0000178"],"imqatjpiq88es7":["MTBP0000053"],"imqatjpipj5rwp":["MTDF0000069"],"imqatjpiom65g3":["MTWB0000081"],"imqatjpiouff0s":["MTDF0000047"],"imqatjpin3jl88":["MTLB0000062"],"imqatjpir28l05":["MTBP0000095"],"imqatjpiksfjgk":["MTLB0000185"],"imqhwoy2sj4ynu":["MTLB0000185"],"imqatjpiqi3mw8":["MTWB0000135"],"imqatjpiq91c3b":["MTWB0000132"],"imqatjpiqiju0x":["MTWB0000128"],"imqatjpip3qfh7":["MTLB0000118"],"imqatjpimuj58e":["MTWL0000074"],"imqatjpiqq4cx7":["MTMS0000198"],"imqatjpil09dae":["MTWL0000085"],"imqatjpip4azs8":["MTMS0000171"],"imqatjpio25rtb":["MTDF0000119"],"ims7f0i806mhmv":["MTDF0000119"],"imqatjpip7cafn":["MTLB0000092"],"imqatjpip5ptdu":["MTBP0000060"],"imqatjpimb9t05":["MTMS0000069"],"imqatjpipawn7d":["MTLB0000079"],"imqatjpim1uiqo":["MTLB0000056"],"imqatjpiq88x26":["MTLB0000144","MTLB0000145"],"imqatjpiqqdl5k":["MTWB0000110"],"imqatjpipbudxy":["MTDF0000068"],"imqatjpim27qtb":["MTLB0000050"],"imqatjpipqx43e":["MTLB0000141"],"imqatjpiqap4ww":["MTDF0000106"],"imqatjpip37cvy":["MHLB0000083"],"imqatjpip3p8go":["MTLB0000110","MTLB0000121"],"imqatjpinvqfuu":["MTWB0000125"],"imqatjpipbgwoo":["MTWB0000176"],"imqatjpipl5ezb":["MTDF0000076"],"imqatjpimyeake":["MTDR0000012"],"imqatjpiogk1yr":["MTWB0000093"],"imqatjpip78oq5":["MTBP0000057","MTBP0000045"],"ims01bq640s5qj":["MTBP0000057","MTBP0000045"],"imqatjpijdmbfd":["MTBT0000019"],"imqatjpir02o0g":["MTBT0000299"],"imqatjpir4tbtp":["MTBT0000295"],"imqatjpij6o15x":["MTBT0000004"],"imqatjpij05ksr":["MTBT0000020"],"imqatjpijt9ni9":["MTBT0000003"],"imqatjpij2noh6":["MTBT0000006"],"imqatjpijp8mlq":["MTWB0000164"],"imqatjpijvb5kl":["MTWB0000163"],"imqatjpisrzjnh":["MTWL0000055"],"imqatjpimjxbtn":["MTLB0000054"],"imqatjpise8rtn":["MTBT0000189"],"imqatjpisgjv9x":["MTBT00001901"],"imqatjpiss4h9v":["MTBT0000187"],"imqatjpisc77nq":["MTBT00001902"],"imqatjpist3if1":["MTBT0000188"],"imqatjpis6e6ff":["MTBT0000186"],"imqatjpim7l8v0":["MTLB0000005","MTLB0000053"],"imqatjpinqmnew":["MTLB0000138"],"imqatjpinfk9mi":["MTLB0000136"],"imqatjpimcuwao":["MTLB0000047"],"imqatjpioevqih":["MTDF0000061","MTDF0000121"],"imqatjpiocy7c6":["MTDF0000097","MTDF0000051"],"imqatjpiovv7u0":["MTDF0000096"],"imqatjpipzdwwz":["MTDF0000070"],"imqatjpikuksx2":["MTLB0000124"],"imqatjpiqqhzk9":["MTWB0000129"],"imqatjpiqkmlha":["MTBP0000092"],"imqatjpipjcz1y":["MTLB0000119"],"imqatjpiqlde7p":["MTWB0000133"],"imqatjpiqag3x4":["MTWB0000136"],"imqatjpiof5wsn":["MTDF0000120"],"imqatjpipqeb3n":["MTLB0000093"],"imqatjpiotd0q0":["MTDF0000048"],"imqatjpipq7x6s":["MTLB0000089","MTLB0000143"],"imqatjpimfzmhb":["MTLB0000052"],"imqatjpippoyqp":["MTBP0000061"],"imqatjpim0xeth":["MTLB0000051"],"ims371vdzy483o":["MTLB0000051"],"imqatjpipsdtzq":["MTLB0000080"],"imqatjpipi3n54":["MTLB0000111","MTLB0000122"],"imqatjpipbgddv":["MTLB0000142"],"imqatjpiq8o9lu":["MTDF0000107"],"imqatjpiqbo4oj":["MTWB0000109"],"imqatjpiqahqjp":["MTWB0000096"],"imqatjpipac6oa":["MTWB0000177"],"imqatjpinxkwef":["MTWB0000127"],"imqatjpin65nkp":["MTWB0000126"],"imqatjpio23o82":["MTWB0000095"],"imqatjpio5gcnp":["MTWB0000094"]},"D":[["imqatjpijfbp8t",1,"","imu86r9ynso2f0"],["imqatjpilcm5mr",1,"","imu86r9yuuhmsh"],["imqatjpim7l8v0",1,"","imu870zpyk6l0e"],["imqatjpiq88es7",2,"","imu86r9yvhm5ch"],["imqatjpiqq4cx7",1,"","imu86r9yz1yhfp"],["imqatjpil09dae",1,"","imu86r9yzzourl"],["imqatjpioevqih",1,"","imu870zpqsr327"],["imqatjpisfp0ui",1,"","imu86r9ymigw77"],["imqatjpij05ksr",1,"","imu870zowao4of"],["imqatjpio5gcnp",1,"","imu870zq1pffil"],["imqatjpinfk9mi",10,"","imu870zppga6xm"],["imqatjpipawn7d",1,"","imu86r9z1l4ioc"],["imqatjpiq6yx73",1,"","imu86r9ymtvcur"],["imqatjpise8rtn",1,"","imu870zpm28huq"]],"T":{"imu86r9yhogv8i":["imqatjpilhp2fj"],"imu86r9yi4ij23":["imqatjpioiqp15"],"imu86r9yillizy":["imqatjpipna0pb"],"imu86r9yjf6fp1":["imqatjpilncc2q"],"imu86r9yjxrabs":["imqatjpimpycva"],"imu86r9yksnk5d":["imqatjpijk43zo"],"imu86r9ymigw77":["imqatjpisfp0ui"],"imu86r9ymtvcur":["imqatjpiq6yx73"],"imu86r9ymzwn5e":["imqatjpijibtep"],"imu86r9ynjuq4s":["imqatjpin21tph"],"imu86r9ynnyrge":["imqatjpijzsc5i"],"imu86r9ynso2f0":["imqatjpijfbp8t"],"imu86r9ynw858a":["imqatjpirl1egz"],"imu86r9yo20w41":["imqatjpijlt7qt"],"imu86r9yoi1cwl":["imqatjpijepci8"],"imu86r9yp1izsh":["imqatjpin3uzui"],"imu86r9ypt5owe":["imqatjpisktb7z"],"imu86r9yr2qm79":["imqatjpimrdk3o"],"imu86r9ysa12bq":["imqatjpil19y13"],"imu86r9yscym4j":["imqatjpimc2tzw"],"imu86r9yscziyx":["imqatjpik8hahu"],"imu86r9ystm9jj":["imqatjpin3gykl"],"imu86r9ytbjb2s":["imqatjpiopwozd"],"imu86r9ytu7dku":["imqatjpinya2wx"],"imu86r9yty97yv":["imqatjpilf5eb7"],"imu86r9yucpgsl":["imqatjpioecn5n"],"imu86r9yuuhmsh":["imqatjpilcm5mr"],"imu86r9yuwmefn":["imqatjpiod8vcq"],"imu86r9yuxcxs9":["imqatjpipqsuzc"],"imu86r9yvhm5ch":["imqatjpiq88es7"],"imu86r9yvinzuq":["imqatjpipj5rwp"],"imu86r9yvkr2b2":["imqatjpiom65g3"],"imu86r9yvr7ti4":["imqatjpiouff0s"],"imu86r9yvrv7ti":["imqatjpijepci8"],"imu86r9yw7nlx9":["imqatjpin3jl88"],"imu86r9ywha91u":["imqatjpir28l05"],"imu86r9ywsgqo6":["imqatjpiksfjgk","imqhwoy2sj4ynu"],"imu86r9yxi89n6":["imqatjpiqi3mw8"],"imu86r9yxnwb5i":["imqatjpiq91c3b"],"imu86r9yxzrx32":["imqatjpiqiju0x"],"imu86r9yyi5qrk":["imqatjpip3qfh7"],"imu86r9yylzjpt":["imqatjpimuj58e"],"imu86r9yz1yhfp":["imqatjpiqq4cx7"],"imu86r9yzf6jvp":["imqatjpilncc2q"],"imu86r9yzzourl":["imqatjpil09dae"],"imu86r9z05z425":["imqatjpip4azs8"],"imu86r9z0a9u5m":["imqatjpio25rtb","ims7f0i806mhmv"],"imu86r9z0jpquf":["imqatjpip7cafn"],"imu86r9z1hqh5d":["imqatjpip5ptdu"],"imu86r9z1jhwko":["imqatjpimb9t05"],"imu86r9z1l4ioc":["imqatjpipawn7d"],"imu86r9z1lupxs":["imqatjpim1uiqo"],"imu86r9z24n2ue":["imqatjpiq88x26"],"imu86r9z2j2gjc":["imqatjpiqqdl5k"],"imu86r9z2jkow9":["imqatjpipbudxy"],"imu86r9z2qtv7g":["imqatjpim27qtb"],"imu86r9z3d0qpu":["imqatjpipqx43e"],"imu86r9z3dm6ue":["imqatjpiqap4ww"],"imu86r9z3u8d18":["imqatjpip37cvy"],"imu86r9z3z9el4":["imqatjpip3p8go"],"imu86r9z431u6j":["imqatjpinvqfuu"],"imu86r9z483a4h":["imqatjpipbgwoo"],"imu86r9z65b96p":["imqatjpipl5ezb"],"imu86r9z6epzrm":["imqatjpimyeake"],"imu86r9z6q1gvy":["imqatjpiogk1yr"],"imu86r9z6udel3":["imqatjpip78oq5","ims01bq640s5qj"],"imu870zov0q0jq":["imqatjpijdmbfd"],"imu870zov85az1":["imqatjpir02o0g"],"imu870zovfti8i":["imqatjpir4tbtp"],"imu870zow79t9w":["imqatjpij6o15x"],"imu870zowao4of":["imqatjpij05ksr"],"imu870zows4b6t":["imqatjpijt9ni9"],"imu870zox08aq4":["imqatjpij2noh6"],"imu870zoyx29ju":["imqatjpijp8mlq"],"imu870zozxujx4":["imqatjpijvb5kl"],"imu870zp27axa1":["imqatjpisrzjnh"],"imu870zphrlovc":["imqatjpimjxbtn"],"imu870zpm28huq":["imqatjpise8rtn"],"imu870zpm4xsip":["imqatjpisgjv9x"],"imu870zpm7a1v4":["imqatjpiss4h9v"],"imu870zpmgwjoj":["imqatjpisc77nq"],"imu870zpmkj17q":["imqatjpist3if1"],"imu870zpmpdf86":["imqatjpis6e6ff"],"imu870zpndss56":["imqatjpim7l8v0"],"imu870zppd5g6e":["imqatjpinqmnew"],"imu870zppga6xm":["imqatjpinfk9mi"],"imu870zpqs89dt":["imqatjpimcuwao"],"imu870zpqsr327":["imqatjpioevqih"],"imu870zprqpi4g":["imqatjpiocy7c6"],"imu870zprveom4":["imqatjpiovv7u0"],"imu870zpt4bysl":["imqatjpipzdwwz"],"imu870zptl8i0n":["imqatjpikuksx2"],"imu870zpw5g7h9":["imqatjpiqqhzk9"],"imu870zpwjg5kq":["imqatjpiqkmlha"],"imu870zpwolh9b":["imqatjpipjcz1y"],"imu870zpwpf0ti":["imqatjpiqlde7p"],"imu870zpwwqa9c":["imqatjpiqag3x4"],"imu870zpx3w84u":["imqatjpiof5wsn"],"imu870zpxkn21y":["imqatjpipqeb3n"],"imu870zpxpl3br":["imqatjpioevqih"],"imu870zpxxplhz":["imqatjpiotd0q0"],"imu870zpy1zl6u":["imqatjpipq7x6s"],"imu870zpy5dps3":["imqatjpiocy7c6"],"imu870zpy8evy8":["imqatjpimfzmhb"],"imu870zpyan2e3":["imqatjpippoyqp"],"imu870zpyk6l0e":["imqatjpim7l8v0"],"imu870zpytk31a":["imqatjpim0xeth","ims371vdzy483o"],"imu870zpyw8j8j":["imqatjpipsdtzq"],"imu870zpz7fidi":["imqatjpipi3n54"],"imu870zpz80r9j":["imqatjpipbgddv"],"imu870zpz80wyr":["imqatjpiq8o9lu"],"imu870zpzi5dx5":["imqatjpiqbo4oj"],"imu870zpzicm6t":["imqatjpiqahqjp"],"imu870zpzmq70r":["imqatjpipq7x6s"],"imu870zpzmytoi":["imqatjpiq88x26"],"imu870zpzxzyr1":["imqatjpipac6oa"],"imu870zq08hnmt":["imqatjpinxkwef"],"imu870zq0axp2e":["imqatjpipi3n54"],"imu870zq0j4cxs":["imqatjpip78oq5","ims01bq640s5qj"],"imu870zq0kvz6b":["imqatjpip3p8go"],"imu870zq0wfcpz":["imqatjpin65nkp"],"imu870zq1ipqjw":["imqatjpio23o82"],"imu870zq1pffil":["imqatjpio5gcnp"]},"F":"fmu86r9yejdduq"};
+const FIX_FOLDER_NAME='⚠ NOT COUNTED — from Shopify';
+function fixPlan(){
+  const lc=a=>String(a||'').toLowerCase();
+  const links=[],deds=[],awbs=[],trash=[],flags=[],miss=[];
+  for(const [rid,add] of Object.entries(IMPORT_FIX.L)){const r=iById(rid);if(!r){miss.push(rid);continue}
+    const have=skusOf(r).map(lc);const need=add.filter(a=>!have.includes(lc(a)));if(need.length)links.push({r,need})}
+  const qn={};
+  for(const [rid,q,awb,dup] of IMPORT_FIX.D){const r=iById(rid),d=iById(dup);if(!r||!d)continue;   // duplicate already gone = already done
+    const from=qn[rid]!=null?qn[rid]:(+r.qty||0);const to=Math.max(0,from-q);qn[rid]=to;deds.push({r,d,q,awb,from,to})}
+  const pick=dup=>{const hit=IMPORT_FIX.D.find(x=>x[3]===dup);if(hit)return iById(hit[0]);const c=(IMPORT_FIX.T[dup]||[]).map(iById).filter(Boolean);return c.sort((a,b)=>(+b.qty||0)-(+a.qty||0))[0]||null};
+  (S.awbs||[]).forEach(a=>{(a.items||[]).forEach((l,ix)=>{if(l&&IMPORT_FIX.T[l.itemId]){const r=pick(l.itemId);if(r)awbs.push({a,ix,r})}})});
+  Object.keys(IMPORT_FIX.T).forEach(id=>{const d=iById(id);if(d)trash.push({d,real:(IMPORT_FIX.T[id]||[]).map(iById).filter(Boolean)})});
+  S.items.forEach(i=>{if((i.tags||[]).includes('from-shopify')&&!IMPORT_FIX.T[i.id]&&!i.uncounted&&!i.countedAt)flags.push(i)});
+  const f=fById(IMPORT_FIX.F);
+  return {links,deds,awbs,trash,flags,renameFolder:f&&f.name!==FIX_FOLDER_NAME?f:null,miss};
+}
+function vImportFix(){
+  topTitle('Import cleanup','#more');
+  if(!isAdminU()){$('#main').innerHTML='<div class="empty"><div class="t">Admins only</div></div>';return}
+  const P=fixPlan();
+  const todo=P.links.length+P.deds.length+P.awbs.length+P.trash.length+P.flags.length+(P.renameFolder?1:0);
+  let h='<h1 class="page">Import cleanup</h1>';
+  if(!todo){h+='<div class="card pad mb" style="border-left:4px solid var(--green)"><b>Done.</b><div class="sub mt">Nothing left to fix. Uncounted items are in <b>'+esc(FIX_FOLDER_NAME)+'</b> and show a red NOT COUNTED tag until someone counts them.</div></div>';
+    $('#main').innerHTML=h;return}
+  h+='<div class="card pad mb"><div class="sub">The Shopify import on 19 Sep created items from Shopify\'s own numbers — nobody counted them. Many duplicate products you already count on real racks, so Shopify was being told the wrong number and real dispatches never reached it. This fixes it once. Nothing is permanently deleted; a full backup is at <span class="mono">C:\\shopify-sync\\backups</span>.</div></div>';
+  const blk=(t,sub,body)=>'<div class="card pad mb"><div class="eyebrow">'+t+'</div>'+(sub?'<div class="hint" style="margin:4px 0 8px">'+sub+'</div>':'')+body+'</div>';
+  const rowsT=(rows)=>'<div style="max-height:230px;overflow:auto">'+rows.join('')+'</div>';
+  const r2=(a,b)=>'<div class="row" style="justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid var(--line)"><span class="small">'+a+'</span><span class="small num" style="white-space:nowrap">'+b+'</span></div>';
+  h+=blk('1 · Shopify SKUs moved onto the real items — '+P.links.length,'So scans and Shopify sync hit the counted stock.',rowsT(P.links.slice(0,300).map(x=>r2(esc(x.r.name),'<span class="mono">+ '+esc(x.need.join(', '))+'</span>'))));
+  h+=blk('2 · Orders already scanned against a duplicate — '+P.deds.length,'These went out today with a Shopify-SKU label. Taken off the real shelf now.',rowsT(P.deds.map(x=>r2(esc(x.r.name)+(x.from<x.q?' <span style="color:var(--amber)">· only '+x.from+' on record</span>':''),x.from+' → <b>'+x.to+'</b>'+(x.awb?' · AWB '+esc(String(x.awb).slice(-10)):'')))));
+  h+=blk('3 · AWB lines pointed at the real item — '+P.awbs.length,'So a return or re-inward restocks the real shelf.',rowsT(P.awbs.map(x=>r2('AWB '+esc(String(x.a.awb||x.a.outCode||x.a.id).slice(-12)),esc(x.r.name.slice(0,40))))));
+  h+=blk('4 · Duplicates moved to Trash — '+P.trash.length,'Uncounted copies of products you already count. Restorable from Trash.',rowsT(P.trash.map(x=>r2(esc(x.d.name)+' <span class="muted">('+fmtQty(x.d.qty)+' uncounted)</span>','= '+esc((x.real[0]||{}).name||'').slice(0,40)))));
+  h+=blk('5 · Flagged NOT COUNTED — '+P.flags.length+' items, '+fmtQty(P.flags.reduce((a,i)=>a+(+i.qty||0),0))+' pcs','Products with no counted twin. They stay, shown in red, and are kept out of Shopify sync until someone counts them.'+(P.renameFolder?' Their location is renamed <b>'+esc(FIX_FOLDER_NAME)+'</b>.':''),rowsT(P.flags.slice(0,400).map(i=>r2(esc(i.name),fmtQty(i.qty)))));
+  h+='<div class="card pad mb" style="border-left:4px solid var(--amber)"><div class="field"><label>Type FIX to apply</label><input class="in mono" id="fx-t" autocomplete="off" autocapitalize="characters" placeholder="FIX"></div>'+
+     '<button class="btn danger block" id="fx-go" disabled>Apply cleanup</button><div id="fx-out" class="mt"></div></div>';
+  $('#main').innerHTML=h;
+  const t=$('#fx-t'),go=$('#fx-go');
+  t.oninput=()=>{go.disabled=t.value.trim().toUpperCase()!=='FIX'};
+  go.onclick=async()=>{
+    go.disabled=true;t.disabled=true;
+    const out=$('#fx-out');out.innerHTML='<div class="sub">Applying…</div>';
+    try{
+      const Q=fixPlan();const now=Date.now();
+      Q.links.forEach(x=>{x.r.skus=skusOf(x.r).concat(x.need);x.r.updatedAt=now});
+      Q.deds.forEach(x=>{const took=pileDrain(x.r,Math.min(x.q,+x.r.qty||0));x.r.updatedAt=now;
+        logTx('out',{itemId:x.r.id,itemName:x.r.name,fromQ:x.from,toQ:+x.r.qty||0,qty:x.q,awb:x.awb||undefined,reason:'Import cleanup',
+          detail:'Order scanned on the uncounted duplicate "'+x.d.name+'" — taken off the real stock'+(took?' · '+took:'')+(x.from<x.q?' · only '+x.from+' was on record':'')})});
+      Q.awbs.forEach(x=>{const l=x.a.items[x.ix];x.a.items[x.ix]=Object.assign({},l,{itemId:x.r.id,name:x.r.name,rack:x.r.folder||l.rack,dupWas:l.itemId});x.a.updatedAt=now});
+      Q.trash.forEach(x=>{x.d.deletedReason='Duplicate of '+((x.real[0]||{}).name||'a counted item')+' — Shopify import 19 Sep';trashItem(x.d,true)});
+      Q.flags.forEach(i=>{i.uncounted=true;i.tags=(i.tags||[]).filter(t=>t!=='not-counted').concat('not-counted');i.updatedAt=now});
+      if(Q.renameFolder)Q.renameFolder.name=FIX_FOLDER_NAME;
+      const ok=[await saveNow('items'),await saveNow('trash'),await saveNow('awbs'),await saveNow('folders')];
+      logTx('adjusted',{detail:'Import cleanup: '+Q.links.length+' items got Shopify SKUs · '+Q.deds.length+' orders moved to real stock · '+Q.awbs.length+' AWB lines fixed · '+Q.trash.length+' duplicates to Trash · '+Q.flags.length+' flagged NOT COUNTED'});
+      if(ok.some(x=>x===false))throw new Error('Some changes could not be saved — open this screen again; it continues where it stopped.');
+      beep(true);toast('Cleanup done','ok');vImportFix();
+    }catch(e){out.innerHTML='<div class="sub" style="color:var(--red)">'+esc(String(e&&e.message||e))+'</div>';beep(false)}
+  };
+  setTimeout(()=>{try{t.focus()}catch(e){}},60);
+}
+/* An imported item nobody has counted yet. Counting it = entering the real number. */
+function uncountedBoxHTML(i){
+  if(!i.uncounted)return '';
+  return '<div class="card pad mb" style="border:2px solid var(--red);background:var(--red-bg)"><b style="color:var(--red)">NOT COUNTED</b>'+
+    '<div class="sub mt">This quantity came from Shopify on 19 Sep — nobody has counted it. It is kept out of Shopify sync until it is counted.</div>'+
+    (can('adjqty')?'<div class="row mt" style="gap:8px"><input id="cnt-n" class="in num" inputmode="numeric" placeholder="Counted qty" style="max-width:150px;text-align:center;font-weight:800;font-size:18px"><button class="btn pri grow" id="cnt-go">Save count</button></div>':'')+'</div>';
+}
+function wireUncounted(i){
+  const b=$('#cnt-go');if(!b)return;
+  b.onclick=()=>{
+    const v=$('#cnt-n').value.trim();const n=+v;
+    if(v===''||!isFinite(n)||n<0||Math.round(n)!==n){toast('Enter the counted number','err');return}
+    const old=+i.qty||0;
+    if(n>old)pileAdd(i,i.folder,n-old);else if(n<old)pileDrain(i,old-n,i.folder);
+    i.uncounted=false;i.countedAt=Date.now();i.tags=(i.tags||[]).filter(t=>t!=='not-counted');i.updatedAt=Date.now();
+    save('items');
+    logTx('adjusted',{itemId:i.id,itemName:i.name,fromQ:old,toQ:+i.qty||0,qty:Math.abs(n-old),reason:'Physical count',detail:'Counted (was NOT COUNTED, imported from Shopify) · '+fmtQty(old)+' → '+fmtQty(n)});
+    beep(true);toast('Counted — '+fmtQty(n),'ok');route();
+  };
+}
 function vShopify(){
   topTitle('Shopify','#more');
   const T=(hi,en)=>langHi()?hi:en;
@@ -4982,6 +5079,7 @@ function vMore(){
   if(can('export'))rows.push(['#uniexport',ico('down'),'Export to Unicommerce','Inventory adjustment CSV — sync recent stock changes']);
   if(isAdminU())rows.push(['#workers',ico('users'),'Who is working','Add your team and give each one a 6-digit code']);
   if(can('export'))rows.push(['#skulink',ico('csv'),'Link SKUs','Give an item a second code — Sortly, Unicommerce or Shopify']);
+  if(isAdminU()){const fp=fixPlan();const n=fp.links.length+fp.deds.length+fp.awbs.length+fp.trash.length+fp.flags.length;if(n)rows.push(['#importfix',ico('spark'),'Import cleanup','Fix the 19 Sep Shopify import duplicates — needs doing once']);}
   if(isAdminU())rows.push(['#shopify',ico('spark'),'Shopify','Push Invento stock into your Shopify stores']);
   rows.push(['#trash',ico('trash'),'Trash','Restore deleted items ('+S.trash.length+')']);
   if(can('dispatch')){const od=awbOverdue().length;rows.push(['#awb',ico('ticket'),'AWB / Shipments'+(od?' ('+od+')':''),'Accept, dispatch & track shipping labels'+(od?' — '+od+' overdue':'')]);}
