@@ -165,6 +165,10 @@ hr.sep{border:none;border-top:1px solid var(--line);margin:14px 0}
 .dline{display:flex;align-items:center;gap:11px;padding:11px;border:1px solid var(--line);border-radius:12px;background:var(--card);margin-bottom:8px}
 .dline img{width:46px;height:46px;border-radius:9px;object-fit:cover;flex:0 0 auto}
 .dline .ph{width:46px;height:46px;border-radius:9px;background:var(--saddle-bg);color:var(--saddle);display:grid;place-items:center;flex:0 0 auto}
+.thumbpop{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:9999}
+.thumbpop span{font-size:104px;line-height:1;filter:drop-shadow(0 8px 24px rgba(0,0,0,.35));animation:thumbup .95s cubic-bezier(.2,.9,.3,1.2) forwards}
+@keyframes thumbup{0%{transform:scale(.3) translateY(26px);opacity:0}25%{transform:scale(1.12) translateY(0);opacity:1}70%{transform:scale(1) translateY(0);opacity:1}100%{transform:scale(.92) translateY(-18px);opacity:0}}
+@media (prefers-reduced-motion:reduce){.thumbpop span{animation:none;opacity:.95}}
 .modeslider{display:flex;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:4px;gap:4px;margin-bottom:16px;box-shadow:var(--shadow)}
 .modeslider button{flex:1;border:none;background:transparent;padding:11px 8px;border-radius:10px;font-size:14px;font-weight:700;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:background .15s,color .15s}
 .modeslider button svg{width:17px;height:17px}
@@ -553,7 +557,7 @@ body.printing #printArea{display:block;padding:8mm}
     <div class="brand"><span class="bx"><svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#8A5226"/><circle cx="32" cy="17.5" r="4" fill="#E8B04B"/><path d="M19 28h26v17a3 3 0 0 1-3 3H22a3 3 0 0 1-3-3z" fill="none" stroke="#F4E9D8" stroke-width="3.4" stroke-linejoin="round"/><path d="M19 28l-5.5-6.5M45 28l5.5-6.5" fill="none" stroke="#F4E9D8" stroke-width="3.4" stroke-linecap="round"/><path d="M32 33v9" stroke="#F4E9D8" stroke-width="3.4" stroke-linecap="round"/></svg></span><span>INVENTO<small>by Trishal</small></span></div>
     <a href="#home" data-nav="home" id="sn-home"></a>
     <a href="#stock" data-nav="stock" id="sn-stock"></a>
-    <a href="#dispatch" data-nav="dispatch" id="sn-dispatch"></a>
+    <a href="#awb" data-nav="dispatch" id="sn-dispatch"></a>
     <a href="#scan" data-nav="scan" id="sn-scan"></a>
     <a href="#ai" data-nav="ai" id="sn-ai"></a>
     <a href="#flows" data-nav="flows" id="sn-flows"></a>
@@ -568,7 +572,7 @@ body.printing #printArea{display:block;padding:8mm}
   <a href="#home" data-nav="home" id="bn-home"></a>
   <a href="#stock" data-nav="stock" id="bn-stock"></a>
   <a href="#scan" data-nav="scan" class="scan-btn" id="bn-scan" aria-label="Scan"></a>
-  <a href="#dispatch" data-nav="dispatch" id="bn-dispatch"></a>
+  <a href="#awb" data-nav="dispatch" id="bn-dispatch"></a>
   <a href="#more" data-nav="more" id="bn-more"></a>
 </nav>
 <div id="bulkbar"></div>
@@ -580,6 +584,7 @@ body.printing #printArea{display:block;padding:8mm}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
 
 <script>
 /* ============================================================
@@ -1515,6 +1520,13 @@ function paintNav(){
   $('#bn-scan').innerHTML='<span class="ring">'+ico('scan')+'</span>';
 }
 function updateBadges(){const n=lowItems().length;['#sbadge','#bbadge'].forEach(s=>{const el=$(s);if(el){el.style.display=n?'grid':'none';el.textContent=n}})}
+/* a thumbs-up, only when a parcel went through with nothing wrong */
+function thumbsUp(){
+  try{
+    const d=document.createElement('div');d.className='thumbpop';d.innerHTML='<span>👍</span>';
+    document.body.appendChild(d);setTimeout(()=>{try{d.remove()}catch(e){}},1000);
+  }catch(e){}
+}
 function setActiveNav(key){$$('#side a,#bottomnav a').forEach(a=>a.classList.toggle('on',a.dataset.nav===key))}
 function getTheme(){try{return localStorage.getItem('invento_theme')||'light'}catch(e){return 'light'}}
 function applyTheme(t){
@@ -2591,7 +2603,9 @@ function vScan(mode,arg){
   }
   $('#main').innerHTML=h;
   const man=$('#man');
-  $('#mango').onclick=()=>{const v=man.value.trim();if(v)handleCode(v)};
+  /* clear the box the moment a code is taken, so the next scan starts empty
+     instead of being appended to the last one */
+  $('#mango').onclick=()=>{const v=man.value.trim();man.value='';if(v)handleCode(v);try{man.focus()}catch(e){}};
 
   /* ---- Quick command: "<sku|name> <qty> <rack>" one-line stocking ---- */
   function qcRender(msg){$('#qc-out').innerHTML=msg||''}
@@ -5403,20 +5417,18 @@ let dDraft=null; // {orderId, dest, lines:[{itemId?,name,qty,photo?,thumb?,code?
 
 function modeSlider(active){
   const od=awbOverdue().length;
-  return '<div class="modeslider modeslider4">'+
+  /* Dispatch and Return used to sit here. Everything now happens on AWB, so the
+     slider is just the two screens people actually use. */
+  return '<div class="modeslider">'+
     '<button data-mode="inv" class="'+(active==='inv'?'on':'')+'">'+ico('box')+'Inventory</button>'+
-    '<button data-mode="dispatch" class="'+(active==='dispatch'?'on':'')+'">'+ico('truck')+'Dispatch</button>'+
-    '<button data-mode="return" class="'+(active==='return'?'on':'')+'">'+ico('undo')+'Return</button>'+
-    '<button data-mode="awb" class="'+(active==='awb'?'on':'')+'">'+ico('ticket')+'AWB'+(od?'<span class="navdot">'+od+'</span>':'')+'</button>'+
+    '<button data-mode="awb" class="'+(active==='awb'||active==='dispatch'||active==='return'?'on':'')+'">'+ico('ticket')+'AWB / Shipments'+(od?'<span class="navdot">'+od+'</span>':'')+'</button>'+
     '</div>';
 }
 function wireModeSlider(){
   $$('#main [data-mode]').forEach(b=>b.onclick=()=>{
     const m=b.dataset.mode;
     if(m==='inv')go('#stock');
-    else if(m==='dispatch')go('#dispatch');
-    else if(m==='awb')go('#awb');
-    else go('#return');
+    else go('#awb');
   });
 }
 function marketBar(){
@@ -5662,6 +5674,7 @@ function vDispatch(sub,arg){
   if(sub==='sales'){return vDispatchSales();}
   if(sub==='view'){return vDispatchView(arg);}
   if(sub==='new'){return vDispatchNew();}
+  go('#awb');return;   // the Dispatch hub is retired — AWB does this now
   // hub
   topTitle('Dispatch','#home');
   let h=modeSlider('dispatch')+marketBar();
@@ -6072,6 +6085,7 @@ function vReturn(sub,arg){
   if(sub==='view'){return vReturnView(arg);}
   if(sub==='done'){return vReturnDone(arg);}
   if(sub==='new'){return vReturnNew();}
+  go('#awb');return;   // the Return hub is retired — use AWB → Return
   // hub
   topTitle('Return','#home');
   let h=modeSlider('return')+marketBar();
@@ -6370,7 +6384,7 @@ const AWB_KEEP_DAYS=60;   // dispatched/returned docs are remembered this long, 
 async function purgeOldAwbs(){
   try{
     const cut=Date.now()-AWB_KEEP_DAYS*86400000;
-    const old=(S.awbs||[]).filter(a=>(a.status==='dispatched'||a.status==='returned')&&(a.resolvedAt||0)<cut);
+    const old=(S.awbs||[]).filter(a=>(a.status==='dispatched'||a.status==='returned'||a.status==='custreturn')&&(a.resolvedAt||0)<cut);
     if(!old.length)return;
     const gone=new Set(old.map(a=>a.id));
     S.awbs=S.awbs.filter(a=>!gone.has(a.id));
@@ -6678,6 +6692,7 @@ async function acceptAwb(no,extra){
   if(ex&&ex.status==='cancelled'){beep(false);return {ok:false,msg:(langHi()?'यह ऑर्डर रद्द हो चुका है':'This shipment was cancelled')}}
   if(ex&&ex.status==='dispatched'){beep(false);return {ok:false,msg:(langHi()?'यह पहले ही डिस्पैच हो चुका है · ':'Already dispatched · ')+ago(ex.resolvedAt)}}
   if(ex&&ex.status==='returned'){beep(false);return {ok:false,msg:(langHi()?'यह ऑफिस वापस जा चुका है · ':'Already returned to office · ')+ago(ex.resolvedAt)}}
+  if(ex&&ex.status==='custreturn'){beep(false);return {ok:false,msg:(langHi()?'यह ग्राहक से वापस आ चुका है — नया लेबल लगाएँ':'This came back from the customer — use a new label')}}
   const rec=Object.assign({id:uid('awb'),awb:no,status:'accepted',acceptedBy:userName(),acceptedAt:Date.now()},extra||{});
   if(!Array.isArray(rec.codes))rec.codes=[];
   S.awbs.unshift(rec);
@@ -6701,6 +6716,7 @@ async function dispatchAwbByNo(no,extra){
   let a=ms[0]||null;
   if(a&&a.status==='cancelled'){beep(false);alarmSound();return {ok:false,msg:(langHi()?'यह ऑर्डर रद्द हो चुका है — बाहर नहीं जा सकता':'This shipment was cancelled — it cannot go out')}}
   if(a&&a.status==='dispatched'){beep(false);return {ok:false,msg:(langHi()?'यह पहले ही डिस्पैच हो चुका है · ':'Already dispatched · ')+ago(a.resolvedAt)+' · '+(a.resolvedBy||'')+(awbKey(no)!==awbKey(a.awb)?' · AWB '+a.awb:'')}}
+  if(a&&a.status==='custreturn'){beep(false);return {ok:false,msg:(langHi()?'यह ग्राहक से वापस आ चुका है · ':'This came back from the customer · ')+ago(a.returnedAt)+(a.returnedBy?' · '+esc(a.returnedBy):'')}}
   if(a&&a.status==='returned'){beep(false);return {ok:false,msg:(langHi()?'यह ऑफिस वापस जा चुका है · ':'Was returned to office · ')+ago(a.resolvedAt)}}
   /* Packing gate — refuses only when the rule is switched on. While off it still
      tells the packer and marks the parcel, so the habit forms before it bites. */
@@ -6762,6 +6778,7 @@ function vAwb(sub,arg){
   if(!(can('awbAccept')||can('awbDispatch')||can('dispatch')||isAdminU())){toast('You do not have permission for AWBs','err');go('#home');return}
   if(sub==='in'){return awbScanFlow('in');}
   if(sub==='out'){return awbOutwardFlow();}
+  if(sub==='ret'){return awbCustReturnFlow();}
   if(sub==='return'){ if(!isAdminU()){toast(langHi()?'वापसी सिर्फ एडमिन कर सकते हैं':'Only admins can return AWBs','err');go('#awb');return} return awbReturnScanFlow();}
   // hub: two big buttons + three columns
   topTitle('AWB / Shipments','#home');
@@ -6776,6 +6793,8 @@ function vAwb(sub,arg){
      (ready?' <span class="pill ok" style="margin-left:6px">'+ready+(langHi()?' तैयार':' ready to go')+'</span>':'')+'</button>';}
   if(isAdminU())h+='<button class="btn block mb" id="aw-force2" style="border-color:var(--amber);color:var(--amber)">'+ico('bolt')+(langHi()?'ज़बरदस्ती डिस्पैच':'Force dispatch — a parcel that was never inwarded')+'</button>';
   h+='<button class="btn block mb" id="aw-status">'+ico('search')+(langHi()?'शिपमेंट की स्थिति देखें / रद्द करें':'Shipment status — check or cancel an order')+'</button>';
+  h+='<button class="btn block mb" id="aw-sales">'+ico('trend')+(langHi()?'सेल्स और रीऑर्डर':'Sales & reorder')+'</button>';
+  h+='<button class="btn block mb" id="aw-custret" style="background:var(--saddle);color:#fff;border-color:var(--saddle);font-weight:800">'+ico('undo')+(langHi()?'वापसी — पार्सल आया (स्कैन करें)':'Return — parcel came back (scan it)')+'</button>';
   h+='<button class="btn block mb" id="aw-back" style="border-color:var(--saddle);color:var(--saddle);font-weight:700">'+ico('undo')+(langHi()?'वापस अंदर लें — डिस्पैच हुआ पार्सल':'Bring back in — a parcel that already went out')+'</button>';
   if(myOver.length)h+='<div class="splitbox mb" style="background:var(--red-bg);border:1px solid var(--red)"><div class="row" style="gap:8px;align-items:center"><span style="color:var(--red)">'+ico('alert')+'</span><div><b style="color:var(--red)">Send to office: '+myOver.length+' overdue AWB'+(myOver.length>1?'s':'')+'</b><div class="small muted">They are '+AWB_OVERDUE_DAYS+'+ days old. Send them to office before accepting more.</div></div></div></div>';
   // two big buttons
@@ -6789,7 +6808,7 @@ function vAwb(sub,arg){
   h+='<div class="awbcols">';
   h+=awbColHTML(langHi()?'बाकी':'Pending',pend,'accept');
   h+='</div>';
-  const hist=(S.awbs||[]).filter(a=>a.status==='dispatched'||a.status==='returned').sort((a,b)=>(b.resolvedAt||0)-(a.resolvedAt||0));
+  const hist=(S.awbs||[]).filter(a=>a.status==='dispatched'||a.status==='returned'||a.status==='custreturn').sort((a,b)=>(b.resolvedAt||0)-(a.resolvedAt||0));
   h+='<div class="card pad mt"><div class="row" style="align-items:center;gap:8px">'+
      '<b class="grow">'+(langHi()?'हिस्ट्री':'History')+' <span class="muted num" style="font-weight:600">'+disp.length+(langHi()?' डिस्पैच · ':' dispatched · ')+ret.length+(langHi()?' वापस':' returned')+'</span></b>'+
      '<button class="btn sm" id="aw-hist">'+(langHi()?'देखें':'View')+'</button><button class="btn sm" id="aw-csv">'+ico('csv')+'CSV</button></div>'+
@@ -6803,6 +6822,8 @@ function vAwb(sub,arg){
   const fdb=$('#aw-force2');if(fdb)fdb.onclick=()=>forceDispatchDlg('').then(ok=>{if(ok)vAwb()});
   const shb=$('#aw-status');if(shb)shb.onclick=()=>shipmentDlg('');
   const bbb=$('#aw-back');if(bbb)bbb.onclick=()=>bringBackDlg('');
+  const crb=$('#aw-custret');if(crb)crb.onclick=()=>go('#awb/ret');
+  const slb=$('#aw-sales');if(slb)slb.onclick=()=>go('#dispatch/sales');
   const aix=$('#aw-aix');if(aix)aix.onclick=()=>go('#aiscan');
   $('#aw-in').onclick=()=>startInward();
   $('#aw-out').onclick=()=>{ if(!can('awbDispatch')){toast('No permission to dispatch AWBs','err');return} go('#awb/out'); };
@@ -6818,7 +6839,7 @@ function vAwb(sub,arg){
       const el=$('#aw-hq');const q=((el&&el.value)||'').trim().toLowerCase();
       const rows=hist.filter(a=>!q||awbCodes(a).some(c=>c.toLowerCase().indexOf(q)>=0)||String(a.sku||'').toLowerCase().indexOf(q)>=0||String(a.customer||'').toLowerCase().indexOf(q)>=0).slice(0,120);
       $('#aw-hlist').innerHTML=rows.length?rows.map(a=>'<div class="awbmini"><div class="awb-no">'+esc(a.awb)+'</div><div class="awb-meta">'+
-        (a.status==='dispatched'?(langHi()?'डिस्पैच':'dispatched'):(langHi()?'वापस':'returned'))+' · '+ago(a.resolvedAt)+' · '+esc(a.resolvedBy||'—')+
+        (a.status==='dispatched'?(langHi()?'डिस्पैच':'dispatched'):a.status==='custreturn'?(langHi()?'ग्राहक से वापस':'returned by customer'):(langHi()?'वापस':'returned'))+' · '+ago(a.status==='custreturn'?(a.returnedAt||a.resolvedAt):a.resolvedAt)+' · '+esc((a.status==='custreturn'?a.returnedBy:a.resolvedBy)||'—')+
         (a.sku?' · <b>'+esc(a.sku)+'</b>':'')+(a.video?' · 🎬 '+esc(a.video):'')+'</div>'+
         ((a.items&&a.items.length)?'<div class="awb-meta ellip">'+esc(a.items.map(x=>x.name+' ×'+fmtQty(x.outQty||x.qty)).join(', '))+'</div>':'')+
         (a.photo?'<img src="'+esc(a.photo)+'" alt="" style="margin-top:6px;max-width:90px;border-radius:8px">':'')+
@@ -7424,6 +7445,285 @@ function awbScanFlow(mode){
            :'Scan each AWB you are sending out. SKU or photo optional.',
     async(code)=>accept?acceptAwb(code):dispatchAwbByNo(code,awbExtra()), ()=>{scanSessionEnd();vAwb()}, !accept, accept);
 }
+/* ================= CUSTOMER RETURN (AWB) =================
+   Scan the label → order number (forced if dispatch never had one) → the camera
+   starts recording with the time and place burned into the picture → the person
+   opens the parcel on camera and checks the items on screen → Enter puts the
+   stock back and stops the recording → Enter for the next parcel, or Escalate,
+   which is the only case where the video is kept (downloaded here and stored in
+   Firebase for 7 days).
+   Scanning an item is optional; it just ticks it green. Everything arrives by
+   default — you only mark what is MISSING, so a clean return is scan, Enter, Enter. */
+const RET_KEEP_DAYS=7, RET_MAX_MS=8*60000;
+let _ret={stream:null,rec:null,chunks:[],raf:0,blob:null,startedAt:0,geo:null,geoWatch:0,stop:null};
+function retT(hi,en){return langHi()?hi:en}
+function retStamp(){
+  const g=_ret.geo;
+  return new Date().toLocaleString('en-GB',{hour12:false})+(g?'  '+g.lat.toFixed(5)+', '+g.lon.toFixed(5)+' ±'+Math.round(g.acc)+'m':'');
+}
+/* one fix, then keep watching so the stamp stays live */
+function retGeoStart(){
+  return new Promise(res=>{
+    if(!navigator.geolocation){res({err:'nogeo'});return}
+    let done=false;
+    const ok=p=>{_ret.geo={lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy||0,at:Date.now()};if(!done){done=true;res({ok:true})}};
+    const bad=e=>{if(!done){done=true;res({err:e&&e.code===1?'denied':'unavailable'})}};
+    navigator.geolocation.getCurrentPosition(ok,bad,{enableHighAccuracy:true,timeout:12000,maximumAge:60000});
+    try{_ret.geoWatch=navigator.geolocation.watchPosition(ok,()=>{},{enableHighAccuracy:true,maximumAge:15000})}catch(e){}
+  });
+}
+function retGeoStop(){try{if(_ret.geoWatch)navigator.geolocation.clearWatch(_ret.geoWatch)}catch(e){}_ret.geoWatch=0}
+/* record the CANVAS, not the camera: every frame is the camera picture plus the
+   time/place line drawn on top, so the stamp cannot be separated from the video */
+async function retRecStart(videoEl,canvasEl,label){
+  _ret.chunks=[];_ret.blob=null;
+  _ret.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}},audio:false});
+  videoEl.srcObject=_ret.stream;await videoEl.play().catch(()=>{});
+  const cw=1280,ch=720;canvasEl.width=cw;canvasEl.height=ch;
+  const ctx=canvasEl.getContext('2d');
+  const draw=()=>{
+    _ret.raf=requestAnimationFrame(draw);
+    if(!videoEl.videoWidth)return;
+    const s=Math.min(cw/videoEl.videoWidth,ch/videoEl.videoHeight);
+    const w=videoEl.videoWidth*s,h=videoEl.videoHeight*s;
+    ctx.fillStyle='#000';ctx.fillRect(0,0,cw,ch);
+    ctx.drawImage(videoEl,(cw-w)/2,(ch-h)/2,w,h);
+    ctx.fillStyle='rgba(0,0,0,.62)';ctx.fillRect(0,ch-64,cw,64);
+    ctx.fillStyle='#fff';ctx.font='600 22px system-ui,sans-serif';ctx.textBaseline='middle';
+    ctx.fillText(retStamp(),14,ch-40);
+    ctx.font='500 18px system-ui,sans-serif';ctx.fillStyle='#ffd9a8';
+    ctx.fillText(label,14,ch-15);
+  };
+  draw();
+  const cs=canvasEl.captureStream(20);
+  let mime='';
+  ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm','video/mp4'].forEach(m=>{if(!mime&&window.MediaRecorder&&MediaRecorder.isTypeSupported(m))mime=m});
+  _ret.rec=new MediaRecorder(cs,mime?{mimeType:mime,videoBitsPerSecond:1500000}:undefined);
+  _ret.rec.ondataavailable=e=>{if(e.data&&e.data.size)_ret.chunks.push(e.data)};
+  _ret.rec.start(1000);
+  _ret.startedAt=Date.now();
+  _ret.stop=setTimeout(()=>{try{retRecStop()}catch(e){}},RET_MAX_MS);   // never record forever
+  return mime||'video/webm';
+}
+function retRecStop(){
+  return new Promise(res=>{
+    clearTimeout(_ret.stop);
+    cancelAnimationFrame(_ret.raf);
+    const fin=()=>{
+      try{if(_ret.stream)_ret.stream.getTracks().forEach(t=>t.stop())}catch(e){}
+      _ret.stream=null;
+      _ret.blob=_ret.chunks.length?new Blob(_ret.chunks,{type:(_ret.rec&&_ret.rec.mimeType)||'video/webm'}):null;
+      _ret.chunks=[];_ret.rec=null;res(_ret.blob);
+    };
+    if(_ret.rec&&_ret.rec.state!=='inactive'){_ret.rec.onstop=fin;try{_ret.rec.stop()}catch(e){fin()}}
+    else fin();
+  });
+}
+function retDrop(){ _ret.blob=null;_ret.chunks=[]; }
+/* Escalation: the file lands in this device's Downloads immediately, and a copy
+   goes to Firebase Storage under returns/ where a daily job deletes it after 7 days. */
+async function retKeep(a,blob,note,missing){
+  const stamp=new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+  const name='RETURN_'+String(a.awb||'no-awb').replace(/[^\w-]/g,'')+'_'+stamp+'.webm';
+  let dl=false,up='';
+  try{const u=URL.createObjectURL(blob);const el=document.createElement('a');el.href=u;el.download=name;document.body.appendChild(el);el.click();el.remove();setTimeout(()=>URL.revokeObjectURL(u),30000);dl=true}catch(e){}
+  try{
+    if(typeof firebase.storage!=='function')throw new Error('Storage SDK not loaded');
+    const ref=firebase.storage().ref('returns/'+name);
+    await ref.put(blob,{contentType:blob.type||'video/webm',customMetadata:{awb:String(a.awb||''),orderNo:String(a.orderNo||''),by:userName(),keepDays:String(RET_KEEP_DAYS)}});
+    up=await ref.getDownloadURL();
+  }catch(e){up='';console.warn('return upload',e)}
+  const rec={id:uid('rf'),awbId:a.id,awb:a.awb||'',orderNo:a.orderNo||'',at:Date.now(),by:userName(),
+    note:note||'',missing:missing||[],file:name,url:up,downloaded:dl,
+    geo:_ret.geo?{lat:_ret.geo.lat,lon:_ret.geo.lon,acc:_ret.geo.acc}:null,
+    seconds:Math.round((Date.now()-_ret.startedAt)/1000),bytes:blob.size,expiresAt:Date.now()+RET_KEEP_DAYS*86400000};
+  try{await db.collection('returnflags').doc(rec.id).set(rec)}catch(e){console.warn('returnflag',e)}
+  logTx('shipment',{awb:a.awb,detail:'RETURN ESCALATED · AWB '+a.awb+(a.orderNo?' · order '+a.orderNo:'')+' · '+(note||'no note')+(missing&&missing.length?' · missing: '+missing.join(', '):'')+' · video '+name+(up?' (stored 7 days)':' (device download only)')});
+  return {name,uploaded:!!up,downloaded:dl};
+}
+/* put the stock back for everything that DID arrive */
+async function retRestock(a,arrived,by){
+  let n=0;
+  for(const x of arrived){
+    const it=x.itemId&&iById(x.itemId);if(!it)continue;
+    const q=+x.outQty||+x.qty||0;if(q<=0)continue;
+    const from=+it.qty||0;
+    pileAdd(it,x.outRack!==undefined?x.outRack:it.folder,q);
+    n+=q;
+    logTx('in',{itemId:it.id,itemName:it.name,qty:q,fromQ:from,toQ:+it.qty||0,rack:shelfName(x.outRack!==undefined?x.outRack:it.folder),awb:a.awb,
+      reason:'Customer return',detail:'Customer return · AWB '+a.awb+(a.orderNo?' · order '+a.orderNo:'')+' · by '+by});
+  }
+  if(n)await saveNow('items');
+  return n;
+}
+function awbCustReturnFlow(){
+  if(!can('dispatch')&&!can('awbReturn')&&!isAdminU()){toast(retT('इजाज़त नहीं','No permission for returns'),'err');go('#awb');return}
+  if(!navigator.mediaDevices||!window.MediaRecorder){toast(retT('इस डिवाइस में कैमरा रिकॉर्डिंग नहीं है','This device cannot record video'),'err');go('#awb');return}
+  topTitle(retT('वापसी — पार्सल आया','Return — parcel came back'),'#awb');
+  let stage='scan',cur=null,missing={},seen={},busy=false,done=0,lastBlobFor=null;
+  const paint=()=>{
+    let h='';
+    if(stage!=='scan'&&cur){
+      h+='<div class="splitbox mb" style="background:var(--saddle-bg);border:1px solid var(--saddle)"><div class="sl"><span>AWB</span><b class="mono">'+esc(cur.awb)+'</b></div>'+
+         '<div class="sl"><span>'+retT('ऑर्डर नंबर','Order number')+'</span><b class="mono">'+esc(cur.orderNo||'—')+'</b></div></div>';
+    }
+    if(stage==='scan'){
+      h+='<div class="card pad mb"><div class="sub">'+retT('पार्सल का लेबल स्कैन करें।','Scan the parcel label. Everything else follows automatically.')+'</div></div>';
+      h+='<div class="searchbar mb" style="border-color:var(--saddle)">'+ico('ticket')+'<input id="rt-in" placeholder="'+retT('लेबल स्कैन करें','Scan the label')+'" autocomplete="off" autocapitalize="characters"></div>';
+      h+='<div id="rt-msg" class="sub" style="min-height:44px"></div>';
+      if(done)h+='<div class="hint">'+done+retT(' पार्सल वापस लिए गए',' parcels returned in this session')+'</div>';
+    }
+    if(stage==='order'){
+      h+='<div class="card pad mb" style="border-left:4px solid var(--amber)"><b>'+retT('ऑर्डर नंबर डालें','Enter the order number')+'</b>'+
+         '<div class="sub mt">'+retT('डिस्पैच के समय ऑर्डर नंबर नहीं डाला गया था। इसके बिना वापसी नहीं हो सकती।','This parcel went out without an order number. The return cannot go ahead without it.')+'</div></div>';
+      h+='<div class="searchbar mb" style="border-color:var(--amber)">'+ico('ticket')+'<input id="rt-in" placeholder="'+retT('ऑर्डर नंबर','Order number')+'" autocomplete="off" autocapitalize="off"></div>';
+      h+='<div id="rt-msg" class="sub" style="min-height:30px"></div>';
+    }
+    if(stage==='open'){
+      h+='<div class="card pad mb" style="border:2px solid var(--red);padding:0;overflow:hidden">'+
+         '<div style="position:relative;background:#000"><video id="rt-v" playsinline muted style="width:100%;display:block;max-height:38dvh;object-fit:contain"></video>'+
+         '<span class="pill" id="rt-dot" style="position:absolute;top:8px;left:8px;background:var(--red);color:#fff">● REC <span id="rt-t">0:00</span></span></div>'+
+         '<div class="hint" style="padding:8px 10px">'+retT('कैमरे के सामने पार्सल खोलें। समय और जगह रिकॉर्डिंग पर छप रही है।','Open the parcel in front of the camera. The time and place are printed on the recording.')+'</div></div>';
+      h+='<canvas id="rt-c" style="display:none"></canvas>';
+      const items=awbItems(cur).filter(x=>(+x.outQty||+x.qty||0)>0);
+      h+='<div class="card pad mb"><div class="eyebrow mb">'+retT('इस पार्सल में','What went in this parcel')+' — '+items.length+'</div>'+
+         '<div class="hint" style="margin-bottom:8px">'+retT('सब आया हुआ माना गया है। जो नहीं आया सिर्फ़ उसे टैप करें।','Everything counts as arrived. Tap only the ones that did NOT come back.')+'</div>'+
+         items.map((x,ix)=>{const it=x.itemId&&iById(x.itemId);const miss=!!missing[ix];
+           return '<div class="irow" data-miss="'+ix+'" style="cursor:pointer;'+(miss?'opacity:.55;border:1px solid var(--red)':'')+'">'+
+             '<span class="th">'+((it&&(it.img||it.thumb))?'<img src="'+esc(it.img||it.thumb)+'" alt="" referrerpolicy="no-referrer">':ico('box'))+'</span>'+
+             '<div class="grow"><div class="nm ellip">'+esc(x.name||(it&&it.name)||'—')+'</div><div class="meta">'+
+               (x.sku?'<span class="skutag">'+esc(x.sku)+'</span>':'')+
+               (seen[ix]?'<span class="pill ok">'+retT('स्कैन हुआ','scanned')+'</span>':'')+
+               (miss?'<span class="pill low" style="background:var(--red);color:#fff">'+retT('नहीं आया','did NOT arrive')+'</span>':'')+
+             '</div></div><div class="qcol"><div class="q num">'+fmtQty(+x.outQty||+x.qty||0)+'</div></div></div>'}).join('')+
+         '</div>';
+      h+='<div class="searchbar mb">'+ico('scan')+'<input id="rt-in" placeholder="'+retT('SKU स्कैन करें (ज़रूरी नहीं) — फिर Enter','Scan an item (optional) — then press Enter')+'" autocomplete="off" autocapitalize="characters"></div>';
+      h+='<div id="rt-msg" class="sub" style="min-height:26px"></div>';
+      h+='<button class="btn pri block" id="rt-done">'+ico('check')+retT('हो गया — स्टॉक वापस (Enter)','Done — put stock back (Enter)')+'</button>';
+    }
+    if(stage==='after'){
+      h+='<div class="card pad mb" style="border-left:4px solid var(--green)"><b>'+retT('वापस हो गया','Returned')+'</b><div class="sub mt" id="rt-sum"></div></div>';
+      h+='<button class="btn pri block mb" id="rt-next">'+ico('check')+retT('अगला पार्सल (Enter)','Next parcel (Enter)')+'</button>';
+      h+='<button class="btn block" id="rt-esc" style="border-color:var(--red);color:var(--red);font-weight:700">'+ico('bolt')+retT('एस्केलेट करें — रिकॉर्डिंग रखें','Escalate — keep the recording')+'</button>';
+      h+='<div class="hint mt">'+retT('कुछ गलत या टूटा हुआ हो तो ही एस्केलेट करें। वरना रिकॉर्डिंग मिटा दी जाती है।','Escalate only if something is wrong or damaged. Otherwise the recording is thrown away.')+'</div>';
+      h+='<div id="rt-msg" class="sub mt" style="min-height:26px"></div>';
+    }
+    $('#main').innerHTML=h;
+    wire();
+  };
+  const msg=(t,bad)=>{const m=$('#rt-msg');if(m)m.innerHTML=bad?'<span style="color:var(--red)">'+t+'</span>':t};
+  const focus=()=>{const i=$('#rt-in');if(i){try{i.focus()}catch(e){}}};
+  async function onScan(code){
+    code=String(code||'').trim();if(!code||busy)return;
+    if(stage==='scan'){
+      const a=awbByNo(code);
+      if(!a){msg(retT('यह AWB नहीं मिला — यह पार्सल इस ऐप से नहीं गया था','This AWB is not in Invento — it never went out through the app'),true);beep(false);return}
+      if(a.status==='custreturn'){msg(retT('यह पहले ही वापस लिया जा चुका है · ','Already returned · ')+ago(a.returnedAt)+(a.returnedBy?' · '+esc(a.returnedBy):''),true);beep(false);return}
+      if(a.status!=='dispatched'){msg(retT('यह पार्सल बाहर ही नहीं गया (status: ','This parcel never went out (status: ')+esc(a.status)+')',true);beep(false);return}
+      cur=a;missing={};seen={};beep(true);
+      stage=a.orderNo?'open':'order';paint();
+      if(stage==='open')await startRec();
+      return;
+    }
+    if(stage==='order'){
+      if(code.length<3){msg(retT('ऑर्डर नंबर बहुत छोटा है','That order number looks too short'),true);return}
+      cur.orderNo=code;cur.orderNoBy=userName();cur.orderNoAt=Date.now();
+      try{await saveNow('awbs')}catch(e){}
+      beep(true);stage='open';paint();await startRec();
+      return;
+    }
+    if(stage==='open'){
+      const items=awbItems(cur).filter(x=>(+x.outQty||+x.qty||0)>0);
+      const ix=items.findIndex(x=>{const it=x.itemId&&iById(x.itemId);
+        return (x.sku&&awbKey(x.sku)===awbKey(code))||(it&&skusOf(it).some(s=>awbKey(s)===awbKey(code)))});
+      if(ix<0){msg(retT('यह SKU इस पार्सल में नहीं था','That SKU was not in this parcel'),true);beep(false);return}
+      seen[ix]=true;delete missing[ix];beep(true);paint();msg(retT('मिल गया','Matched'));
+      return;
+    }
+  }
+  async function startRec(){
+    try{
+      msg(retT('जगह देख रहे हैं…','Getting location…'));
+      const g=await retGeoStart();
+      if(!g.ok){
+        retGeoStop();
+        $('#main').innerHTML='<div class="card pad mb" style="border:2px solid var(--red)"><b style="color:var(--red)">'+retT('जगह (location) नहीं मिली','Location unavailable')+'</b>'+
+          '<div class="sub mt">'+(g.err==='denied'?retT('इस डिवाइस पर location की इजाज़त दें, फिर दोबारा कोशिश करें।','Allow location for this site on this device, then try again.')
+            :retT('GPS नहीं मिल रहा। बाहर या खिड़की के पास जाकर दोबारा कोशिश करें।','No GPS fix. Move near a window or outside and try again.'))+
+          '<br>'+retT('बिना जगह के वापसी नहीं हो सकती — एस्केलेशन के लिए यह ज़रूरी है।','The return cannot go ahead without it — the escalation depends on it.')+'</div>'+
+          '<div class="row mt"><button class="btn grow" id="rt-back">'+retT('वापस','Back')+'</button><button class="btn pri grow" id="rt-retry">'+retT('दोबारा कोशिश','Try again')+'</button></div></div>';
+        $('#rt-back').onclick=()=>{cur=null;stage='scan';paint()};
+        $('#rt-retry').onclick=()=>{paint();startRec()};
+        return;
+      }
+      await retRecStart($('#rt-v'),$('#rt-c'),'AWB '+(cur.awb||'')+(cur.orderNo?'  ·  ORDER '+cur.orderNo:'')+'  ·  '+userName());
+      msg('');
+      const tick=setInterval(()=>{const el=$('#rt-t');if(!el||stage!=='open'){clearInterval(tick);return}
+        const s=Math.round((Date.now()-_ret.startedAt)/1000);el.textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0')},1000);
+      focus();
+    }catch(e){
+      msg(retT('कैमरा नहीं खुला: ','Camera failed: ')+esc(String(e&&e.message||e)).slice(0,90),true);
+    }
+  }
+  async function finishParcel(){
+    if(busy||stage!=='open')return;busy=true;
+    const items=awbItems(cur).filter(x=>(+x.outQty||+x.qty||0)>0);
+    const missNames=items.filter((x,ix)=>missing[ix]).map(x=>x.name||x.sku||'item');
+    const arrived=items.filter((x,ix)=>!missing[ix]);
+    await retRecStop();retGeoStop();
+    const by=userName();
+    const n=await retRestock(cur,arrived,by);
+    cur.status='custreturn';cur.returnedAt=Date.now();cur.returnedBy=by;
+    cur.returnMissing=missNames;cur.returnQty=n;
+    try{await saveNow('awbs')}catch(e){}
+    logTx('shipment',{awb:cur.awb,detail:'Customer return · AWB '+cur.awb+(cur.orderNo?' · order '+cur.orderNo:'')+' · '+n+' pcs back'+(missNames.length?' · missing: '+missNames.join(', '):'')+' · by '+by});
+    done++;busy=false;lastBlobFor=cur;
+    stage='after';paint();
+    if(!missNames.length)thumbsUp();
+    const s=$('#rt-sum');
+    if(s)s.innerHTML='<b class="mono">'+esc(cur.awb)+'</b> · '+n+retT(' पीस स्टॉक में वापस',' pcs put back into stock')+
+      (missNames.length?'<br><span style="color:var(--red)">'+retT('नहीं आया: ','Did not arrive: ')+esc(missNames.join(', '))+'</span>':'')+
+      '<br><span class="muted">'+retT('रिकॉर्डिंग तैयार है — एस्केलेट न करने पर मिटा दी जाएगी।','Recording is held — it is deleted unless you escalate.')+'</span>';
+    beep(true);
+  }
+  function wire(){
+    const inp=$('#rt-in');
+    if(inp){
+      inp.onkeydown=async e=>{
+        if(e.key!=='Enter')return;
+        e.preventDefault();
+        const v=inp.value.trim();inp.value='';
+        if(!v&&stage==='open'){await finishParcel();return}
+        if(!v)return;
+        await onScan(v);
+        focus();
+      };
+      focus();
+    }
+    const d=$('#rt-done');if(d)d.onclick=finishParcel;
+    $$('[data-miss]').forEach(el=>el.onclick=()=>{const ix=+el.dataset.miss;if(missing[ix])delete missing[ix];else missing[ix]=1;paint()});
+    const nx=$('#rt-next');
+    if(nx)nx.onclick=()=>{retDrop();cur=null;missing={};seen={};stage='scan';paint()};
+    const es=$('#rt-esc');
+    if(es)es.onclick=async()=>{
+      if(!_ret.blob){msg(retT('रिकॉर्डिंग नहीं मिली','No recording was captured'),true);return}
+      es.disabled=true;
+      const why=await reasonDlg(retT('एस्केलेट क्यों?','Why escalate?'),
+        '<b class="mono">'+esc(cur.awb)+'</b>'+(cur.orderNo?' · '+esc(cur.orderNo):'')+retT(' — रिकॉर्डिंग रखी जाएगी (7 दिन)',' — the recording will be kept for 7 days'),
+        retT('एस्केलेट','Escalate'));
+      if(!why){es.disabled=false;return}
+      msg(retT('रिकॉर्डिंग सेव हो रही है…','Saving the recording…'));
+      const r=await retKeep(cur,_ret.blob,(why.reason||'')+' · '+(why.by||''),cur.returnMissing||[]);
+      retDrop();
+      msg(retT('सेव हो गया: ','Saved: ')+esc(r.name)+(r.uploaded?retT(' · Firebase में 7 दिन',' · in Firebase for 7 days'):retT(' · सिर्फ इस डिवाइस में (Storage चालू नहीं)',' · this device only — Firebase Storage is not switched on')));
+      beep(true);
+    };
+    if(stage==='after'){
+      document.onkeydown=e=>{if(e.key==='Enter'&&stage==='after'){e.preventDefault();const b=$('#rt-next');if(b)b.click()}};
+    } else document.onkeydown=null;
+  }
+  paint();
+}
 function awbReturnScanFlow(prefill){
   if(!isAdminU()){toast(langHi()?'वापसी सिर्फ एडमिन कर सकते हैं':'Only admins can return AWBs','err');go('#awb');return}
   awbScanModal(langHi()?'AWB ऑफिस वापस करें':'Return AWBs to office',
@@ -7563,6 +7863,7 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
     const ord=ordEl?(ordEl.value||'').trim():'';
     const r=await onCode(pend.codes[0]);
     if(!r||!r.ok){errBox(pend.codes[0],(r&&r.msg));return false}
+    thumbsUp();
     const rec=r.rec;
     for(const c of pend.codes.slice(1))await awbAddCode(rec,c);
     await awbSetItems(rec,pend.items);
@@ -7713,7 +8014,7 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
         paintCur();return;
       }
       const r=await onCode(code);
-      if(r&&r.ok){n++;okBox(code)}
+      if(r&&r.ok){n++;okBox(code);thumbsUp()}
       else errBox(code,(r&&r.msg));
     } finally { busy=false }
   };
