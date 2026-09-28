@@ -7522,7 +7522,8 @@ function retRecStop(){
 function retDrop(){ _ret.blob=null;_ret.chunks=[]; }
 /* Escalation: the file lands in this device's Downloads immediately, and a copy
    goes to Firebase Storage under returns/ where a daily job deletes it after 7 days. */
-async function retKeep(a,blob,note,missing){
+async function retKeep(a,blob,note,missing,stocked){
+  if(!blob)return await retKeepNoVideo(a,note,missing,stocked);
   const stamp=new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
   const name='RETURN_'+String(a.awb||'no-awb').replace(/[^\w-]/g,'')+'_'+stamp+'.webm';
   let dl=false,up='';
@@ -7534,12 +7535,37 @@ async function retKeep(a,blob,note,missing){
     up=await ref.getDownloadURL();
   }catch(e){up='';console.warn('return upload',e)}
   const rec={id:uid('rf'),awbId:a.id,awb:a.awb||'',orderNo:a.orderNo||'',at:Date.now(),by:userName(),
-    note:note||'',missing:missing||[],file:name,url:up,downloaded:dl,
+    note:note||'',missing:missing||[],inStock:stocked!==false,file:name,url:up,downloaded:dl,
     geo:_ret.geo?{lat:_ret.geo.lat,lon:_ret.geo.lon,acc:_ret.geo.acc}:null,
     seconds:Math.round((Date.now()-_ret.startedAt)/1000),bytes:blob.size,expiresAt:Date.now()+RET_KEEP_DAYS*86400000};
   try{await db.collection('returnflags').doc(rec.id).set(rec)}catch(e){console.warn('returnflag',e)}
-  logTx('shipment',{awb:a.awb,detail:'RETURN ESCALATED · AWB '+a.awb+(a.orderNo?' · order '+a.orderNo:'')+' · '+(note||'no note')+(missing&&missing.length?' · missing: '+missing.join(', '):'')+' · video '+name+(up?' (stored 7 days)':' (device download only)')});
+  logTx('shipment',{awb:a.awb,detail:'RETURN ESCALATED · AWB '+a.awb+(a.orderNo?' · order '+a.orderNo:'')+' · '+(note||'no note')+(missing&&missing.length?' · missing: '+missing.join(', '):'')+' · '+(stocked===false?'NOT added to stock':'kept in stock')+' · video '+name+(up?' (stored 7 days)':' (device download only)')});
   return {name,uploaded:!!up,downloaded:dl};
+}
+/* an escalated parcel the person does not want in sellable stock: take back out
+   exactly what this return put in, with the reason on the record */
+async function retUnstock(a,arrived,by,why){
+  let n=0;
+  for(const x of arrived){
+    const it=x.itemId&&iById(x.itemId);if(!it)continue;
+    const q=Math.min(+x.outQty||+x.qty||0,+it.qty||0);if(q<=0)continue;
+    const from=+it.qty||0;
+    pileDrain(it,q,x.outRack!==undefined?x.outRack:it.folder);
+    n+=q;
+    logTx('out',{itemId:it.id,itemName:it.name,qty:q,fromQ:from,toQ:+it.qty||0,rack:shelfName(x.outRack!==undefined?x.outRack:it.folder),awb:a.awb,
+      reason:'Escalated return — kept out of stock',detail:'Escalated return · AWB '+a.awb+(a.orderNo?' · order '+a.orderNo:'')+' · not sellable · '+(why||'')+' · by '+by});
+  }
+  if(n)await saveNow('items');
+  return n;
+}
+/* an escalation with no footage — the record still has to exist */
+async function retKeepNoVideo(a,note,missing,stocked){
+  const rec={id:uid('rf'),awbId:a.id,awb:a.awb||'',orderNo:a.orderNo||'',at:Date.now(),by:userName(),
+    note:note||'',missing:missing||[],inStock:stocked!==false,file:'',url:'',downloaded:false,noVideo:true,
+    geo:_ret.geo?{lat:_ret.geo.lat,lon:_ret.geo.lon,acc:_ret.geo.acc}:null,seconds:0,bytes:0};
+  try{await db.collection('returnflags').doc(rec.id).set(rec)}catch(e){console.warn('returnflag',e)}
+  logTx('shipment',{awb:a.awb,detail:'RETURN ESCALATED (no video) · AWB '+a.awb+(a.orderNo?' · order '+a.orderNo:'')+' · '+(note||'no note')+' · '+(stocked===false?'NOT added to stock':'kept in stock')});
+  return {name:'(no video)',uploaded:false,downloaded:false};
 }
 /* put the stock back for everything that DID arrive */
 async function retRestock(a,arrived,by){
@@ -7560,7 +7586,7 @@ function awbCustReturnFlow(){
   if(!can('dispatch')&&!can('awbReturn')&&!isAdminU()){toast(retT('इजाज़त नहीं','No permission for returns'),'err');go('#awb');return}
   if(!navigator.mediaDevices||!window.MediaRecorder){toast(retT('इस डिवाइस में कैमरा रिकॉर्डिंग नहीं है','This device cannot record video'),'err');go('#awb');return}
   topTitle(retT('वापसी — पार्सल आया','Return — parcel came back'),'#awb');
-  let stage='scan',cur=null,missing={},seen={},busy=false,done=0,lastBlobFor=null;
+  let stage='scan',cur=null,missing={},seen={},busy=false,done=0,lastBlobFor=null,lastArrived=[],lastQty=0;
   const paint=()=>{
     let h='';
     if(stage!=='scan'&&cur){
@@ -7605,7 +7631,7 @@ function awbCustReturnFlow(){
       h+='<div class="card pad mb" style="border-left:4px solid var(--green)"><b>'+retT('वापस हो गया','Returned')+'</b><div class="sub mt" id="rt-sum"></div></div>';
       h+='<button class="btn pri block mb" id="rt-next">'+ico('check')+retT('अगला पार्सल (Enter)','Next parcel (Enter)')+'</button>';
       h+='<button class="btn block" id="rt-esc" style="border-color:var(--red);color:var(--red);font-weight:700">'+ico('bolt')+retT('एस्केलेट करें — रिकॉर्डिंग रखें','Escalate — keep the recording')+'</button>';
-      h+='<div class="hint mt">'+retT('कुछ गलत या टूटा हुआ हो तो ही एस्केलेट करें। वरना रिकॉर्डिंग मिटा दी जाती है।','Escalate only if something is wrong or damaged. Otherwise the recording is thrown away.')+'</div>';
+      h+='<div class="hint mt">'+retT('कुछ गलत या टूटा हुआ हो तो ही एस्केलेट करें — तब पूछा जाएगा कि माल स्टॉक में रखना है या नहीं। वरना रिकॉर्डिंग मिटा दी जाती है।','Escalate only if something is wrong or damaged — it then asks whether the goods should stay in stock. Otherwise the recording is thrown away.')+'</div>';
       h+='<div id="rt-msg" class="sub mt" style="min-height:26px"></div>';
     }
     $('#main').innerHTML=h;
@@ -7673,6 +7699,7 @@ function awbCustReturnFlow(){
     await retRecStop();retGeoStop();
     const by=userName();
     const n=await retRestock(cur,arrived,by);
+    lastArrived=arrived;lastQty=n;
     cur.status='custreturn';cur.returnedAt=Date.now();cur.returnedBy=by;
     cur.returnMissing=missNames;cur.returnQty=n;
     try{await saveNow('awbs')}catch(e){}
@@ -7706,16 +7733,38 @@ function awbCustReturnFlow(){
     if(nx)nx.onclick=()=>{retDrop();cur=null;missing={};seen={};stage='scan';paint()};
     const es=$('#rt-esc');
     if(es)es.onclick=async()=>{
-      if(!_ret.blob){msg(retT('रिकॉर्डिंग नहीं मिली','No recording was captured'),true);return}
       es.disabled=true;
+      if(!_ret.blob){
+        const anyway=await confirmDlg(retT('बिना रिकॉर्डिंग के एस्केलेट करें?','Escalate without a recording?'),
+          retT('कैमरा रिकॉर्डिंग नहीं बनी। एस्केलेशन दर्ज होगा पर वीडियो नहीं होगा।','No video was captured. The escalation will be recorded, but without the footage.'),
+          retT('फिर भी एस्केलेट','Escalate anyway'),true);
+        if(!anyway){es.disabled=false;return}
+      }
       const why=await reasonDlg(retT('एस्केलेट क्यों?','Why escalate?'),
         '<b class="mono">'+esc(cur.awb)+'</b>'+(cur.orderNo?' · '+esc(cur.orderNo):'')+retT(' — रिकॉर्डिंग रखी जाएगी (7 दिन)',' — the recording will be kept for 7 days'),
         retT('एस्केलेट','Escalate'));
       if(!why){es.disabled=false;return}
+      /* damaged or wrong goods should not sit in sellable stock — ask, plainly */
+      const keepIn=lastQty>0?await new Promise(res=>{
+        subOpen('<h3>'+retT('यह माल स्टॉक में रखें?','Put these pieces into stock?')+'</h3>'+
+          '<p class="sub mb">'+lastQty+retT(' पीस अभी स्टॉक में जोड़े गए हैं। अगर माल खराब या गलत है तो इन्हें स्टॉक से बाहर रखें — बिक्री के लिए उपलब्ध नहीं होंगे।',
+            ' pcs went back into stock a moment ago. If the goods are damaged or wrong, keep them out — they will not be available to sell.')+'</p>'+
+          '<div class="row"><button class="btn danger grow" id="rk-no">'+retT('स्टॉक में न रखें','Do NOT add to stock')+'</button>'+
+          '<button class="btn pri grow" id="rk-yes">'+retT('स्टॉक में रखें','Keep in stock')+'</button></div>');
+        sub$('#rk-no').onclick=()=>{subClose();res(false)};
+        sub$('#rk-yes').onclick=()=>{subClose();res(true)};
+      }):true;
+      let pulled=0;
+      if(keepIn===false){
+        pulled=await retUnstock(cur,lastArrived,why.by||userName(),why.reason||'');
+        cur.returnQty=Math.max(0,(+cur.returnQty||0)-pulled);cur.returnNotStocked=pulled;
+        try{await saveNow('awbs')}catch(e){}
+      }
       msg(retT('रिकॉर्डिंग सेव हो रही है…','Saving the recording…'));
-      const r=await retKeep(cur,_ret.blob,(why.reason||'')+' · '+(why.by||''),cur.returnMissing||[]);
+      const r=await retKeep(cur,_ret.blob,(why.reason||'')+' · '+(why.by||''),cur.returnMissing||[],keepIn);
       retDrop();
-      msg(retT('सेव हो गया: ','Saved: ')+esc(r.name)+(r.uploaded?retT(' · Firebase में 7 दिन',' · in Firebase for 7 days'):retT(' · सिर्फ इस डिवाइस में (Storage चालू नहीं)',' · this device only — Firebase Storage is not switched on')));
+      msg(retT('सेव हो गया: ','Saved: ')+esc(r.name)+(r.uploaded?retT(' · Firebase में 7 दिन',' · in Firebase for 7 days'):retT(' · सिर्फ इस डिवाइस में (Storage चालू नहीं)',' · this device only — Firebase Storage is not switched on'))+
+        (keepIn===false?'<br><b style="color:var(--red)">'+pulled+retT(' पीस स्टॉक से बाहर रखे गए',' pcs kept OUT of stock')+'</b>':'<br>'+retT('माल स्टॉक में है।','The pieces stay in stock.')));
       beep(true);
     };
     if(stage==='after'){
