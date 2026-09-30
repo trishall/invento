@@ -4598,7 +4598,7 @@ function vPack(){
     '<div id="pk-vidwrap"></div>'+
     '<div class="splitbox mb" style="background:var(--green-bg);border:1px solid var(--green)"><div class="sl"><span>'+T('अब तक पैक हुए','Packed so far')+' · '+esc(marketLabel())+'</span><b class="num" id="pk-n">0</b></div></div>'+
     '<div id="pk-stage"></div>'+
-    '<div class="row mt" style="gap:6px"><input class="in mono grow" id="pk-in" placeholder="'+T('ऑर्डर नंबर लिखें…','Type the order number…')+'" autocomplete="off" autocapitalize="characters"><button class="btn pri" id="pk-go" style="flex:0 0 auto">'+T('जाएँ','Go')+'</button></div>'+
+    '<div class="row mt" style="gap:6px"><input class="in mono grow" id="pk-in" placeholder="'+T('लेबल स्कैन करें…','Scan the label…')+'" autocomplete="off" autocapitalize="characters"><button class="btn pri" id="pk-go" style="flex:0 0 auto">'+T('जाएँ','Go')+'</button></div>'+
     '<div id="pk-feed" class="sub" style="min-height:34px;margin-top:8px"></div>'+
     '<button class="btn block mt" id="pk-x">'+T('बंद करें','Finish')+'</button>';
   wireMarketBar();   /* switching market re-runs route(), which redraws this screen */
@@ -4612,10 +4612,9 @@ function vPack(){
      people scanning the label again and again. */
   const phFor=()=>{
     if(!cur)return T('लेबल स्कैन करें…','Scan the label…');
-    if(stage==='order')return T('ऑर्डर नंबर लिखें…','Type the order number…');
     if(stage==='shoot')return T('फोटो के लिए Enter…','Enter to take the photo…');
     if(stage==='confirm')return T('पैक करने के लिए Enter…','Enter to finish packing…');
-    if(left().length)return T('अब आइटम का बारकोड स्कैन करें…','Now scan the item barcode…');
+    if(left().length)return T('लेबल का अगला बारकोड स्कैन करें…','Scan the next barcode on the label…');
     return isMkt(cur)?T('पैक हो जाए तो Enter…','Enter when the parcel is packed…')
                      :T('फोटो के लिए Enter…','Enter for the photo…');
   };
@@ -4628,28 +4627,17 @@ function vPack(){
       return;
     }
     const items=awbItems(cur);
-    /* Only parcels that came in WITHOUT an order number stop here. */
-    if(stage==='order'){
-      stg.innerHTML='<div class="card pad mb"><div class="row" style="align-items:baseline;gap:8px"><b class="grow awb-no">'+esc(cur.awb)+'</b><span class="pill '+(cur.market==='intl'?'info':'ok')+'">'+esc(marketLabel(cur.market))+'</span></div>'+
-          (cur.customer?'<div class="sub">'+esc(cur.customer)+'</div>':'')+'</div>'+
-        '<div class="splitbox mb" style="background:var(--amber-bg);border:1px solid var(--amber)"><div class="sl"><span>'+T('ऑर्डर नंबर नहीं है','No order number on this parcel')+'</span><b>'+T('लिखें या स्कैन करें','Type or scan it')+'</b></div></div>'+
-        items.map(x=>'<div class="card pad mb"><div class="row" style="align-items:baseline;gap:8px"><b class="grow">'+esc(x.name)+'</b><b class="num">×'+fmtQty(x.qty)+'</b></div>'+
-          '<div class="sub mono">'+esc(x.sku||'')+'</div></div>').join('')+
-        '<button class="btn block mt" id="pk-skip2">'+T('दूसरा पार्सल','Different parcel')+'</button>';
-      const s2=$('#pk-skip2');if(s2)s2.onclick=reset;
-      return;
-    }
     if(stage==='look'){
       const rem=left(),all=need();
       stg.innerHTML='<div class="card pad mb"><div class="row" style="align-items:baseline;gap:8px"><b class="grow awb-no">'+esc(cur.awb)+'</b><span class="pill '+(cur.market==='intl'?'info':'ok')+'">'+esc(marketLabel(cur.market))+'</span></div>'+
-          '<div class="sub">'+T('ऑर्डर ','Order ')+esc(orderNo)+(cur.customer?' · '+esc(cur.customer):'')+'</div>'+
+          (orderNo||cur.customer?'<div class="sub">'+(orderNo?T('ऑर्डर ','Order ')+esc(orderNo):'')+(cur.customer?(orderNo?' · ':'')+esc(cur.customer):'')+'</div>':'')+
           (all.length>1?'<div style="margin-top:7px;border-top:1px solid var(--line2);padding-top:6px">'+
             '<div class="eyebrow">'+(all.length-rem.length)+' / '+all.length+' '+T('बारकोड स्कैन हुए','barcodes scanned')+'</div>'+
             '<div class="sub mono" style="margin-top:3px">'+all.map(c=>{
               const ok=got.some(g=>awbKey(g)===awbKey(c)),sk=skipped.some(s=>awbKey(s)===awbKey(c));
               return '<span style="opacity:'+(ok||sk?1:.45)+';color:'+(ok?'var(--green)':sk?'var(--amber)':'inherit')+'">'+(ok?'✓ ':sk?'⚠ ':'○ ')+esc(c)+'</span>';
             }).join(' · ')+'</div>'+
-            (rem.length?'<div class="hint" style="margin-top:4px;color:var(--amber);font-weight:700">'+T('बाकी बारकोड स्कैन करें — तभी आगे बढ़ेंगे','Scan the remaining barcodes — the photo step opens after that')+'</div>':'')+
+            (rem.length?'<div class="hint" style="margin-top:4px;color:var(--amber);font-weight:700">'+T('इस लेबल पर '+all.length+' बारकोड दर्ज हैं — सब स्कैन होने पर फोटो का step खुलेगा','This label has '+all.length+' barcodes on record — the photo step opens once all are scanned')+'</div>':'')+
             '</div>':'')+
         '</div>'+
         items.map(x=>{
@@ -4661,7 +4649,7 @@ function vPack(){
             '<div class="sub mono">'+esc(x.sku||'')+(x.rack!==undefined?' · '+esc(shelfName(x.rack)):'')+'</div></div></div>';
         }).join('')+
         (rem.length
-          ?'<div class="splitbox mb" style="background:var(--amber-bg);border:1px solid var(--amber)"><div class="sl"><span>'+T('अभी बाकी','Still to scan')+'</span><b class="mono">'+esc(rem.join(' · '))+'</b></div></div>'+
+          ?'<div class="splitbox mb" style="background:var(--amber-bg);border:1px solid var(--amber)"><div class="sl"><span>'+T('इस लेबल के बाकी बारकोड','Other barcodes on this label')+'</span><b class="mono">'+esc(rem.join(' · '))+'</b></div></div>'+
            '<button class="btn block" id="pk-cant">'+T('एक बारकोड स्कैन नहीं हो रहा','A barcode will not scan')+'</button>'
           :'<div class="splitbox mb" style="background:var(--amber-bg);border:1px solid var(--amber)"><div class="sl"><span>'+T('मिलान करें','Check it matches')+'</span><b>'+T('सही है? Enter दबाएँ — फोटो लेंगे','Right item? Press Enter to take the photo')+'</b></div></div>'+
            '<button class="btn pri block" id="pk-ok">'+ico('camera')+T('फोटो लें (Enter)','Take the photo (Enter)')+'</button>')+
@@ -4830,7 +4818,7 @@ function vPack(){
         (a.packVideo?' · VIDEO '+a.packVideo.file+' ('+a.packVideo.seconds+'s'+(a.packVideo.onDevice?', saved on the packing device':'')+')':(isMkt(a)?' · no video':''))+' · by '+userName()});
       done++;const el=$('#pk-n');if(el)el.textContent=String(done);
       successChime();
-      say('<div style="background:var(--green-bg);border:1px solid var(--green);border-radius:10px;padding:9px 11px"><b style="color:var(--green)">✓ '+esc(a.awb)+' '+T('पैक हो गया','packed')+'</b><div class="sub">'+T('अब यह बाहर जा सकता है। अगला ऑर्डर नंबर लिखें।','It can go out now. Type the next order number.')+'</div>'+
+      say('<div style="background:var(--green-bg);border:1px solid var(--green);border-radius:10px;padding:9px 11px"><b style="color:var(--green)">✓ '+esc(a.awb)+' '+T('पैक हो गया','packed')+'</b><div class="sub">'+T('अब यह बाहर जा सकता है। अगला लेबल स्कैन करें।','It can go out now. Scan the next label.')+'</div>'+
         (a.packVideo&&a.packVideo.onDevice?'<div class="hint mono" style="margin-top:4px">'+esc(a.packVideo.file)+'</div>':'')+'</div>');
     }catch(e){err(a.awb,String(e&&e.message||e).slice(0,90));busy=false;return}
     vidClear();
@@ -4845,22 +4833,6 @@ function vPack(){
     if(code===lastCode&&now-lastAt<1500)return;
     lastCode=code;lastAt=now;inp.value='';
     if(scanKeyOf(code)){err(code,T('यह key सिर्फ Inward में चलती है','that key only works on the Inward screen'));return}
-    /* The parcel comes first. Its order number is almost always already on it
-       from Inward, so nobody types anything; only a parcel that came in without
-       one stops to ask. */
-    if(cur&&stage==='order'){
-      if(code.length<3){err(code,T('ऑर्डर नंबर बहुत छोटा','order number too short'));return}
-      /* On Amazon and Flipkart labels the order number IS one of the printed
-         barcodes, so only the label just scanned is refused — scanning that
-         again is the one thing that is certainly a slip. */
-      if(got.some(g=>awbKey(g)===awbKey(code))){
-        err(code,T('यह वही लेबल है जो अभी स्कैन हुआ — ऑर्डर नंबर लिखें या स्कैन करें','that is the label you just scanned — type or scan the order number'));return;
-      }
-      orderNo=code;cur.orderNo=code;cur.orderNoBy=userName();cur.orderNoAt=Date.now();
-      save('awbs');beep(true);
-      await startLook(cur);
-      return;
-    }
     if(cur){
       /* another barcode from the same label — tick it off */
       if(need().some(c=>awbKey(c)===awbKey(code))){
@@ -4887,14 +4859,11 @@ function vPack(){
     if(a.status==='packed'){err(code,T('यह पहले ही पैक हो चुका है · ','already packed · ')+ago(a.packedAt)+' · '+esc(a.packedBy||''));return}
     if(a.status!=='accepted'){err(code,T('स्थिति: ','status: ')+a.status);return}
     if(!awbItems(a).length){err(code,T('इसमें कोई आइटम दर्ज नहीं — पहले Edit करके आइटम जोड़ें','no items recorded — add them from Edit first'));return}
+    /* The order number is captured at Inward, never here. Packing is scan,
+       check, photo — nothing to type. */
     cur=a;shot='';tries=0;got=[code];skipped=[];beep(true);
-    if(a.orderNo){                      /* already recorded — never ask twice */
-      orderNo=a.orderNo;
-      await startLook(a);
-      return;
-    }
-    stage='order';paint();focus();
-    say('<b class="mono">'+esc(a.awb)+'</b> — '+T('इस पार्सल पर ऑर्डर नंबर नहीं है, लिखें','this parcel has no order number — type it'));
+    orderNo=a.orderNo||'';
+    await startLook(a);
   }
   /* label (and order number) settled: show the items, start the recording */
   async function startLook(a){
@@ -4903,7 +4872,7 @@ function vPack(){
     const rem=left();
     if(rem.length)say('<b>'+(need().length-rem.length)+' / '+need().length+'</b> '+T('स्कैन हुआ — बाकी: ','scanned — still to go: ')+esc(rem.join(', ')));
     else if(isMkt(a))say('<b>'+okLabel('mkt')+'</b> — '+T('रिकॉर्डिंग चालू है, पैक करें','recording — pack the parcel now'));
-    else say('<b class="mono">'+esc(a.awb)+'</b> · '+T('ऑर्डर ','order ')+esc(orderNo)+' — '+T('मिलान करें, फिर Enter','check it matches, then press Enter'));
+    else say('<b class="mono">'+esc(a.awb)+'</b>'+(orderNo?' · '+T('ऑर्डर ','order ')+esc(orderNo):'')+' — '+T('मिलान करें, फिर Enter','check it matches, then press Enter'));
     focus();
   }
   inp.onkeydown=e=>{
@@ -4917,11 +4886,7 @@ function vPack(){
     else if(stage==='confirm')finish(shot);
   };
   $('#pk-go').onclick=()=>{const v=inp.value.trim();inp.value='';if(v)handle(v)};
-  /* A scanner fires instantly; a HAND-TYPED order number must not be cut off
-     mid-word, so that one step waits for a real pause (or Enter / Go). */
-  let at=null;inp.oninput=()=>{clearTimeout(at);const ord=stage==='order';
-    at=setTimeout(()=>{if(SUB_OPEN)return;const v=inp.value.trim();
-      if(v.length>=(ord?3:4)){inp.value='';handle(v)}},ord?1200:170)};
+  let at=null;inp.oninput=()=>{clearTimeout(at);at=setTimeout(()=>{if(SUB_OPEN)return;const v=inp.value.trim();if(v.length>=4){inp.value='';handle(v)}},170)};
   const fi=setInterval(()=>{if(!document.querySelector('#pk-in')){clearInterval(fi);stopCam();return}if(focusIsBusy(inp))return;focus()},500);
   $('#pk-x').onclick=()=>{stopCam();go('#awb')};
   paint();focus();
