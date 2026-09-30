@@ -179,6 +179,29 @@ hr.sep{border:none;border-top:1px solid var(--line);margin:14px 0}
 .navdot{position:absolute;top:2px;right:4px;min-width:15px;height:15px;padding:0 4px;border-radius:8px;background:var(--red);color:#fff;font-size:9px;font-weight:800;display:grid;place-items:center;line-height:1}
 .awbcard{border:1px solid var(--line);border-radius:13px;padding:13px;background:var(--card);margin-bottom:9px}
 .awbcard.over{border-color:var(--red);background:var(--red-bg)}
+/* AWB hub: four things people do all day, then everything else, smaller */
+.tilegrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:2px 0 16px}
+@media(min-width:760px){.tilegrid{grid-template-columns:repeat(4,1fr)}}
+.tile{display:flex;flex-direction:column;align-items:flex-start;gap:7px;padding:15px 14px 14px;border-radius:16px;border:1px solid var(--line);background:var(--card);box-shadow:var(--shadow);cursor:pointer;text-align:left;min-height:108px;color:var(--ink);font:inherit;transition:transform .12s,border-color .12s}
+.tile svg{width:22px;height:22px;color:var(--saddle)}
+.tile .tl{font-weight:800;font-size:15.5px;line-height:1.15;letter-spacing:-.01em}
+.tile .ts{font-size:12px;line-height:1.3;color:var(--muted);font-weight:600}
+.tile:hover{border-color:var(--saddle)}
+.tile:active{transform:translateY(1px)}
+.tile.pri{background:var(--saddle);border-color:var(--saddle);color:#fff}
+.tile.pri svg{color:#fff}
+.tile.pri .ts{color:rgba(255,255,255,.88)}
+.tile .tb{display:flex;gap:5px;flex-wrap:wrap;margin-top:auto;padding-top:4px}
+.tile .tb .pill{font-size:10.5px;padding:3px 7px}
+.tile.pri .pill{background:rgba(0,0,0,.28);color:#fff;border:0}
+.secgrid{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:16px}
+@media(min-width:620px){.secgrid{grid-template-columns:1fr 1fr}}
+.srow{display:flex;align-items:center;gap:10px;width:100%;padding:12px 13px;border-radius:12px;border:1px solid var(--line);background:var(--card);cursor:pointer;font:inherit;font-weight:700;font-size:13.5px;color:var(--ink);text-align:left}
+.srow svg{width:17px;height:17px;color:var(--muted);flex:0 0 auto}
+.srow small{font-weight:600;color:var(--muted);font-size:11.5px;display:block;margin-top:1px}
+.srow:hover{border-color:var(--saddle)}
+.srow.warn{border-color:var(--amber)}.srow.warn svg{color:var(--amber)}
+.seclabel{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:2px 0 8px}
 .awbcols{display:grid;grid-template-columns:1fr;gap:12px}
 @media(min-width:760px){.awbcols{grid-template-columns:1fr 1fr 1fr}}
 .awbcol{background:color-mix(in srgb,var(--ink) 5%,var(--card));border:1px solid var(--line);border-radius:13px;padding:10px}
@@ -4487,6 +4510,7 @@ async function forceDispatchDlg(preCode){
     const draw=()=>{
       openModal('<h3 style="color:var(--amber)">'+T('ज़बरदस्ती डिस्पैच','Force dispatch')+'</h3>'+
         '<p class="sub mb">'+T('यह पार्सल अंदर स्कैन नहीं हुआ था। इसे बाहर भेजा जा सकता है, पर SKU देना ज़रूरी है — स्टॉक तभी सही घटेगा। नाम और वजह दर्ज होगी।','This parcel never came through Inward. It can still go out, but a SKU is required so stock comes off correctly. A name and reason go on the record.')+'</p>'+
+        '<div class="splitbox mb" style="background:var(--red-bg);border:1px solid var(--red)"><b style="color:var(--red)">'+T('कैमरे पर पैक करें','Please pack it on camera')+'</b><div class="sub">'+T('खरीदार की किसी भी गलत शिकायत से बचने के लिए पैकिंग की रिकॉर्डिंग ही सबूत है। बिना रिकॉर्डिंग भेजा गया पार्सल दर्ज रहेगा।','The packing recording is your proof if a buyer claims the wrong thing arrived. A parcel sent without one stays on the record as unpacked.')+'</div></div>'+
         '<div class="field"><label>'+T('AWB नंबर (टाइप करें)','AWB number (type it)')+'</label><input class="in mono" id="fd-awb" value="'+esc(awb)+'" autocomplete="off"></div>'+
         '<div class="eyebrow mt">'+T('इसमें क्या है','What is inside')+'</div>'+
         (lines.length?'<div class="mb">'+lines.map((l,ix)=>'<div class="row" style="gap:6px;padding:4px 0;align-items:center"><span class="grow ellip">'+esc(l.name)+(l.rack!==undefined?' <span class="skutag" style="font-size:10px">'+esc(shelfName(l.rack))+'</span>':'')+'</span><b class="num">×'+fmtQty(l.qty)+'</b><button class="icobtn ghost" data-fdx="'+ix+'" style="width:30px;height:30px;flex:0 0 auto">'+ico('x')+'</button></div>').join('')+'</div>'
@@ -4563,11 +4587,12 @@ function vPack(){
   if(workers().length&&!opName()){whoDlg(true).then(ok=>{if(ok)vPack();else go('#awb')});return}
   topTitle(T('पैकिंग','Packing'),'#awb');
   let cur=null,stage='wait',shot='',busy=false,lastCode='',lastAt=0,done=0,stream=null,orderNo='',tries=0;
+  let vidOn=false,vidTick=0;                      /* marketplace parcels record while they are packed */
   let got=[],skipped=[],shotInfo=null;   // barcodes scanned / ones that could not be read / photo size
   const need=()=>cur?awbCodes(cur):[];
   const left=()=>need().filter(c=>!got.some(g=>awbKey(g)===awbKey(c))&&!skipped.some(s=>awbKey(s)===awbKey(c)));
   $('#main').innerHTML=
-    marketBar()+
+    '<div id="pk-vidwrap"></div>'+
     '<div class="splitbox mb" style="background:var(--green-bg);border:1px solid var(--green)"><div class="sl"><span>'+T('अब तक पैक हुए','Packed so far')+' · '+esc(marketLabel())+'</span><b class="num" id="pk-n">0</b></div></div>'+
     '<div id="pk-stage"></div>'+
     '<div class="row mt" style="gap:6px"><input class="in mono grow" id="pk-in" placeholder="'+T('ऑर्डर नंबर लिखें…','Type the order number…')+'" autocomplete="off" autocapitalize="characters"><button class="btn pri" id="pk-go" style="flex:0 0 auto">'+T('जाएँ','Go')+'</button></div>'+
@@ -4707,11 +4732,50 @@ function vPack(){
     shot=d;shotInfo={w:c.width,h:c.height,kb:Math.round(d.length*0.73/1024)};
     stopCam();stage='confirm';paint();beep(true);
   }
+  /* marketplace: begin recording the moment the parcel is picked up */
+  async function vidBegin(a){
+    if(!isMkt(a)||vidOn)return true;
+    const wrap=$('#pk-vidwrap');if(!wrap)return true;
+    wrap.innerHTML='<div class="card pad mb" style="border:2px solid var(--red);padding:0;overflow:hidden">'+
+      '<div style="position:relative;background:#000"><video id="pk-rv" playsinline muted style="width:100%;display:block;max-height:30dvh;object-fit:contain"></video>'+
+      '<span class="pill" id="pk-rdot" style="position:absolute;top:8px;left:8px;background:var(--red);color:#fff">● REC <span id="pk-rt">0:00</span></span></div>'+
+      '<div class="hint" style="padding:7px 10px">'+T('मार्केटप्लेस ऑर्डर — पैकिंग रिकॉर्ड हो रही है (समय और जगह के साथ)।','Marketplace order — the packing is being recorded, with the time and place stamped on it.')+'</div></div>'+
+      '<canvas id="pk-rc" style="display:none"></canvas>';
+    const r=await packVidStart($('#pk-rv'),$('#pk-rc'),a,orderNo);
+    if(r.err){
+      wrap.innerHTML='<div class="card pad mb" style="border:2px solid var(--red)"><b style="color:var(--red)">'+T('जगह (location) नहीं मिली','Location unavailable')+'</b><div class="sub mt">'+
+        (r.err==='denied'?T('इस डिवाइस पर location की इजाज़त दें।','Allow location for this site on this device.'):T('GPS/वाई-फ़ाई से जगह नहीं मिल रही। दोबारा कोशिश करें।','No location fix from GPS or wifi. Try again.'))+
+        '<br>'+T('मार्केटप्लेस पैकिंग बिना जगह के रिकॉर्ड नहीं होगी।','Marketplace packing cannot be recorded without it.')+'</div>'+
+        '<button class="btn pri block mt" id="pk-rretry">'+T('दोबारा कोशिश','Try again')+'</button></div>';
+      const rb=$('#pk-rretry');if(rb)rb.onclick=()=>{vidBegin(a)};
+      return false;
+    }
+    vidOn=true;
+    vidTick=setInterval(()=>{const el=$('#pk-rt');if(!el){clearInterval(vidTick);return}
+      const s=Math.round((Date.now()-_ret.startedAt)/1000);el.textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0')},1000);
+    return true;
+  }
+  function vidClear(){clearInterval(vidTick);vidOn=false;const w=$('#pk-vidwrap');if(w)w.innerHTML=''}
   async function finish(photo,why){
     if(busy)return;busy=true;
     const a=cur;
     try{
       let kept=false;
+      /* marketplace: the recording IS the packing proof, and the photo comes out of it */
+      let vid=null;
+      if(isMkt(a)&&vidOn){
+        if(!photo)photo=packVidFrame($('#pk-rc'));
+        const blob=await retRecStop();retGeoStop();clearInterval(vidTick);vidOn=false;
+        if(!blob){err(a.awb,T('रिकॉर्डिंग नहीं बनी — दोबारा करें','the recording did not come through — pack it again'));busy=false;return}
+        say(T('रिकॉर्डिंग सेव हो रही है…','Saving the recording…'));
+        vid=await packVidSave(a,blob,orderNo);
+        if(vid.err&&!vid.url){
+          const go2=await confirmDlg(T('रिकॉर्डिंग अपलोड नहीं हुई','The recording could not be uploaded'),
+            esc(vid.err)+'<br><br>'+T('पार्सल को पैक मान लें? रिकॉर्डिंग नहीं रखी जाएगी।','Mark the parcel packed anyway? The recording will not be kept.'),
+            T('फिर भी पैक','Pack anyway'),true);
+          if(!go2){stage='confirm';paint();busy=false;return}
+        }
+      }
       if(photo){
         kept=await packPhotoSave(a.id,photo);
         if(!kept){          /* saving failed — let them retry rather than lose the proof */
@@ -4720,6 +4784,7 @@ function vPack(){
         }
       }
       a.status='packed';a.packedBy=userName();a.packedAt=Date.now();a.packPhoto=kept;
+      if(vid)a.packVideo={file:vid.file,url:vid.url,at:vid.at,by:vid.by,seconds:vid.seconds,bytes:vid.bytes,geo:vid.geo,keepDays:vid.keepDays};
       a.packOrderNo=orderNo;a.market=getMarket();
       if(orderNo&&!a.orderNo)a.orderNo=orderNo;
       if(why)a.packNoPhotoWhy=why.reason;
@@ -4729,11 +4794,13 @@ function vPack(){
       logTx('shipment',{detail:'Packed · '+a.awb+' · order '+orderNo+' · '+marketLabel(a.market)+
         ' · '+got.length+'/'+need().length+' barcodes scanned'+
         (skipped.length?' · NOT scanned: '+skipped.join(', ')+' ('+((cur._skipWhy&&cur._skipWhy.by)||userName())+': '+((cur._skipWhy&&cur._skipWhy.reason)||'')+')':'')+
-        (kept?' · photo kept '+PACK_KEEP_DAYS+' days':' · NO photo'+(why?' · '+why.by+': '+why.reason:''))+' · by '+userName()});
+        (kept?' · photo kept '+PACK_KEEP_DAYS+' days':' · NO photo'+(why?' · '+why.by+': '+why.reason:''))+
+        (a.packVideo?' · VIDEO '+a.packVideo.file+' ('+a.packVideo.seconds+'s, kept '+a.packVideo.keepDays+' days)':(isMkt(a)?' · no video':''))+' · by '+userName()});
       done++;const el=$('#pk-n');if(el)el.textContent=String(done);
       successChime();
       say('<div style="background:var(--green-bg);border:1px solid var(--green);border-radius:10px;padding:9px 11px"><b style="color:var(--green)">✓ '+esc(a.awb)+' '+T('पैक हो गया','packed')+'</b><div class="sub">'+T('अब यह बाहर जा सकता है। अगला ऑर्डर नंबर लिखें।','It can go out now. Type the next order number.')+'</div></div>');
     }catch(e){err(a.awb,String(e&&e.message||e).slice(0,90));busy=false;return}
+    vidClear();
     cur=null;stage='wait';shot='';shotInfo=null;tries=0;orderNo='';got=[];skipped=[];stopCam();
     setPh(T('ऑर्डर नंबर लिखें…','Type the order number…'));
     paint();busy=false;focus();
@@ -4776,8 +4843,10 @@ function vPack(){
     if(a.status!=='accepted'){err(code,T('स्थिति: ','status: ')+a.status);return}
     if(!awbItems(a).length){err(code,T('इसमें कोई आइटम दर्ज नहीं — पहले Edit करके आइटम जोड़ें','no items recorded — add them from Edit first'));return}
     cur=a;stage='look';shot='';tries=0;got=[code];skipped=[];beep(true);paint();
+    if(isMkt(a)){const okv=await vidBegin(a);if(!okv){cur=null;stage='wait';paint();return}}   /* marketplace: recording starts now */
     const rem=left();
     if(rem.length)say('<b>1 / '+need().length+'</b> '+T('स्कैन हुआ — बाकी: ','scanned — still to go: ')+esc(rem.join(', ')));
+    else if(isMkt(a))say('<b>'+okLabel('mkt')+'</b> — '+T('रिकॉर्डिंग चालू है, पैक करें','recording — pack the parcel now'));
   }
   inp.onkeydown=e=>{
     if(SUB_OPEN)return;
@@ -5143,6 +5212,16 @@ function vMore(){
     '<input type="file" id="bk-f" accept=".json,application/json" style="display:none">'+
     '<label class="row mt" style="gap:8px;font-size:13.5px"><input type="checkbox" id="bk-ph" checked> Include photos (bigger file)</label></div>';
   if(!S.items.length&&!S.folders.length)h+='<button class="btn block mb" id="st-sample">Load sample leather-goods data</button>';
+  if(isAdminU()){
+    h+='<div class="section-h"><h2>'+(langHi()?'शिपमेंट सेटिंग':'Shipment settings')+'</h2></div>';
+    h+='<div class="card pad mb">'+
+      '<button class="srow" id="mo-packreq" style="margin-bottom:8px">'+ico('box')+'<span>'+(langHi()?'पैकिंग ज़रूरी (रोज़ के ऑर्डर)':'Packing compulsory (daily orders)')+
+        '<small>'+(packRequired()?(langHi()?'चालू — बिना पैक हुआ पार्सल बाहर नहीं जाएगा':'On — an unpacked parcel cannot go out')
+        :(langHi()?'बंद — बिना पैक हुआ पार्सल चेतावनी के साथ जा सकता है':'Off — an unpacked parcel goes out with a warning'))+'</small></span></button>'+
+      '<button class="srow" id="mo-packvid">'+ico('camera')+'<span>'+(langHi()?'मार्केटप्लेस पैकिंग वीडियो कितने दिन रखें':'Keep marketplace packing videos for')+
+        '<small>'+packVideoDays()+(langHi()?' दिन · उसके बाद अपने-आप मिट जाते हैं':' days · deleted automatically after that')+'</small></span></button>'+
+      '<div class="hint mt">'+(langHi()?'मार्केटप्लेस ऑर्डर हमेशा कैमरे पर पैक होते हैं — यह सेटिंग सिर्फ़ यह तय करती है कि रिकॉर्डिंग कितने दिन रखी जाए।':'Marketplace orders are always packed on camera. This only sets how long the recording is kept.')+'</div></div>';
+  }
   h+='<div class="section-h"><h2>About</h2></div><div class="card pad mb"><p class="sub"><b>Invento</b> — team inventory that syncs live to every device and keeps working offline. For camera scanning, open the file in Chrome on your phone. Developed by <b>Trishal</b>.</p></div>';
   /* There is no "erase all data" any more. Wiping the whole warehouse was one
      tap from a screen the team uses daily. Items go to Trash; a real reset is a
@@ -5155,6 +5234,22 @@ function vMore(){
     else if(k==='ok')beep(true);else if(k==='done')successChime();
     else if(k==='bad')soundBad();else alarmSound();
   });
+  const pv=$('#mo-packvid');
+  if(pv)pv.onclick=async()=>{
+    const cur=packVideoDays();
+    const v=await new Promise(res=>{
+      openModal('<h3>'+(langHi()?'वीडियो कितने दिन रखें?':'How long to keep packing videos?')+'</h3>'+
+        '<p class="sub mb">'+(langHi()?'मार्केटप्लेस पैकिंग की रिकॉर्डिंग इतने दिन बाद अपने-आप मिट जाएगी। ज़्यादा दिन = ज़्यादा स्टोरेज।':'Marketplace packing recordings are deleted automatically after this many days. More days means more storage.')+'</p>'+
+        '<div class="field"><label>'+(langHi()?'दिन':'Days')+'</label><input class="in num" id="pv-d" inputmode="numeric" value="'+cur+'" style="max-width:130px"></div>'+
+        '<div class="row"><button class="btn grow" id="pv-no">'+(langHi()?'रहने दें':'Cancel')+'</button><button class="btn pri grow" id="pv-ok">'+(langHi()?'सेव':'Save')+'</button></div>');
+      $('#pv-no').onclick=()=>{closeModal();res(null)};
+      $('#pv-ok').onclick=()=>{const n=Math.round(+$('#pv-d').value||0);closeModal();res(n)};
+    });
+    if(v===null)return;
+    if(!(v>=1&&v<=365)){toast(langHi()?'1 से 365 दिन के बीच':'Pick between 1 and 365 days','err');return}
+    S.meta.packVideoDays=v;await saveNow('meta');
+    toast((langHi()?'वीडियो ':'Videos kept ')+v+(langHi()?' दिन रखे जाएँगे':' days'),'ok');vMore();
+  };
   const pr=$('#mo-packreq');
   if(pr)pr.onclick=async()=>{
     const on=packRequired();
@@ -6694,6 +6789,7 @@ async function acceptAwb(no,extra){
   if(ex&&ex.status==='returned'){beep(false);return {ok:false,msg:(langHi()?'यह ऑफिस वापस जा चुका है · ':'Already returned to office · ')+ago(ex.resolvedAt)}}
   if(ex&&ex.status==='custreturn'){beep(false);return {ok:false,msg:(langHi()?'यह ग्राहक से वापस आ चुका है — नया लेबल लगाएँ':'This came back from the customer — use a new label')}}
   const rec=Object.assign({id:uid('awb'),awb:no,status:'accepted',acceptedBy:userName(),acceptedAt:Date.now()},extra||{});
+  if(_inKind)rec.kind=_inKind;                    // marketplace or daily, chosen at the start of this inward session
   if(!Array.isArray(rec.codes))rec.codes=[];
   S.awbs.unshift(rec);
   await saveNow('awbs');
@@ -6720,6 +6816,10 @@ async function dispatchAwbByNo(no,extra){
   if(a&&a.status==='returned'){beep(false);return {ok:false,msg:(langHi()?'यह ऑफिस वापस जा चुका है · ':'Was returned to office · ')+ago(a.resolvedAt)}}
   /* Packing gate — refuses only when the rule is switched on. While off it still
      tells the packer and marks the parcel, so the habit forms before it bites. */
+  if(a&&a.status==='accepted'&&isMkt(a)){
+    beep(false);alarmSound();
+    return {ok:false,msg:(langHi()?'मार्केटप्लेस ऑर्डर — पहले कैमरे पर पैक करें, तभी बाहर जा सकता है':'Marketplace order — it must be packed on camera before it can go out')};
+  }
   if(a&&a.status==='accepted'){
     if(packRequired()){
       beep(false);alarmSound();
@@ -6776,7 +6876,7 @@ async function returnAwbRec(a){
 
 function vAwb(sub,arg){
   if(!(can('awbAccept')||can('awbDispatch')||can('dispatch')||isAdminU())){toast('You do not have permission for AWBs','err');go('#home');return}
-  if(sub==='in'){return awbScanFlow('in');}
+  if(sub==='in'){return awbInwardChoose();}
   if(sub==='out'){return awbOutwardFlow();}
   if(sub==='ret'){return awbCustReturnFlow();}
   if(sub==='return'){ if(!isAdminU()){toast(langHi()?'वापसी सिर्फ एडमिन कर सकते हैं':'Only admins can return AWBs','err');go('#awb');return} return awbReturnScanFlow();}
@@ -6787,22 +6887,28 @@ function vAwb(sub,arg){
   const ret=(S.awbs||[]).filter(a=>a.status==='returned').sort((a,b)=>(b.resolvedAt||0)-(a.resolvedAt||0));
   const myOver=myOverdueAwbs();
   let h=modeSlider('awb');
-  {const waiting=awbToPack().length,ready=awbPacked().length;
-   h+='<button class="btn pri block mb" id="aw-pack" style="min-height:60px;font-weight:800">'+ico('box')+
-     (langHi()?'पैकिंग':'Packing')+(waiting?' <span class="pill low" style="margin-left:8px">'+waiting+(langHi()?' बाकी':' to pack')+'</span>':'')+
-     (ready?' <span class="pill ok" style="margin-left:6px">'+ready+(langHi()?' तैयार':' ready to go')+'</span>':'')+'</button>';}
-  if(isAdminU())h+='<button class="btn block mb" id="aw-force2" style="border-color:var(--amber);color:var(--amber)">'+ico('bolt')+(langHi()?'ज़बरदस्ती डिस्पैच':'Force dispatch — a parcel that was never inwarded')+'</button>';
-  h+='<button class="btn block mb" id="aw-status">'+ico('search')+(langHi()?'शिपमेंट की स्थिति देखें / रद्द करें':'Shipment status — check or cancel an order')+'</button>';
-  h+='<button class="btn block mb" id="aw-sales">'+ico('trend')+(langHi()?'सेल्स और रीऑर्डर':'Sales & reorder')+'</button>';
-  h+='<button class="btn block mb" id="aw-custret" style="background:var(--saddle);color:#fff;border-color:var(--saddle);font-weight:800">'+ico('undo')+(langHi()?'वापसी — पार्सल आया (स्कैन करें)':'Return — parcel came back (scan it)')+'</button>';
-  h+='<button class="btn block mb" id="aw-back" style="border-color:var(--saddle);color:var(--saddle);font-weight:700">'+ico('undo')+(langHi()?'वापस अंदर लें — डिस्पैच हुआ पार्सल':'Bring back in — a parcel that already went out')+'</button>';
-  if(myOver.length)h+='<div class="splitbox mb" style="background:var(--red-bg);border:1px solid var(--red)"><div class="row" style="gap:8px;align-items:center"><span style="color:var(--red)">'+ico('alert')+'</span><div><b style="color:var(--red)">Send to office: '+myOver.length+' overdue AWB'+(myOver.length>1?'s':'')+'</b><div class="small muted">They are '+AWB_OVERDUE_DAYS+'+ days old. Send them to office before accepting more.</div></div></div></div>';
-  // two big buttons
-  h+='<div class="bigbtns'+(isAdminU()?' three':'')+'" style="margin-bottom:14px">'+
-    '<button class="bigbtn" id="aw-in">'+ico('download')+'<div>Inward</div><div class="sub">Scan AWBs taken from office</div></button>'+
-    '<button class="bigbtn" id="aw-out">'+ico('truck')+'<div>Outward</div><div class="sub">Scan AWBs being dispatched</div></button>'+
-    (isAdminU()?'<button class="bigbtn" id="aw-aix">'+ico('spark')+'<div>'+(langHi()?'AI इनवॉइस':'AI invoices')+'</div><div class="sub">'+(langHi()?'इनवॉइस से एक साथ inward':'Read invoices — bulk inward')+'</div></button>':'')+
-    (isAdminU()?'<button class="bigbtn" id="aw-ret">'+ico('undo')+'<div>'+(langHi()?'ऑफिस वापस':'Return to office')+'</div><div class="sub">'+(langHi()?'सिर्फ एडमिन · बिना इस्तेमाल हुए AWB':'Admin only · unused AWBs going back')+'</div></button>':'')+
+  const waiting=awbToPack().length, ready=awbPacked().length;
+  const T2=(hi,en)=>langHi()?hi:en;
+  /* overdue first — it blocks the person from taking more labels */
+  if(myOver.length)h+='<div class="splitbox mb" style="background:var(--red-bg);border:1px solid var(--red)"><div class="row" style="gap:8px;align-items:center"><span style="color:var(--red)">'+ico('alert')+'</span><div><b style="color:var(--red)">'+T2('ऑफिस भेजें: ','Send to office: ')+myOver.length+T2(' AWB बहुत पुराने',' overdue AWB'+(myOver.length>1?'s':''))+'</b><div class="small muted">'+T2('ये '+AWB_OVERDUE_DAYS+'+ दिन पुराने हैं। नए लेबल लेने से पहले इन्हें ऑफिस भेजें।','They are '+AWB_OVERDUE_DAYS+'+ days old. Send them to office before accepting more.')+'</div></div></div></div>';
+  /* the four things that happen all day */
+  h+='<div class="seclabel">'+T2('रोज़ का काम','Everyday')+'</div>';
+  h+='<div class="tilegrid">'+
+    '<button class="tile" id="aw-in">'+ico('download')+'<span class="tl">'+T2('इनवर्ड','Inward')+'</span><span class="ts">'+T2('ऑफिस से लिए AWB स्कैन करें','Scan AWBs taken from office')+'</span></button>'+
+    '<button class="tile'+(waiting?' pri':'')+'" id="aw-pack">'+ico('box')+'<span class="tl">'+T2('पैकिंग','Packing')+'</span><span class="ts">'+T2('स्कैन + फोटो','Scan the label, photograph the parcel')+'</span>'+
+      '<span class="tb">'+(waiting?'<span class="pill low">'+waiting+T2(' बाकी',' to pack')+'</span>':'')+(ready?'<span class="pill ok">'+ready+T2(' तैयार',' ready')+'</span>':'')+'</span></button>'+
+    '<button class="tile" id="aw-out">'+ico('truck')+'<span class="tl">'+T2('आउटवर्ड','Outward')+'</span><span class="ts">'+T2('जा रहे AWB स्कैन करें','Scan AWBs being dispatched')+'</span></button>'+
+    '<button class="tile pri" id="aw-custret">'+ico('undo')+'<span class="tl">'+T2('वापसी','Return')+'</span><span class="ts">'+T2('पार्सल वापस आया — लेबल स्कैन करें','Parcel came back — scan the label')+'</span></button>'+
+    '</div>';
+  /* everything else, out of the way but one tap from here */
+  h+='<div class="seclabel">'+T2('बाकी सब','Less often')+'</div>';
+  h+='<div class="secgrid">'+
+    '<button class="srow" id="aw-status">'+ico('search')+'<span>'+T2('शिपमेंट की स्थिति','Shipment status')+'<small>'+T2('देखें या ऑर्डर रद्द करें','Check or cancel an order')+'</small></span></button>'+
+    '<button class="srow" id="aw-back">'+ico('undo')+'<span>'+T2('वापस अंदर लें','Bring back in')+'<small>'+T2('डिस्पैच हुआ पार्सल','A parcel that already went out')+'</small></span></button>'+
+    (isAdminU()?'<button class="srow warn" id="aw-force2">'+ico('bolt')+'<span>'+T2('ज़बरदस्ती डिस्पैच','Force dispatch')+'<small>'+T2('जो अंदर स्कैन नहीं हुआ','A parcel that was never inwarded')+'</small></span></button>':'')+
+    (isAdminU()?'<button class="srow" id="aw-aix">'+ico('spark')+'<span>'+T2('AI इनवॉइस','AI invoices')+'<small>'+T2('इनवॉइस से एक साथ inward','Read invoices — bulk inward')+'</small></span></button>':'')+
+    (isAdminU()?'<button class="srow" id="aw-ret">'+ico('undo')+'<span>'+T2('ऑफिस वापस','Return to office')+'<small>'+T2('बिना इस्तेमाल हुए AWB','Unused AWBs going back')+'</small></span></button>':'')+
+    '<button class="srow" id="aw-sales">'+ico('trend')+'<span>'+T2('सेल्स और रीऑर्डर','Sales & reorder')+'<small>'+T2('क्या तेज़ बिक रहा है','What is selling, what to reorder')+'</small></span></button>'+
     '</div>';
   // three columns
   h+='<div class="awbcols">';
@@ -7434,6 +7540,31 @@ async function awbOutwardFlow(){
     async(code)=>await dispatchAwbByNo(code), ()=>vAwb(), false);
 }
 
+/* ================= ORDER KIND =================
+   Every parcel is either a marketplace order or a daily order, chosen once at
+   Inward and carried on the record. Marketplace parcels must be packed on
+   camera — the video is the proof when a buyer claims the wrong thing arrived. */
+let _inKind='';                                   // the kind for this inward session
+function okLabel(k){return k==='mkt'?(langHi()?'मार्केटप्लेस':'Marketplace'):(langHi()?'रोज़ के ऑर्डर':'Daily order')}
+function awbKind(a){return (a&&a.kind)==='mkt'?'mkt':((a&&a.kind)==='daily'?'daily':'')}
+function isMkt(a){return awbKind(a)==='mkt'}
+function packVideoDays(){const n=+(S.meta&&S.meta.packVideoDays);return n>0?n:30}
+function kindPill(a){const k=awbKind(a);if(!k)return '';
+  return '<span class="pill '+(k==='mkt'?'info':'')+'">'+okLabel(k)+'</span>'}
+/* Inward starts here: pick what kind of orders this batch is */
+function awbInwardChoose(){
+  const T=(hi,en)=>langHi()?hi:en;
+  topTitle(T('इनवर्ड','Inward'),'#awb');
+  let h='<h1 class="page">'+T('इनवर्ड','Inward')+'</h1>';
+  h+='<div class="card pad mb"><div class="sub">'+T('ये लेबल किस तरह के ऑर्डर के हैं? मार्केटप्लेस वाले पार्सल कैमरे पर पैक होने ज़रूरी हैं।','What kind of orders are these labels for? Marketplace parcels must be packed on camera before they can go out.')+'</div></div>';
+  h+='<div class="tilegrid" style="grid-template-columns:1fr 1fr">'+
+    '<button class="tile pri" id="ik-mkt">'+ico('ticket')+'<span class="tl">'+T('मार्केटप्लेस ऑर्डर','Marketplace orders')+'</span><span class="ts">'+T('Amazon, Flipkart, Meesho… — पैकिंग कैमरे पर रिकॉर्ड होगी','Amazon, Flipkart, Meesho… — packing is recorded on camera')+'</span></button>'+
+    '<button class="tile" id="ik-daily">'+ico('truck')+'<span class="tl">'+T('रोज़ के ऑर्डर','Daily orders')+'</span><span class="ts">'+T('वेबसाइट और बाकी — पैकिंग पहले जैसी','Website and the rest — packing as before')+'</span></button>'+
+    '</div>';
+  $('#main').innerHTML=h;
+  $('#ik-mkt').onclick=()=>{_inKind='mkt';awbScanFlow('in')};
+  $('#ik-daily').onclick=()=>{_inKind='daily';awbScanFlow('in')};
+}
 function awbScanFlow(mode){
   // mode: 'in' (accept) | 'out' (dispatch)
   const accept=mode==='in';
@@ -7581,6 +7712,34 @@ async function retRestock(a,arrived,by){
   }
   if(n)await saveNow('items');
   return n;
+}
+/* ---- marketplace packing: the recording that proves what went in the box ----
+   Same stamped-canvas recording as a return. The still photo is lifted straight
+   out of that canvas at the end, so the packer never takes a separate picture. */
+async function packVidStart(videoEl,canvasEl,a,orderNo){
+  const g=await retGeoStart();
+  if(!g.ok){retGeoStop();return {err:g.err}}
+  const mime=await retRecStart(videoEl,canvasEl,'AWB '+(a.awb||'')+(orderNo?'  ·  ORDER '+orderNo:'')+'  ·  '+userName());
+  return {ok:true,mime};
+}
+function packVidFrame(canvasEl){                 /* the stamped frame becomes the proof photo */
+  try{return canvasEl.toDataURL('image/jpeg',.72)}catch(e){return ''}
+}
+async function packVidSave(a,blob,orderNo){
+  const days=packVideoDays();
+  const stamp=new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+  const name='PACK_'+String(a.awb||'no-awb').replace(/[^\w-]/g,'')+'_'+stamp+'.webm';
+  let url='',err='';
+  try{
+    if(typeof firebase.storage!=='function')throw new Error('Storage SDK not loaded');
+    const ref=firebase.storage().ref('packing/'+name);
+    await ref.put(blob,{contentType:blob.type||'video/webm',customMetadata:{awb:String(a.awb||''),orderNo:String(orderNo||''),by:userName(),keepDays:String(days)}});
+    url=await ref.getDownloadURL();
+  }catch(e){err=String(e&&e.message||e).slice(0,120)}
+  return {file:name,url,err,bytes:blob?blob.size:0,
+    seconds:Math.round((Date.now()-_ret.startedAt)/1000),
+    geo:_ret.geo?{lat:_ret.geo.lat,lon:_ret.geo.lon,acc:_ret.geo.acc}:null,
+    at:Date.now(),by:userName(),keepDays:days};
 }
 function awbCustReturnFlow(){
   if(!can('dispatch')&&!can('awbReturn')&&!isAdminU()){toast(retT('इजाज़त नहीं','No permission for returns'),'err');go('#awb');return}
