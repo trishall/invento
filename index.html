@@ -4604,13 +4604,26 @@ function vPack(){
   const err=(c,m)=>{say('<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:10px;padding:9px 11px"><b style="color:var(--red)">'+esc(c)+'</b><div style="color:var(--red);font-weight:600;font-size:13px">'+esc(m)+'</div></div>');beep(false)};
   const focus=()=>{if(!SUB_OPEN)try{inp.focus()}catch(e){}};
   const setPh=(t)=>{inp.placeholder=t};
+  /* The box must always say what it wants NEXT. It used to be set once and left
+     saying "scan the label" while it was waiting for item barcodes, which had
+     people scanning the label again and again. */
+  const phFor=()=>{
+    if(!orderNo)return T('ऑर्डर नंबर लिखें…','Type the order number…');
+    if(!cur)return T('अब लेबल स्कैन करें…','Now scan the label…');
+    if(stage==='shoot')return T('फोटो के लिए Enter…','Enter to take the photo…');
+    if(stage==='confirm')return T('पैक करने के लिए Enter…','Enter to finish packing…');
+    if(left().length)return T('अब आइटम का बारकोड स्कैन करें…','Now scan the item barcode…');
+    return isMkt(cur)?T('पैक हो जाए तो Enter…','Enter when the parcel is packed…')
+                     :T('फोटो के लिए Enter…','Enter for the photo…');
+  };
 
   function paint(){
+    setPh(phFor());
     if(!cur){
       stg.innerHTML='<div class="empty">'+ico('box')+'<div class="t">'+(orderNo?T('अब लेबल स्कैन करें','Now scan the label'):T('पहले ऑर्डर नंबर','Order number first'))+'</div><div class="s">'+
         (orderNo?T('ऑर्डर ','Order ')+esc(orderNo):T('जो ऑर्डर पैक कर रहे हैं उसका नंबर लिखें','Type the number of the order you are packing'))+'</div></div>'+
         (orderNo?'<button class="btn block" id="pk-clr">'+T('दूसरा ऑर्डर','Different order')+'</button>':'');
-      const c=$('#pk-clr');if(c)c.onclick=()=>{orderNo='';setPh(T('ऑर्डर नंबर लिखें…','Type the order number…'));paint();focus()};
+      const c=$('#pk-clr');if(c)c.onclick=()=>{orderNo='';paint();focus()};
       return;
     }
     const items=awbItems(cur);
@@ -4701,7 +4714,7 @@ function vPack(){
     if(rem.length){err(cur.awb,T('पहले बाकी बारकोड स्कैन करें: ','scan the remaining barcodes first: ')+rem.join(', '));return}
     stage='shoot';paint();
   }
-  function reset(){cur=null;stage='wait';shot='';tries=0;got=[];skipped=[];stopCam();setPh(T('लेबल स्कैन करें…','Scan the label…'));paint();focus()}
+  function reset(){cur=null;stage='wait';shot='';tries=0;got=[];skipped=[];stopCam();paint();focus()}
   const PHOTO_MAX_PX=1800;      // long edge — a label stays readable at this size
   const PHOTO_CEILING=700000;   // data-url characters; a Firestore doc holds 1 MB
   function snap(){
@@ -4802,7 +4815,6 @@ function vPack(){
     }catch(e){err(a.awb,String(e&&e.message||e).slice(0,90));busy=false;return}
     vidClear();
     cur=null;stage='wait';shot='';shotInfo=null;tries=0;orderNo='';got=[];skipped=[];stopCam();
-    setPh(T('ऑर्डर नंबर लिखें…','Type the order number…'));
     paint();busy=false;focus();
   }
   async function handle(code){
@@ -4817,14 +4829,18 @@ function vPack(){
     if(!orderNo){
       if(code.length<3){err(code,T('ऑर्डर नंबर बहुत छोटा','order number too short'));return}
       orderNo=code;beep(true);
-      setPh(T('अब लेबल स्कैन करें…','Now scan the label…'));
       say('<b>'+T('ऑर्डर ','Order ')+esc(orderNo)+'</b> — '+T('अब लेबल स्कैन करें','now scan the label'));
       paint();return;
     }
     if(cur){
       /* another barcode from the same label — tick it off */
       if(need().some(c=>awbKey(c)===awbKey(code))){
-        if(got.some(g=>awbKey(g)===awbKey(code))){err(code,T('यह बारकोड पहले ही स्कैन हो चुका','already scanned for this parcel'));return}
+        if(got.some(g=>awbKey(g)===awbKey(code))){
+          const rem0=left();
+          err(code,rem0.length?T('यह पहले ही स्कैन हो चुका — बाकी: ','already scanned — still to go: ')+rem0.join(', ')
+                              :T('यह पहले ही स्कैन हो चुका — अब Enter दबाएँ','already scanned — press Enter to carry on'));
+          return;
+        }
         got.push(code);beep(true);paint();
         const rem=left();
         say(rem.length?('<b>'+(need().length-rem.length)+' / '+need().length+'</b> '+T('स्कैन हुए — बाकी: ','scanned — still to go: ')+esc(rem.join(', ')))
