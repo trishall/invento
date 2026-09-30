@@ -4500,13 +4500,6 @@ function shopifyResultHTML(r){
 /* Outward hands a parcel to Packing by dropping its barcode here; vPack picks
    it up on the way in, so nobody re-scans a label they are already holding. */
 let _packSeed='';
-/* One of the parcel's own barcodes is never its order number, whether it is
-   being typed now or was saved as one earlier. */
-function ordIsBarcode(a,v){
-  v=String(v||'').trim();if(!a||!v)return false;
-  if(awbKey(v)===awbKey(a.awb))return true;
-  return awbCodes(a).some(c=>awbKey(c)===awbKey(v));
-}
 /* ================= FORCE DISPATCH =================
    The escape hatch for a parcel that never made it through Inward — a label
    printed at the last minute, a scan that was missed. It deliberately breaks the
@@ -4637,10 +4630,9 @@ function vPack(){
     const items=awbItems(cur);
     /* Only parcels that came in WITHOUT an order number stop here. */
     if(stage==='order'){
-      const bad=cur.orderNo&&ordIsBarcode(cur,cur.orderNo)?cur.orderNo:'';
       stg.innerHTML='<div class="card pad mb"><div class="row" style="align-items:baseline;gap:8px"><b class="grow awb-no">'+esc(cur.awb)+'</b><span class="pill '+(cur.market==='intl'?'info':'ok')+'">'+esc(marketLabel(cur.market))+'</span></div>'+
           (cur.customer?'<div class="sub">'+esc(cur.customer)+'</div>':'')+'</div>'+
-        '<div class="splitbox mb" style="background:var(--amber-bg);border:1px solid var(--amber)"><div class="sl"><span>'+(bad?T('जो दर्ज है वो बारकोड है','What is recorded is a barcode')+': <b class="mono">'+esc(bad)+'</b>':T('ऑर्डर नंबर नहीं है','No order number on this parcel'))+'</span><b>'+T('लिखें या स्कैन करें','Type or scan it')+'</b></div></div>'+
+        '<div class="splitbox mb" style="background:var(--amber-bg);border:1px solid var(--amber)"><div class="sl"><span>'+T('ऑर्डर नंबर नहीं है','No order number on this parcel')+'</span><b>'+T('लिखें या स्कैन करें','Type or scan it')+'</b></div></div>'+
         items.map(x=>'<div class="card pad mb"><div class="row" style="align-items:baseline;gap:8px"><b class="grow">'+esc(x.name)+'</b><b class="num">×'+fmtQty(x.qty)+'</b></div>'+
           '<div class="sub mono">'+esc(x.sku||'')+'</div></div>').join('')+
         '<button class="btn block mt" id="pk-skip2">'+T('दूसरा पार्सल','Different parcel')+'</button>';
@@ -4858,8 +4850,11 @@ function vPack(){
        one stops to ask. */
     if(cur&&stage==='order'){
       if(code.length<3){err(code,T('ऑर्डर नंबर बहुत छोटा','order number too short'));return}
-      if(ordIsBarcode(cur,code)){
-        err(code,T('यह इस पार्सल का बारकोड है — ऑर्डर नंबर लिखें','that is a barcode on this parcel — type the order number'));return;
+      /* On Amazon and Flipkart labels the order number IS one of the printed
+         barcodes, so only the label just scanned is refused — scanning that
+         again is the one thing that is certainly a slip. */
+      if(got.some(g=>awbKey(g)===awbKey(code))){
+        err(code,T('यह वही लेबल है जो अभी स्कैन हुआ — ऑर्डर नंबर लिखें या स्कैन करें','that is the label you just scanned — type or scan the order number'));return;
       }
       orderNo=code;cur.orderNo=code;cur.orderNoBy=userName();cur.orderNoAt=Date.now();
       save('awbs');beep(true);
@@ -4893,16 +4888,13 @@ function vPack(){
     if(a.status!=='accepted'){err(code,T('स्थिति: ','status: ')+a.status);return}
     if(!awbItems(a).length){err(code,T('इसमें कोई आइटम दर्ज नहीं — पहले Edit करके आइटम जोड़ें','no items recorded — add them from Edit first'));return}
     cur=a;shot='';tries=0;got=[code];skipped=[];beep(true);
-    if(a.orderNo&&!ordIsBarcode(a,a.orderNo)){      /* the usual case — nothing to type */
+    if(a.orderNo){                      /* already recorded — never ask twice */
       orderNo=a.orderNo;
       await startLook(a);
       return;
     }
-    const wrong=a.orderNo||'';                       /* a barcode saved as the order number */
     stage='order';paint();focus();
-    say('<b class="mono">'+esc(a.awb)+'</b> — '+(wrong
-      ?T('"','"')+esc(wrong)+T('" इस पार्सल का बारकोड है, ऑर्डर नंबर नहीं — सही नंबर लिखें','" is a barcode on this parcel, not an order number — type the real one')
-      :T('इस पार्सल पर ऑर्डर नंबर नहीं है, लिखें','this parcel has no order number — type it')));
+    say('<b class="mono">'+esc(a.awb)+'</b> — '+T('इस पार्सल पर ऑर्डर नंबर नहीं है, लिखें','this parcel has no order number — type it'));
   }
   /* label (and order number) settled: show the items, start the recording */
   async function startLook(a){
