@@ -4592,7 +4592,7 @@ function vPack(){
   let cur=null,stage='wait',shot='',busy=false,lastCode='',lastAt=0,done=0,stream=null,orderNo='',tries=0;
   let vidOn=false,vidTick=0;                      /* marketplace parcels record while they are packed */
   let got=[],skipped=[],shotInfo=null;   // barcodes scanned / ones that could not be read / photo size
-  const need=()=>cur?awbCodes(cur):[];
+  const need=()=>cur?awbScanCodes(cur):[];   /* never the order number */
   const left=()=>need().filter(c=>!got.some(g=>awbKey(g)===awbKey(c))&&!skipped.some(s=>awbKey(s)===awbKey(c)));
   $('#main').innerHTML=
     '<div id="pk-vidwrap"></div>'+
@@ -6566,6 +6566,18 @@ const awbKey=s=>String(s||'').replace(/[\s-]/g,'').toUpperCase();
 function awbCodes(a){
   const out=[],seen={};
   [a.awb,a.orderNo].concat(Array.isArray(a.codes)?a.codes:[]).forEach(c=>{
+    const k=awbKey(c);if(k&&!seen[k]){seen[k]=1;out.push(String(c).trim())}
+  });
+  return out;
+}
+/* awbCodes() above is for FINDING a parcel, so it includes the order number —
+   scanning an order barcode should pull the parcel up. But the order number is
+   just as often typed in by hand at Inward, so it is not something a packer can
+   scan off the label. Anything that asks someone to scan a code must use this
+   instead: the label's own barcodes, and nothing else. */
+function awbScanCodes(a){
+  const out=[],seen={};
+  [a.awb].concat(Array.isArray(a.codes)?a.codes:[]).forEach(c=>{
     const k=awbKey(c);if(k&&!seen[k]){seen[k]=1;out.push(String(c).trim())}
   });
   return out;
