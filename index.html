@@ -4500,6 +4500,13 @@ function shopifyResultHTML(r){
 /* Outward hands a parcel to Packing by dropping its barcode here; vPack picks
    it up on the way in, so nobody re-scans a label they are already holding. */
 let _packSeed='';
+/* One of the parcel's own barcodes is never its order number, whether it is
+   being typed now or was saved as one earlier. */
+function ordIsBarcode(a,v){
+  v=String(v||'').trim();if(!a||!v)return false;
+  if(awbKey(v)===awbKey(a.awb))return true;
+  return awbCodes(a).some(c=>awbKey(c)===awbKey(v));
+}
 /* ================= FORCE DISPATCH =================
    The escape hatch for a parcel that never made it through Inward — a label
    printed at the last minute, a scan that was missed. It deliberately breaks the
@@ -4630,9 +4637,10 @@ function vPack(){
     const items=awbItems(cur);
     /* Only parcels that came in WITHOUT an order number stop here. */
     if(stage==='order'){
+      const bad=cur.orderNo&&ordIsBarcode(cur,cur.orderNo)?cur.orderNo:'';
       stg.innerHTML='<div class="card pad mb"><div class="row" style="align-items:baseline;gap:8px"><b class="grow awb-no">'+esc(cur.awb)+'</b><span class="pill '+(cur.market==='intl'?'info':'ok')+'">'+esc(marketLabel(cur.market))+'</span></div>'+
           (cur.customer?'<div class="sub">'+esc(cur.customer)+'</div>':'')+'</div>'+
-        '<div class="splitbox mb" style="background:var(--amber-bg);border:1px solid var(--amber)"><div class="sl"><span>'+T('ऑर्डर नंबर नहीं है','No order number on this parcel')+'</span><b>'+T('लिखें या स्कैन करें','Type or scan it')+'</b></div></div>'+
+        '<div class="splitbox mb" style="background:var(--amber-bg);border:1px solid var(--amber)"><div class="sl"><span>'+(bad?T('जो दर्ज है वो बारकोड है','What is recorded is a barcode')+': <b class="mono">'+esc(bad)+'</b>':T('ऑर्डर नंबर नहीं है','No order number on this parcel'))+'</span><b>'+T('लिखें या स्कैन करें','Type or scan it')+'</b></div></div>'+
         items.map(x=>'<div class="card pad mb"><div class="row" style="align-items:baseline;gap:8px"><b class="grow">'+esc(x.name)+'</b><b class="num">×'+fmtQty(x.qty)+'</b></div>'+
           '<div class="sub mono">'+esc(x.sku||'')+'</div></div>').join('')+
         '<button class="btn block mt" id="pk-skip2">'+T('दूसरा पार्सल','Different parcel')+'</button>';
@@ -4804,14 +4812,18 @@ function vPack(){
           if(!go2){stage='confirm';paint();busy=false;return}
         }
       }
+      let photoWhere='';
       if(photo){
-        kept=await packPhotoSave(a.id,photo);
-        if(!kept){          /* saving failed — let them retry rather than lose the proof */
-          err(a.awb,T('फोटो सेव नहीं हुई — दोबारा लें या बिना फोटो चुनें','photo could not be saved — retake it, or choose without a photo'));
+        const pr=await packPhotoSave(a.id,photo);
+        kept=!!pr.ok;photoWhere=pr.where||'';
+        if(!pr.ok){          /* say WHY, so it can actually be fixed */
+          err(a.awb,T('फोटो सेव नहीं हुई — ','photo could not be saved — ')+(pr.err||'')+T(' · दोबारा लें या बिना फोटो चुनें',' · retake it, or choose without a photo'));
           stage='confirm';paint();busy=false;return;
         }
+        if(pr.where==='device')toast(T('फोटो अभी इसी डिवाइस में रखी है — ','Photo held on this device for now — ')+(pr.err||''),'err');
       }
       a.status='packed';a.packedBy=userName();a.packedAt=Date.now();a.packPhoto=kept;
+      if(photoWhere)a.packPhotoWhere=photoWhere;
       if(vid)a.packVideo={file:vid.file,url:vid.url,at:vid.at,by:vid.by,seconds:vid.seconds,bytes:vid.bytes,geo:vid.geo,keepDays:vid.keepDays,onDevice:!!vid.saved};
       a.packOrderNo=orderNo;a.market=getMarket();
       if(orderNo&&!a.orderNo)a.orderNo=orderNo;
@@ -4822,7 +4834,7 @@ function vPack(){
       logTx('shipment',{detail:'Packed · '+a.awb+' · order '+orderNo+' · '+marketLabel(a.market)+
         ' · '+got.length+'/'+need().length+' barcodes scanned'+
         (skipped.length?' · NOT scanned: '+skipped.join(', ')+' ('+((cur._skipWhy&&cur._skipWhy.by)||userName())+': '+((cur._skipWhy&&cur._skipWhy.reason)||'')+')':'')+
-        (kept?' · photo kept '+PACK_KEEP_DAYS+' days':' · NO photo'+(why?' · '+why.by+': '+why.reason:''))+
+        (kept?' · photo kept '+PACK_KEEP_DAYS+' days'+(photoWhere==='device'?' (on the packing device, not yet uploaded)':''):' · NO photo'+(why?' · '+why.by+': '+why.reason:''))+
         (a.packVideo?' · VIDEO '+a.packVideo.file+' ('+a.packVideo.seconds+'s'+(a.packVideo.onDevice?', saved on the packing device':'')+')':(isMkt(a)?' · no video':''))+' · by '+userName()});
       done++;const el=$('#pk-n');if(el)el.textContent=String(done);
       successChime();
@@ -4846,8 +4858,8 @@ function vPack(){
        one stops to ask. */
     if(cur&&stage==='order'){
       if(code.length<3){err(code,T('ऑर्डर नंबर बहुत छोटा','order number too short'));return}
-      if(awbKey(code)===awbKey(cur.awb)||need().some(c=>awbKey(c)===awbKey(code))){
-        err(code,T('यह लेबल का बारकोड है — ऑर्डर नंबर लिखें','that is the label barcode — type the order number'));return;
+      if(ordIsBarcode(cur,code)){
+        err(code,T('यह इस पार्सल का बारकोड है — ऑर्डर नंबर लिखें','that is a barcode on this parcel — type the order number'));return;
       }
       orderNo=code;cur.orderNo=code;cur.orderNoBy=userName();cur.orderNoAt=Date.now();
       save('awbs');beep(true);
@@ -4881,13 +4893,16 @@ function vPack(){
     if(a.status!=='accepted'){err(code,T('स्थिति: ','status: ')+a.status);return}
     if(!awbItems(a).length){err(code,T('इसमें कोई आइटम दर्ज नहीं — पहले Edit करके आइटम जोड़ें','no items recorded — add them from Edit first'));return}
     cur=a;shot='';tries=0;got=[code];skipped=[];beep(true);
-    if(a.orderNo){                      /* the usual case — nothing to type */
+    if(a.orderNo&&!ordIsBarcode(a,a.orderNo)){      /* the usual case — nothing to type */
       orderNo=a.orderNo;
       await startLook(a);
       return;
     }
+    const wrong=a.orderNo||'';                       /* a barcode saved as the order number */
     stage='order';paint();focus();
-    say('<b class="mono">'+esc(a.awb)+'</b> — '+T('इस पार्सल पर ऑर्डर नंबर नहीं है, लिखें','this parcel has no order number — type it'));
+    say('<b class="mono">'+esc(a.awb)+'</b> — '+(wrong
+      ?T('"','"')+esc(wrong)+T('" इस पार्सल का बारकोड है, ऑर्डर नंबर नहीं — सही नंबर लिखें','" is a barcode on this parcel, not an order number — type the real one')
+      :T('इस पार्सल पर ऑर्डर नंबर नहीं है, लिखें','this parcel has no order number — type it')));
   }
   /* label (and order number) settled: show the items, start the recording */
   async function startLook(a){
@@ -4919,6 +4934,7 @@ function vPack(){
   $('#pk-x').onclick=()=>{stopCam();go('#awb')};
   paint();focus();
   packPhotoPurge();
+  packPhotoFlush().then(n=>{if(n)toast(n+T(' रुकी हुई फोटो अपलोड हो गईं',' held photo'+(n===1?'':'s')+' uploaded'),'ok')});
   if(_packSeed){const seed=_packSeed;_packSeed='';setTimeout(()=>handle(seed),80)}
 }
 /* Tap your name, type your code. Nothing else changes. */
@@ -6782,20 +6798,57 @@ function packRequired(){return !!(S.meta&&S.meta.packRequired)}
 async function setPackRequired(v){S.meta.packRequired=!!v;await saveNow('meta')}
 /* A packing photo is kept for 90 days then deleted. It lives on its own document
    so a parcel record stays small and fast to load. */
+/* If the cloud refuses the photo, it is kept on this device instead and pushed
+   up on the next packing session. Losing the proof is the one outcome that is
+   not acceptable — and the packer is told exactly what went wrong, never just
+   "could not be saved". */
+const PP_PENDING='invento_pp_pending', PP_MAX_LOCAL=12;
+function ppPending(){try{return JSON.parse(localStorage.getItem(PP_PENDING)||'[]')}catch(e){return []}}
+function ppSetPending(a){try{localStorage.setItem(PP_PENDING,JSON.stringify(a.slice(-PP_MAX_LOCAL)))}catch(e){}}
 async function packPhotoSave(awbId,dataUrl){
-  if(!dataUrl)return false;
+  if(!dataUrl)return {ok:false,err:'no photo'};
   const doc={id:awbId,photo:dataUrl,at:Date.now(),by:userName()};
-  if(MODE==='cloud'){
-    if(!writeOK(1)){wlBlocked();return false}
-    try{await db.collection('packphotos').doc(awbId).set(doc)}catch(e){console.error('packphoto',e);return false}
-  } else {
+  if(MODE!=='cloud'){
     S.packphotos=(S.packphotos||[]).filter(p=>p.id!==awbId).concat([doc]);save('packphotos');
+    return {ok:true,where:'local'};
   }
-  return true;
+  let err='';
+  if(!writeOK(1)){wlBlocked();err=(langHi()?'इस डिवाइस से इस घंटे बहुत बदलाव हो गए':'too many changes from this device in the last hour')}
+  else{
+    try{await db.collection('packphotos').doc(awbId).set(doc);return {ok:true,where:'cloud'}}
+    catch(e){console.error('packphoto',e);err=(e&&e.code?e.code+' · ':'')+String(e&&e.message||e).slice(0,110)}
+  }
+  /* cloud said no — hold it here rather than make them retake it */
+  const held=await store.set('pp:'+awbId,doc);
+  if(held){
+    const q=ppPending().filter(x=>x!==awbId);q.push(awbId);
+    const drop=q.length>PP_MAX_LOCAL?q.slice(0,q.length-PP_MAX_LOCAL):[];
+    for(const d of drop){try{await store.del('pp:'+d)}catch(e){}}
+    ppSetPending(q);
+    return {ok:true,where:'device',err};
+  }
+  return {ok:false,err:err||(langHi()?'डिवाइस में भी जगह नहीं':'no room on this device either')};
+}
+/* Push anything the cloud refused earlier. Runs quietly when Packing opens. */
+async function packPhotoFlush(){
+  if(MODE!=='cloud')return 0;
+  const q=ppPending();if(!q.length)return 0;
+  let sent=0,keep=[];
+  for(const id of q){
+    let doc=null;try{doc=await store.get('pp:'+id)}catch(e){}
+    if(!doc||!doc.photo){continue}
+    if(!writeOK(1)){keep.push(id);continue}
+    try{await db.collection('packphotos').doc(id).set(doc);sent++;try{await store.del('pp:'+id)}catch(e){}}
+    catch(e){keep.push(id)}
+  }
+  ppSetPending(keep);
+  return sent;
 }
 async function packPhotoGet(awbId){
   if(MODE==='cloud'){
-    try{const d=await db.collection('packphotos').doc(awbId).get();return d.exists?d.data():null}catch(e){return null}
+    try{const d=await db.collection('packphotos').doc(awbId).get();if(d.exists)return d.data()}catch(e){}
+    try{const l=await store.get('pp:'+awbId);if(l&&l.photo)return Object.assign({onDevice:true},l)}catch(e){}
+    return null;
   }
   return (S.packphotos||[]).find(p=>p.id===awbId)||null;
 }
