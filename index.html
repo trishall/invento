@@ -4767,11 +4767,10 @@ function vPack(){
         if(!photo)photo=packVidFrame($('#pk-rc'));
         const blob=await retRecStop();retGeoStop();clearInterval(vidTick);vidOn=false;
         if(!blob){err(a.awb,T('रिकॉर्डिंग नहीं बनी — दोबारा करें','the recording did not come through — pack it again'));busy=false;return}
-        say(T('रिकॉर्डिंग सेव हो रही है…','Saving the recording…'));
-        vid=await packVidSave(a,blob,orderNo);
-        if(vid.err&&!vid.url){
-          const go2=await confirmDlg(T('रिकॉर्डिंग अपलोड नहीं हुई','The recording could not be uploaded'),
-            esc(vid.err)+'<br><br>'+T('पार्सल को पैक मान लें? रिकॉर्डिंग नहीं रखी जाएगी।','Mark the parcel packed anyway? The recording will not be kept.'),
+        vid=packVidSave(a,blob,orderNo);      /* lands on this device at once */
+        if(!vid.saved){
+          const go2=await confirmDlg(T('रिकॉर्डिंग सेव नहीं हुई','The recording could not be saved'),
+            esc(vid.err||'')+'<br><br>'+T('पार्सल को पैक मान लें? रिकॉर्डिंग नहीं रखी जाएगी।','Mark the parcel packed anyway? The recording will not be kept.'),
             T('फिर भी पैक','Pack anyway'),true);
           if(!go2){stage='confirm';paint();busy=false;return}
         }
@@ -4784,7 +4783,7 @@ function vPack(){
         }
       }
       a.status='packed';a.packedBy=userName();a.packedAt=Date.now();a.packPhoto=kept;
-      if(vid)a.packVideo={file:vid.file,url:vid.url,at:vid.at,by:vid.by,seconds:vid.seconds,bytes:vid.bytes,geo:vid.geo,keepDays:vid.keepDays};
+      if(vid)a.packVideo={file:vid.file,url:vid.url,at:vid.at,by:vid.by,seconds:vid.seconds,bytes:vid.bytes,geo:vid.geo,keepDays:vid.keepDays,onDevice:!!vid.saved};
       a.packOrderNo=orderNo;a.market=getMarket();
       if(orderNo&&!a.orderNo)a.orderNo=orderNo;
       if(why)a.packNoPhotoWhy=why.reason;
@@ -4795,10 +4794,11 @@ function vPack(){
         ' · '+got.length+'/'+need().length+' barcodes scanned'+
         (skipped.length?' · NOT scanned: '+skipped.join(', ')+' ('+((cur._skipWhy&&cur._skipWhy.by)||userName())+': '+((cur._skipWhy&&cur._skipWhy.reason)||'')+')':'')+
         (kept?' · photo kept '+PACK_KEEP_DAYS+' days':' · NO photo'+(why?' · '+why.by+': '+why.reason:''))+
-        (a.packVideo?' · VIDEO '+a.packVideo.file+' ('+a.packVideo.seconds+'s, kept '+a.packVideo.keepDays+' days)':(isMkt(a)?' · no video':''))+' · by '+userName()});
+        (a.packVideo?' · VIDEO '+a.packVideo.file+' ('+a.packVideo.seconds+'s'+(a.packVideo.onDevice?', saved on the packing device':'')+')':(isMkt(a)?' · no video':''))+' · by '+userName()});
       done++;const el=$('#pk-n');if(el)el.textContent=String(done);
       successChime();
-      say('<div style="background:var(--green-bg);border:1px solid var(--green);border-radius:10px;padding:9px 11px"><b style="color:var(--green)">✓ '+esc(a.awb)+' '+T('पैक हो गया','packed')+'</b><div class="sub">'+T('अब यह बाहर जा सकता है। अगला ऑर्डर नंबर लिखें।','It can go out now. Type the next order number.')+'</div></div>');
+      say('<div style="background:var(--green-bg);border:1px solid var(--green);border-radius:10px;padding:9px 11px"><b style="color:var(--green)">✓ '+esc(a.awb)+' '+T('पैक हो गया','packed')+'</b><div class="sub">'+T('अब यह बाहर जा सकता है। अगला ऑर्डर नंबर लिखें।','It can go out now. Type the next order number.')+'</div>'+
+        (a.packVideo&&a.packVideo.onDevice?'<div class="hint mono" style="margin-top:4px">'+esc(a.packVideo.file)+'</div>':'')+'</div>');
     }catch(e){err(a.awb,String(e&&e.message||e).slice(0,90));busy=false;return}
     vidClear();
     cur=null;stage='wait';shot='';shotInfo=null;tries=0;orderNo='';got=[];skipped=[];stopCam();
@@ -5218,9 +5218,9 @@ function vMore(){
       '<button class="srow" id="mo-packreq" style="margin-bottom:8px">'+ico('box')+'<span>'+(langHi()?'पैकिंग ज़रूरी (रोज़ के ऑर्डर)':'Packing compulsory (daily orders)')+
         '<small>'+(packRequired()?(langHi()?'चालू — बिना पैक हुआ पार्सल बाहर नहीं जाएगा':'On — an unpacked parcel cannot go out')
         :(langHi()?'बंद — बिना पैक हुआ पार्सल चेतावनी के साथ जा सकता है':'Off — an unpacked parcel goes out with a warning'))+'</small></span></button>'+
-      '<button class="srow" id="mo-packvid">'+ico('camera')+'<span>'+(langHi()?'मार्केटप्लेस पैकिंग वीडियो कितने दिन रखें':'Keep marketplace packing videos for')+
-        '<small>'+packVideoDays()+(langHi()?' दिन · उसके बाद अपने-आप मिट जाते हैं':' days · deleted automatically after that')+'</small></span></button>'+
-      '<div class="hint mt">'+(langHi()?'मार्केटप्लेस ऑर्डर हमेशा कैमरे पर पैक होते हैं — यह सेटिंग सिर्फ़ यह तय करती है कि रिकॉर्डिंग कितने दिन रखी जाए।':'Marketplace orders are always packed on camera. This only sets how long the recording is kept.')+'</div></div>';
+      '<button class="srow" id="mo-packvid">'+ico('camera')+'<span>'+(langHi()?'क्लाउड कॉपी कितने दिन रखें':'Keep the cloud copy for')+
+        '<small>'+packVideoDays()+(langHi()?' दिन · उसके बाद अपने-आप मिट जाती है':' days · deleted automatically after that')+'</small></span></button>'+
+      '<div class="hint mt">'+(langHi()?'मार्केटप्लेस पैकिंग की रिकॉर्डिंग पैक होते ही उसी डिवाइस में सेव हो जाती है (नाम: PACK_ट्रैकिंग_तारीख_समय)। क्लाउड कॉपी पीछे-पीछे अपलोड होती है — पैकर को रुकना नहीं पड़ता।':'The packing recording saves onto the packing device the moment the parcel is packed, named PACK_tracking_date_time. The cloud copy uploads quietly in the background, so the packer never waits.')+'</div></div>';
   }
   h+='<div class="section-h"><h2>About</h2></div><div class="card pad mb"><p class="sub"><b>Invento</b> — team inventory that syncs live to every device and keeps working offline. For camera scanning, open the file in Chrome on your phone. Developed by <b>Trishal</b>.</p></div>';
   /* There is no "erase all data" any more. Wiping the whole warehouse was one
@@ -7655,8 +7655,7 @@ function retDrop(){ _ret.blob=null;_ret.chunks=[]; }
    goes to Firebase Storage under returns/ where a daily job deletes it after 7 days. */
 async function retKeep(a,blob,note,missing,stocked){
   if(!blob)return await retKeepNoVideo(a,note,missing,stocked);
-  const stamp=new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
-  const name='RETURN_'+String(a.awb||'no-awb').replace(/[^\w-]/g,'')+'_'+stamp+'.webm';
+  const name='RETURN_'+String(a.awb||'no-awb').replace(/[^\w-]/g,'')+'_'+vidStamp()+'.webm';
   let dl=false,up='';
   try{const u=URL.createObjectURL(blob);const el=document.createElement('a');el.href=u;el.download=name;document.body.appendChild(el);el.click();el.remove();setTimeout(()=>URL.revokeObjectURL(u),30000);dl=true}catch(e){}
   try{
@@ -7725,21 +7724,47 @@ async function packVidStart(videoEl,canvasEl,a,orderNo){
 function packVidFrame(canvasEl){                 /* the stamped frame becomes the proof photo */
   try{return canvasEl.toDataURL('image/jpeg',.72)}catch(e){return ''}
 }
-async function packVidSave(a,blob,orderNo){
+/* local date + time for the file name, so the packer can find it by eye:
+   2026-09-30_14-05-12 — never UTC, because the folder is read in Udaipur */
+function vidStamp(d){
+  d=d||new Date();
+  const p=n=>String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'_'+p(d.getHours())+'-'+p(d.getMinutes())+'-'+p(d.getSeconds());
+}
+/* The recording goes to the device the moment the parcel is packed — the packer
+   never waits for a network upload. The cloud copy is attempted quietly in the
+   background and is written onto the AWB only if and when it lands. */
+function packVidSave(a,blob,orderNo){
   const days=packVideoDays();
-  const stamp=new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
-  const name='PACK_'+String(a.awb||'no-awb').replace(/[^\w-]/g,'')+'_'+stamp+'.webm';
-  let url='',err='';
+  const name='PACK_'+String(a.awb||'no-awb').replace(/[^\w-]/g,'')+'_'+vidStamp()+'.webm';
+  let saved=false,err='';
   try{
-    if(typeof firebase.storage!=='function')throw new Error('Storage SDK not loaded');
-    const ref=firebase.storage().ref('packing/'+name);
-    await ref.put(blob,{contentType:blob.type||'video/webm',customMetadata:{awb:String(a.awb||''),orderNo:String(orderNo||''),by:userName(),keepDays:String(days)}});
-    url=await ref.getDownloadURL();
+    const u=URL.createObjectURL(blob);const el=document.createElement('a');el.href=u;el.download=name;
+    document.body.appendChild(el);el.click();el.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);
+    saved=true;
   }catch(e){err=String(e&&e.message||e).slice(0,120)}
-  return {file:name,url,err,bytes:blob?blob.size:0,
+  const rec={file:name,url:'',err,saved,bytes:blob?blob.size:0,
     seconds:Math.round((Date.now()-_ret.startedAt)/1000),
     geo:_ret.geo?{lat:_ret.geo.lat,lon:_ret.geo.lon,acc:_ret.geo.acc}:null,
     at:Date.now(),by:userName(),keepDays:days};
+  packVidUpload(a,blob,rec,orderNo);        /* deliberately not awaited */
+  return rec;
+}
+/* background, best-effort: fills in packVideo.url later if Storage accepts it */
+function packVidUpload(a,blob,rec,orderNo){
+  (async()=>{
+    try{
+      if(typeof firebase.storage!=='function')return;
+      const ref=firebase.storage().ref('packing/'+rec.file);
+      await ref.put(blob,{contentType:blob.type||'video/webm',customMetadata:{awb:String(a.awb||''),orderNo:String(orderNo||''),by:userName(),keepDays:String(rec.keepDays)}});
+      const url=await ref.getDownloadURL();
+      rec.url=url;
+      const live=(S.awbs||[]).find(x=>x.id===a.id);
+      if(live&&live.packVideo&&live.packVideo.file===rec.file&&!live.packVideo.url){
+        live.packVideo.url=url;save('awbs');
+      }
+    }catch(e){console.warn('packing video upload',e)}
+  })();
 }
 function awbCustReturnFlow(){
   if(!can('dispatch')&&!can('awbReturn')&&!isAdminU()){toast(retT('इजाज़त नहीं','No permission for returns'),'err');go('#awb');return}
