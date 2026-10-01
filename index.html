@@ -2793,25 +2793,45 @@ function vScan(mode,arg){
    ============================================================ */
 function vLabels(){
   topTitle('Labels','#home');
+  /* A hand-off may be plain ids, or {id,qty} when it comes from a parcel —
+     then each item prints as many labels as there are pieces in the box. */
   let pre=[];try{pre=JSON.parse(sessionStorage.getItem('lblsel')||'[]')}catch(e){}
   sessionStorage.removeItem('lblsel');
+  const perItem={};
+  pre=pre.map(x=>{
+    if(x&&typeof x==='object'){if(+x.qty>0)perItem[x.id]=Math.min(100,Math.round(+x.qty));return x.id}
+    return x;
+  });
+  const fromParcel=Object.keys(perItem).length>0;
+  let lblNote='';
+  try{lblNote=sessionStorage.getItem('lblnote')||''}catch(e){}
+  sessionStorage.removeItem('lblnote');
   const sel=new Set(pre.filter(id=>iById(id)));
+  const LS=lblPrefs();
   let h='<h1 class="page">Barcode &amp; QR labels</h1>';
   h+='<div class="card pad mb">'+
-    '<div class="f3"><div class="field"><label>Content</label><select class="in" id="lb-mode"><option value="both" selected>Code + text</option><option value="code">Only barcode / QR</option><option value="text">Only text</option></select></div>'+
-    '<div class="field"><label>Code type</label><select class="in" id="lb-type"><option value="qr">QR code</option><option value="bar">Barcode (Code 128)</option></select></div>'+
-    '<div class="field"><label>Size</label><select class="in" id="lb-size"><option value="s">Small · 48×24 mm</option><option value="m" selected>Medium · 62×30 mm</option><option value="l">Large · 96×46 mm</option><option value="x">XL · 100×60 mm</option></select></div>'+
-    '<div class="field"><label>Copies each</label><input class="in num" id="lb-n" inputmode="numeric" value="1"></div>'+
+    '<div class="f3"><div class="field"><label>Content</label><select class="in" id="lb-mode">'+
+      [['both','Code + text'],['code','Only barcode / QR'],['text','Only text']]
+        .map(o=>'<option value="'+o[0]+'"'+(LS.mode===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></div>'+
+    '<div class="field"><label>Code type</label><select class="in" id="lb-type">'+
+      [['qr','QR code'],['bar','Barcode (Code 128)']]
+        .map(o=>'<option value="'+o[0]+'"'+(LS.type===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></div>'+
+    '<div class="field"><label>Size</label><select class="in" id="lb-size">'+
+      [['s','Small · 48×24 mm'],['m','Medium · 62×30 mm'],['l','Large · 96×46 mm'],['x','XL · 100×60 mm']]
+        .map(o=>'<option value="'+o[0]+'"'+(LS.size===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></div>'+
+    '<div class="field"><label>Copies each'+(fromParcel?' <span class="pill ok" style="font-size:9px">per piece</span>':'')+'</label>'+
+      '<input class="in num" id="lb-n" inputmode="numeric" value="'+esc(String(LS.n))+'"'+(fromParcel?' disabled':'')+'></div>'+
     '<div class="field"><label>Printed by (3 letters) *</label><input class="in mono" id="lb-by" maxlength="3" autocapitalize="characters" spellcheck="false" placeholder="e.g. TRI" required value="'+esc(lblByDefault())+'" style="text-transform:uppercase;letter-spacing:.15em"></div></div>'+
     '<div class="row wrap" style="gap:14px">'+
-      '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-border"> Border</label>'+
-      '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-name" checked> Name</label>'+
-      '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-sku" checked> SKU under code</label>'+
-      '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-price"> Price</label>'+
-      '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-tags"> Tags</label>'+
-      '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-loc"> '+locTerm()+'</label></div>'+
+      '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-border"'+(LS.border?' checked':'')+'> Border</label>'+
+      '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-name"'+(LS.name?' checked':'')+'> Name</label>'+
+      '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-sku"'+(LS.sku?' checked':'')+'> SKU under code</label>'+
+      '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-price"'+(LS.price?' checked':'')+'> Price</label>'+
+      '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-tags"'+(LS.tags?' checked':'')+'> Tags</label>'+
+      '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-loc"'+(LS.loc?' checked':'')+'> '+locTerm()+'</label></div>'+
       '<div class="hint" style="margin-top:8px">Tick only what should print. For items with several SKUs, one label is produced for each SKU.</div></div>';
   h+='<div class="card pad mb" style="border-left:4px solid var(--saddle)"><div class="row" style="gap:10px;align-items:center"><div class="grow"><b>'+(langHi()?'स्कैनर keys':'Scanner keys')+'</b><div class="small muted">'+(langHi()?'DONE key स्कैन करें = Enter दबाना। पैकिंग टेबल पर चिपकाएँ।':'Scan the DONE key instead of pressing Enter. Stick it on the packing table.')+'</div></div><button class="btn sm pri" id="lb-keys">'+ico('print')+(langHi()?'प्रिंट करें':'Print keys')+'</button></div></div>';
+  if(lblNote)h+='<div class="splitbox mb" style="background:var(--green-bg);border:1px solid var(--green)"><div class="sl"><span>'+esc(lblNote)+'</span><b>'+(langHi()?'आइटम चुने हुए हैं':'items already selected')+'</b></div></div>';
   h+='<div class="row mb"><div class="searchbar grow">'+ico('search')+'<input id="lb-q" type="search" placeholder="Filter items…"></div><button class="btn sm" id="lb-all">Select all</button></div>';
   h+='<div class="ilist mb" id="lb-list" style="max-height:330px;overflow-y:auto"></div>';
   h+='<div class="row"><button class="btn grow" id="lb-prev" disabled>'+ico('label')+'Preview</button><button class="btn pri grow" id="lb-print" disabled>'+ico('print')+'Print / PDF</button></div>';
@@ -2839,6 +2859,7 @@ function vLabels(){
     if(by.length!==3){const el=$('#lb-by');el.style.borderColor='var(--red)';el.focus();toast('Enter your 3-letter initials first','err');return false}
     $('#lb-by').style.borderColor='';try{localStorage.setItem('lbl_by',by)}catch(e){}
     const showName=$('#lb-name').checked,showSku=$('#lb-sku').checked,showPrice=$('#lb-price').checked,showTags=$('#lb-tags').checked,showLoc=$('#lb-loc').checked;
+    lblPrefsSave({mode,type,size,n,border:withBorder,name:showName,sku:showSku,price:showPrice,tags:showTags,loc:showLoc});
     let libOK=true;
     if(mode!=='text')try{
       if(type==='qr')await lazyScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js');
@@ -2849,8 +2870,9 @@ function vLabels(){
     let nLabels=0;
     its.forEach(i=>{
       const codes=skusOf(i);const list=codes.length?codes:[''];
+      const copies=perItem[i.id]||n;        /* a parcel asks for one per piece */
       list.forEach(code=>{ if(!code)return;
-        for(let k=0;k<n;k++){ nLabels++;
+        for(let k=0;k<copies;k++){ nLabels++;
           const cls='lbl s-'+size+(withBorder?' bordered':'')+(mode==='code'?' codeonly':mode==='text'?' textonly':'');
           const codeHtml=(mode==='text')?'':'<div class="code" data-code="'+esc(code)+'" data-type="'+type+'"></div>';
           const txHtml=(mode==='code')?'':'<div class="tx">'+
@@ -2897,6 +2919,30 @@ async function printScanKeys(){
   }catch(e){toast('Could not draw barcode','err');return}
   logTx('label',{detail:'Scanner keys printed'});
   printNow();
+}
+/* Whatever was set last time comes back next time — size above all, since a
+   warehouse settles on one label stock and never changes it again. */
+const LBL_DEF={mode:'both',type:'qr',size:'m',n:1,border:false,name:true,sku:true,price:false,tags:false,loc:false};
+function lblPrefs(){
+  let v=null;try{v=JSON.parse(localStorage.getItem('lbl_prefs')||'null')}catch(e){}
+  const o=Object.assign({},LBL_DEF,v&&typeof v==='object'?v:{});
+  if(!['s','m','l','x'].includes(o.size))o.size=LBL_DEF.size;
+  if(!['both','code','text'].includes(o.mode))o.mode=LBL_DEF.mode;
+  if(!['qr','bar'].includes(o.type))o.type=LBL_DEF.type;
+  o.n=Math.min(100,Math.max(1,Math.round(+o.n||1)));
+  return o;
+}
+function lblPrefsSave(o){try{localStorage.setItem('lbl_prefs',JSON.stringify(o))}catch(e){}}
+/* Send a parcel's contents to the Labels screen — one label per piece. */
+function lblForAwb(a,note){
+  const rows=awbItems(a).map(x=>({id:x.itemId,qty:+x.outQty||+x.qty||1})).filter(x=>x.id&&iById(x.id));
+  if(!rows.length){toast(langHi()?'इस पार्सल में कोई आइटम दर्ज नहीं':'No items recorded on this parcel','err');return false}
+  try{
+    sessionStorage.setItem('lblsel',JSON.stringify(rows));
+    sessionStorage.setItem('lblnote',note||((langHi()?'पार्सल ':'Parcel ')+(a.awb||'')));
+  }catch(e){}
+  go('#labels');
+  return true;
 }
 function lblByDefault(){try{const v=localStorage.getItem('lbl_by');if(v)return v}catch(e){}const nm=(MODE==='cloud'?userName():S.meta.user)||'';return nm.replace(/[^A-Za-z]/g,'').slice(0,3).toUpperCase()}
 function printNow(){
@@ -7248,9 +7294,14 @@ function shipmentDlg(preQ){
           ?'<button class="btn sm block mt" data-rx="'+a.id+'" style="color:var(--saddle);border-color:var(--saddle);font-weight:700">'+ico('undo')+T('फिर से खोलें — नंबर टाइप करना होगा','Reopen this shipment — type the number')+'</button>'
           :'<div class="row mt" style="gap:6px">'+
             (a.status==='accepted'?'<button class="btn sm grow" data-ed="'+a.id+'" style="font-weight:700">'+ico('edit')+T('बदलें','Edit')+'</button>':'')+
+            (items.length?'<button class="btn sm grow" data-lbl="'+a.id+'" style="font-weight:700">'+ico('label')+T('लेबल','Labels')+'</button>':'')+
             '<button class="btn sm grow danger" data-cx="'+a.id+'" style="font-weight:700">'+ico('x')+T('रद्द करें','Cancel'+(moved.length?' & restock':''))+'</button></div>')+
       '</div>';
     }).join(''):'<div class="sub" style="padding:10px 4px">'+(all.length?T('कुछ नहीं मिला','Nothing found'):T('अभी कोई शिपमेंट नहीं','No shipments yet'))+'</div>';
+    $$('#sh-res [data-lbl]').forEach(b=>b.onclick=()=>{
+      const a=all.find(x=>x.id===b.dataset.lbl);
+      if(a&&lblForAwb(a,(langHi()?'पार्सल ':'Parcel ')+(a.awb||'')))closeModal();
+    });
     $$('#sh-res [data-shpic]').forEach(b=>b.onclick=async()=>{
       const id=b.dataset.shpic,box=$('#shpic-'+id);
       if(box)box.innerHTML='<div class="sub">'+T('फोटो खोल रहे हैं…','Loading the photo…')+'</div>';
@@ -7898,6 +7949,9 @@ function awbCustReturnFlow(){
     if(stage==='after'){
       h+='<div class="card pad mb" style="border-left:4px solid var(--green)"><b>'+retT('वापस हो गया','Returned')+'</b><div class="sub mt" id="rt-sum"></div></div>';
       h+='<button class="btn pri block mb" id="rt-next">'+ico('check')+retT('अगला पार्सल (Enter)','Next parcel (Enter)')+'</button>';
+      /* A returned piece comes back with no label on it — print one before it
+         goes back on the shelf. One label per piece that actually arrived. */
+      if(lastArrived.length)h+='<button class="btn block mb" id="rt-lbl">'+ico('label')+retT('इनके लेबल प्रिंट करें','Print labels for these items')+'</button>';
       h+='<button class="btn block" id="rt-esc" style="border-color:var(--red);color:var(--red);font-weight:700">'+ico('bolt')+retT('एस्केलेट करें — रिकॉर्डिंग रखें','Escalate — keep the recording')+'</button>';
       h+='<div class="hint mt">'+retT('कुछ गलत या टूटा हुआ हो तो ही एस्केलेट करें — तब पूछा जाएगा कि माल स्टॉक में रखना है या नहीं। वरना रिकॉर्डिंग मिटा दी जाती है।','Escalate only if something is wrong or damaged — it then asks whether the goods should stay in stock. Otherwise the recording is thrown away.')+'</div>';
       h+='<div id="rt-msg" class="sub mt" style="min-height:26px"></div>';
@@ -7999,6 +8053,17 @@ function awbCustReturnFlow(){
     $$('[data-miss]').forEach(el=>el.onclick=()=>{const ix=+el.dataset.miss;if(missing[ix])delete missing[ix];else missing[ix]=1;paint()});
     const nx=$('#rt-next');
     if(nx)nx.onclick=()=>{retDrop();cur=null;missing={};seen={};stage='scan';paint()};
+    const lb=$('#rt-lbl');
+    if(lb)lb.onclick=()=>{
+      const rows=lastArrived.map(x=>({id:x.itemId,qty:+x.outQty||+x.qty||1})).filter(x=>x.id&&iById(x.id));
+      if(!rows.length){msg(retT('लेबल के लिए कोई आइटम नहीं','Nothing to label here'),true);return}
+      retDrop();                       /* leaving the screen ends the recording */
+      try{
+        sessionStorage.setItem('lblsel',JSON.stringify(rows));
+        sessionStorage.setItem('lblnote',retT('वापस आया पार्सल ','Returned parcel ')+(cur&&cur.awb||''));
+      }catch(e){}
+      go('#labels');
+    };
     const es=$('#rt-esc');
     if(es)es.onclick=async()=>{
       es.disabled=true;
