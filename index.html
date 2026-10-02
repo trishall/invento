@@ -2851,51 +2851,25 @@ function vLabels(){
   $('#lb-all').onclick=()=>{const q=($('#lb-q').value||'').trim().toLowerCase();S.items.filter(i=>skusOf(i).length&&(!q||matches(i,q))).forEach(i=>sel.add(i.id));paintList()};
   paintList();
 
-  const QRDIM={s:46,m:58,l:90,x:120};const BARH={s:34,m:44,l:66,x:88};const QRDIM2={s:64,m:88,l:130,x:170};const BARH2={s:52,m:70,l:110,x:150};
   async function buildSheet(target){
     const type=$('#lb-type').value,size=$('#lb-size').value,n=clamp(parseInt($('#lb-n').value)||1,1,100);
     const mode=$('#lb-mode').value,withBorder=$('#lb-border').checked;
     const by=($('#lb-by').value||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,3);
     if(by.length!==3){const el=$('#lb-by');el.style.borderColor='var(--red)';el.focus();toast('Enter your 3-letter initials first','err');return false}
     $('#lb-by').style.borderColor='';try{localStorage.setItem('lbl_by',by)}catch(e){}
-    const showName=$('#lb-name').checked,showSku=$('#lb-sku').checked,showPrice=$('#lb-price').checked,showTags=$('#lb-tags').checked,showLoc=$('#lb-loc').checked;
-    lblPrefsSave({mode,type,size,n,border:withBorder,name:showName,sku:showSku,price:showPrice,tags:showTags,loc:showLoc});
-    let libOK=true;
-    if(mode!=='text')try{
-      if(type==='qr')await lazyScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js');
-      else await lazyScript('https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js');
-    }catch(e){libOK=false}
-    let sheet='<div class="lblsheet">';
-    const its=Array.from(sel).map(iById).filter(Boolean);
-    let nLabels=0;
-    its.forEach(i=>{
-      const codes=skusOf(i);const list=codes.length?codes:[''];
-      const copies=perItem[i.id]||n;        /* a parcel asks for one per piece */
-      list.forEach(code=>{ if(!code)return;
-        for(let k=0;k<copies;k++){ nLabels++;
-          const cls='lbl s-'+size+(withBorder?' bordered':'')+(mode==='code'?' codeonly':mode==='text'?' textonly':'');
-          const codeHtml=(mode==='text')?'':'<div class="code" data-code="'+esc(code)+'" data-type="'+type+'"></div>';
-          const txHtml=(mode==='code')?'':'<div class="tx">'+
-            (showName?'<div class="tn">'+esc(i.name)+'</div>':'')+
-            (showSku?'<div class="ts">'+esc(code)+'</div>':'')+(by?'<div class="ts by">'+esc(by)+'</div>':'')+
-            (showLoc?'<div class="ts" style="font-weight:600">'+esc(folderPath(i.folder))+'</div>':'')+
-            (showTags&&(i.tags||[]).length?'<div class="ts" style="font-weight:600">'+esc((i.tags||[]).join(', '))+'</div>':'')+
-            (showPrice&&+i.price?'<div class="tp num">'+fmtMoney(+i.price)+'</div>':'')+'</div>';
-          sheet+='<div class="'+cls+'">'+codeHtml+txHtml+(mode==='code'&&by?'<div class="byc">'+esc(by)+'</div>':'')+'</div>';
-        }
-      });
+    const p={mode,type,size,n,border:withBorder,
+      name:$('#lb-name').checked,sku:$('#lb-sku').checked,price:$('#lb-price').checked,
+      tags:$('#lb-tags').checked,loc:$('#lb-loc').checked};
+    lblPrefsSave(p);
+    const rows=[];
+    Array.from(sel).map(iById).filter(Boolean).forEach(i=>{
+      const copies=perItem[i.id]||n;
+      skusOf(i).forEach(code=>{if(code)rows.push({item:i,code:code,copies:copies})});
     });
-    sheet+='</div>';
-    target.innerHTML=sheet;
-    $$('.lbl .code',target).forEach(el=>{
-      const code=el.dataset.code;
-      if(!libOK){el.innerHTML='<div class="mono" style="font-weight:700;font-size:1.1em;writing-mode:vertical-rl;transform:rotate(180deg)">'+esc(code)+'</div>';return}
-      const QD=(mode==='code')?QRDIM2:QRDIM, BH=(mode==='code')?BARH2:BARH;
-      if(type==='qr'){new QRCode(el,{text:code,width:QD[size],height:QD[size],correctLevel:QRCode.CorrectLevel.M})}
-      else{const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');el.appendChild(svg);try{JsBarcode(svg,code,{format:'CODE128',displayValue:mode!=='code'||showSku,fontSize:(size==='s'?9:size==='x'?14:11)+(mode==='code'?2:0),height:BH[size],width:(size==='l'||size==='x'?2:1.4)+(mode==='code'?0.6:0),margin:2,textMargin:1})}catch(e){el.innerHTML='<div class="mono small">'+esc(code)+'</div>'}}
-    });
-    if(!libOK)toast('Code library offline — labels show text only','err');
-    logTx('label',{detail:nLabels+' label'+(nLabels===1?'':'s')+' for '+its.length+' item'+(its.length>1?'s':'')+(by?' · by '+by:'')});
+    const r=await lblRender(target,rows,p,by);
+    if(!r.libOK)toast('Code library offline — labels show text only','err');
+    const its=new Set(rows.map(x=>x.item.id)).size;
+    logTx('label',{detail:r.n+' label'+(r.n===1?'':'s')+' for '+its+' item'+(its>1?'s':'')+(by?' · by '+by:'')});
   }
   $('#lb-keys').onclick=printScanKeys;
   $('#lb-prev').onclick=()=>buildSheet($('#lb-stage'));
@@ -2919,6 +2893,53 @@ async function printScanKeys(){
   }catch(e){toast('Could not draw barcode','err');return}
   logTx('label',{detail:'Scanner keys printed'});
   printNow();
+}
+/* ---- one label renderer, used by the Labels screen and by Returns ----
+   rows: [{item, code, copies}]. Everything that draws a label goes through
+   here, so a label printed from a return is identical to one printed from the
+   Labels screen. */
+const LBL_QRDIM={s:46,m:58,l:90,x:120},LBL_BARH={s:34,m:44,l:66,x:88};
+const LBL_QRDIM2={s:64,m:88,l:130,x:170},LBL_BARH2={s:52,m:70,l:110,x:150};
+async function lblLib(p){
+  if(p.mode==='text')return true;
+  try{
+    if(p.type==='qr')await lazyScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js');
+    else await lazyScript('https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js');
+    return true;
+  }catch(e){return false}
+}
+async function lblRender(target,rows,p,by){
+  const libOK=await lblLib(p);
+  let sheet='<div class="lblsheet">',n=0;
+  rows.forEach(r=>{
+    const i=r.item,code=r.code;if(!code)return;
+    for(let k=0;k<Math.max(1,r.copies||1);k++){
+      n++;
+      const cls='lbl s-'+p.size+(p.border?' bordered':'')+(p.mode==='code'?' codeonly':p.mode==='text'?' textonly':'');
+      const codeHtml=(p.mode==='text')?'':'<div class="code" data-code="'+esc(code)+'"></div>';
+      const txHtml=(p.mode==='code')?'':'<div class="tx">'+
+        (p.name?'<div class="tn">'+esc(i.name)+'</div>':'')+
+        (p.sku?'<div class="ts">'+esc(code)+'</div>':'')+(by?'<div class="ts by">'+esc(by)+'</div>':'')+
+        (p.loc?'<div class="ts" style="font-weight:600">'+esc(folderPath(i.folder))+'</div>':'')+
+        (p.tags&&(i.tags||[]).length?'<div class="ts" style="font-weight:600">'+esc((i.tags||[]).join(', '))+'</div>':'')+
+        (p.price&&+i.price?'<div class="tp num">'+fmtMoney(+i.price)+'</div>':'')+'</div>';
+      sheet+='<div class="'+cls+'">'+codeHtml+txHtml+(p.mode==='code'&&by?'<div class="byc">'+esc(by)+'</div>':'')+'</div>';
+    }
+  });
+  sheet+='</div>';
+  target.innerHTML=sheet;
+  $$('.lbl .code',target).forEach(el=>{
+    const code=el.dataset.code;
+    if(!libOK){el.innerHTML='<div class="mono" style="font-weight:700;font-size:1.1em;writing-mode:vertical-rl;transform:rotate(180deg)">'+esc(code)+'</div>';return}
+    const QD=(p.mode==='code')?LBL_QRDIM2:LBL_QRDIM, BH=(p.mode==='code')?LBL_BARH2:LBL_BARH;
+    if(p.type==='qr'){new QRCode(el,{text:code,width:QD[p.size],height:QD[p.size],correctLevel:QRCode.CorrectLevel.M})}
+    else{
+      const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');el.appendChild(svg);
+      try{JsBarcode(svg,code,{format:'CODE128',displayValue:p.mode!=='code'||p.sku,fontSize:(p.size==='s'?9:p.size==='x'?14:11)+(p.mode==='code'?2:0),height:BH[p.size],width:(p.size==='l'||p.size==='x'?2:1.4)+(p.mode==='code'?0.6:0),margin:2,textMargin:1})}
+      catch(e){el.innerHTML='<div class="mono small">'+esc(code)+'</div>'}
+    }
+  });
+  return {n:n,libOK:libOK};
 }
 /* Whatever was set last time comes back next time — size above all, since a
    warehouse settles on one label stock and never changes it again. */
@@ -7906,6 +7927,18 @@ function awbCustReturnFlow(){
   if(!navigator.mediaDevices||!window.MediaRecorder){toast(retT('इस डिवाइस में कैमरा रिकॉर्डिंग नहीं है','This device cannot record video'),'err');go('#awb');return}
   topTitle(retT('वापसी — पार्सल आया','Return — parcel came back'),'#awb');
   let stage='scan',cur=null,missing={},seen={},busy=false,done=0,lastBlobFor=null,lastArrived=[],lastQty=0;
+  let lblRows=[],lblIx=0,lblBusy=false;          /* the label step, one item at a time */
+  const lblBuildRows=()=>{
+    const out=[];
+    lastArrived.forEach(x=>{
+      const it=x.itemId&&iById(x.itemId);if(!it)return;
+      const q=Math.max(1,Math.round(+x.outQty||+x.qty||1));
+      const codes=skusOf(it).filter(Boolean);
+      if(!codes.length)return;
+      out.push({item:it,codes:codes,qty:q});
+    });
+    return out;
+  };
   const paint=()=>{
     let h='';
     if(stage!=='scan'&&cur){
@@ -7946,12 +7979,34 @@ function awbCustReturnFlow(){
       h+='<div id="rt-msg" class="sub" style="min-height:26px"></div>';
       h+='<button class="btn pri block" id="rt-done">'+ico('check')+retT('हो गया — स्टॉक वापस (Enter)','Done — put stock back (Enter)')+'</button>';
     }
+    if(stage==='label'){
+      const r=lblRows[lblIx];
+      const p=lblPrefs();
+      h+='<div class="splitbox mb" style="background:var(--saddle-bg);border:1px solid var(--saddle)"><div class="sl">'+
+         '<span>'+retT('लेबल','Label')+' '+(lblIx+1)+' / '+lblRows.length+'</span><b class="mono">'+esc(cur&&cur.awb||'')+'</b></div></div>';
+      if(r){
+        h+='<div class="card pad mb"><div class="row" style="align-items:baseline;gap:8px">'+
+             '<b class="grow" style="font-size:18px">'+esc(r.item.name)+'</b>'+
+             '<b class="num" style="font-size:26px;color:var(--saddle)">×'+fmtQty(r.qty)+'</b></div>'+
+           '<div class="sub mono">'+r.codes.map(c=>'<span class="skutag" style="margin-right:4px">'+esc(c)+'</span>').join('')+'</div>'+
+           '<div class="hint mt">'+retT('इतने ही लेबल छपेंगे — हर पीस के लिए एक।','That many labels print — one for each piece.')+
+             (r.codes.length>1?retT(' इस आइटम के '+r.codes.length+' SKU हैं, हर SKU के लिए अलग।',' This item has '+r.codes.length+' SKUs, so one set per SKU.'):'')+'</div></div>';
+        h+='<div class="card pad mb" id="rt-lblprev" style="overflow:auto;max-height:34dvh"><div class="sub">'+retT('लेबल बन रहा है…','Drawing the label…')+'</div></div>';
+        h+='<button class="btn pri block mb" id="rt-lblgo">'+ico('print')+retT('प्रिंट करें और आगे (Enter)','Print and carry on (Enter)')+'</button>';
+        h+='<button class="btn block mb" id="rt-lblskip">'+retT('यह छोड़ें','Skip this item')+'</button>';
+      }
+      h+='<button class="btn block" id="rt-lbldone">'+ico('check')+retT('बस — अगला पार्सल','Done — next parcel')+'</button>';
+      h+='<div class="hint mt">'+retT('लेबल की सेटिंग (साइज़, QR या बारकोड) Labels स्क्रीन से बदलती है — यहाँ वही सेटिंग चलती है: ','Label settings — size, QR or barcode — come from the Labels screen. In use here: ')+
+         esc(({s:'48×24',m:'62×30',l:'96×46',x:'100×60'})[p.size]+' mm · '+(p.type==='qr'?'QR':'Code 128'))+'</div>';
+      h+='<div id="rt-msg" class="sub mt" style="min-height:26px"></div>';
+    }
     if(stage==='after'){
       h+='<div class="card pad mb" style="border-left:4px solid var(--green)"><b>'+retT('वापस हो गया','Returned')+'</b><div class="sub mt" id="rt-sum"></div></div>';
-      h+='<button class="btn pri block mb" id="rt-next">'+ico('check')+retT('अगला पार्सल (Enter)','Next parcel (Enter)')+'</button>';
-      /* A returned piece comes back with no label on it — print one before it
-         goes back on the shelf. One label per piece that actually arrived. */
-      if(lastArrived.length)h+='<button class="btn block mb" id="rt-lbl">'+ico('label')+retT('इनके लेबल प्रिंट करें','Print labels for these items')+'</button>';
+      /* A returned piece comes back with no label on it, so printing one is the
+         natural next move — Enter starts it, and Enter walks through the items. */
+      const canLbl=lblBuildRows().length>0;
+      if(canLbl)h+='<button class="btn pri block mb" id="rt-lbl">'+ico('label')+retT('लेबल प्रिंट करें (Enter)','Print labels (Enter)')+'</button>';
+      h+='<button class="btn '+(canLbl?'':'pri ')+'block mb" id="rt-next">'+ico('check')+retT(canLbl?'लेबल नहीं चाहिए — अगला पार्सल':'अगला पार्सल (Enter)',canLbl?'No labels — next parcel':'Next parcel (Enter)')+'</button>';
       h+='<button class="btn block" id="rt-esc" style="border-color:var(--red);color:var(--red);font-weight:700">'+ico('bolt')+retT('एस्केलेट करें — रिकॉर्डिंग रखें','Escalate — keep the recording')+'</button>';
       h+='<div class="hint mt">'+retT('कुछ गलत या टूटा हुआ हो तो ही एस्केलेट करें — तब पूछा जाएगा कि माल स्टॉक में रखना है या नहीं। वरना रिकॉर्डिंग मिटा दी जाती है।','Escalate only if something is wrong or damaged — it then asks whether the goods should stay in stock. Otherwise the recording is thrown away.')+'</div>';
       h+='<div id="rt-msg" class="sub mt" style="min-height:26px"></div>';
@@ -8055,15 +8110,42 @@ function awbCustReturnFlow(){
     if(nx)nx.onclick=()=>{retDrop();cur=null;missing={};seen={};stage='scan';paint()};
     const lb=$('#rt-lbl');
     if(lb)lb.onclick=()=>{
-      const rows=lastArrived.map(x=>({id:x.itemId,qty:+x.outQty||+x.qty||1})).filter(x=>x.id&&iById(x.id));
-      if(!rows.length){msg(retT('लेबल के लिए कोई आइटम नहीं','Nothing to label here'),true);return}
-      retDrop();                       /* leaving the screen ends the recording */
-      try{
-        sessionStorage.setItem('lblsel',JSON.stringify(rows));
-        sessionStorage.setItem('lblnote',retT('वापस आया पार्सल ','Returned parcel ')+(cur&&cur.awb||''));
-      }catch(e){}
-      go('#labels');
+      lblRows=lblBuildRows();lblIx=0;
+      if(!lblRows.length){msg(retT('लेबल के लिए कोई आइटम नहीं','Nothing to label here'),true);return}
+      stage='label';paint();
     };
+    /* the label step: everything happens here, nothing navigates away */
+    const lblNext=()=>{
+      lblIx++;
+      if(lblIx>=lblRows.length){lblFinish();return}
+      paint();
+    };
+    const lblFinish=()=>{
+      lblRows=[];lblIx=0;retDrop();
+      cur=null;missing={};seen={};stage='scan';paint();focus();
+    };
+    const lg=$('#rt-lblgo');
+    if(lg)lg.onclick=async()=>{
+      if(lblBusy)return;lblBusy=true;
+      const r=lblRows[lblIx];
+      try{
+        const p=lblPrefs(),by=lblByDefault();
+        const rows=r.codes.map(c=>({item:r.item,code:c,copies:r.qty}));
+        const out=await lblRender($('#printArea'),rows,p,by);
+        if(!out.n){msg(retT('इस आइटम का कोई कोड नहीं','This item has no code to print'),true);lblBusy=false;return}
+        logTx('label',{detail:out.n+' label'+(out.n===1?'':'s')+' · '+r.item.name+' · '+retT('वापसी','return')+' '+(cur&&cur.awb||'')+' · by '+by});
+        printNow();
+      }catch(e){msg(String(e&&e.message||e).slice(0,80),true);lblBusy=false;return}
+      lblBusy=false;lblNext();
+    };
+    const lsk=$('#rt-lblskip');if(lsk)lsk.onclick=lblNext;
+    const ldn=$('#rt-lbldone');if(ldn)ldn.onclick=lblFinish;
+    /* draw the preview for the item on screen */
+    if(stage==='label'&&lblRows[lblIx]){
+      const r=lblRows[lblIx],box=$('#rt-lblprev');
+      if(box)lblRender(box,r.codes.map(c=>({item:r.item,code:c,copies:1})),lblPrefs(),lblByDefault())
+        .then(o=>{if(!o.libOK&&box)box.insertAdjacentHTML('afterbegin','<div class="hint" style="color:var(--amber)">'+retT('कोड लाइब्रेरी ऑफ़लाइन — सिर्फ़ टेक्स्ट छपेगा','Code library offline — text only')+'</div>')});
+    }
     const es=$('#rt-esc');
     if(es)es.onclick=async()=>{
       es.disabled=true;
@@ -8100,8 +8182,11 @@ function awbCustReturnFlow(){
         (keepIn===false?'<br><b style="color:var(--red)">'+pulled+retT(' पीस स्टॉक से बाहर रखे गए',' pcs kept OUT of stock')+'</b>':'<br>'+retT('माल स्टॉक में है।','The pieces stay in stock.')));
       beep(true);
     };
+    if(stage==='label'){
+      document.onkeydown=e=>{if(e.key==='Enter'&&stage==='label'){e.preventDefault();const b=$('#rt-lblgo')||$('#rt-lbldone');if(b)b.click()}};
+    }
     if(stage==='after'){
-      document.onkeydown=e=>{if(e.key==='Enter'&&stage==='after'){e.preventDefault();const b=$('#rt-next');if(b)b.click()}};
+      document.onkeydown=e=>{if(e.key==='Enter'&&stage==='after'){e.preventDefault();const b=$('#rt-lbl')||$('#rt-next');if(b)b.click()}};
     } else document.onkeydown=null;
   }
   paint();
