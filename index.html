@@ -590,6 +590,7 @@ body.printing #printArea{display:block;padding:8mm}
     <a href="#ai" data-nav="ai" id="sn-ai"></a>
     <a href="#flows" data-nav="flows" id="sn-flows"></a>
     <a href="#labels" data-nav="labels" id="sn-labels"></a>
+    <a href="#tasks" data-nav="tasks" id="sn-tasks"></a>
     <a href="#reports" data-nav="reports" id="sn-reports"></a>
     <a href="#more" data-nav="more" id="sn-more"></a>
   </nav>
@@ -686,12 +687,19 @@ const sum=(arr,f)=>arr.reduce((a,x)=>a+(f?f(x):x),0);
 function fmtQty(n){n=round4(n);return Number.isInteger(n)?String(n):String(n)}
 function locale(){return (S.meta.currency==='₹')?'en-IN':'en-US'}
 function fixCurrency(){if(S.meta&&S.meta.currency==='₹'&&!S.meta.usdMig){S.meta.currency='$';S.meta.usdMig=1;save('meta')}}
-function fmtMoney(n,dec){n=+n||0;const d=(dec!=null)?dec:(Math.abs(n%1)>1e-9?2:0);return S.meta.currency+new Intl.NumberFormat(locale(),{minimumFractionDigits:d,maximumFractionDigits:Math.max(d,2)}).format(n)}
+function fmtMoney(n,dec){n=+n||0;const d=(dec!=null)?dec:(Math.abs(n%1)>1e-9?2:0);return esc(S.meta.currency)+new Intl.NumberFormat(locale(),{minimumFractionDigits:d,maximumFractionDigits:Math.max(d,2)}).format(n)}
+function fmtMoneyRaw(n,dec){n=+n||0;const d=(dec!=null)?dec:(Math.abs(n%1)>1e-9?2:0);return String(S.meta.currency||'')+new Intl.NumberFormat(locale(),{minimumFractionDigits:d,maximumFractionDigits:Math.max(d,2)}).format(n)}
 function fmtUSD(n,dec){n=+n||0;const d=(dec!=null)?dec:(Math.abs(n%1)>1e-9?2:0);return '$'+new Intl.NumberFormat('en-US',{minimumFractionDigits:d,maximumFractionDigits:Math.max(d,2)}).format(n)}
-function locTerm(){return (S.meta.locTerm||'Location')}
-function locTermP(){return (S.meta.locTermPlural||'')||locTerm()+'s'}
-function locL(){return locTerm().toLowerCase()}
-function locLP(){return locTermP().toLowerCase()}
+/* These four, and fmtMoney's currency prefix, come from settings that sync to
+   every device and are dropped straight into innerHTML in dozens of places.
+   Escaping them HERE covers every one of those sites at once — do not "fix" this
+   by unwrapping esc() and escaping at the call sites instead. */
+function locTermRaw(){return (S.meta.locTerm||'Location')}
+function locTermPRaw(){return (S.meta.locTermPlural||'')||locTermRaw()+'s'}
+function locTerm(){return esc(locTermRaw())}
+function locTermP(){return esc(locTermPRaw())}
+function locL(){return esc(locTermRaw().toLowerCase())}
+function locLP(){return esc(locTermPRaw().toLowerCase())}
 function skusOf(i){if(i.skus&&i.skus.length)return i.skus;const out=[];if(i.sku)out.push(i.sku);if(i.code&&i.code!==i.sku)out.push(i.code);(i.alt||[]).forEach(a=>{if(out.indexOf(a)<0)out.push(a)});return out}
 function setSkus(i,arr){const seen={},cl=[];(arr||[]).forEach(s=>{s=String(s).trim();if(s&&!seen[s.toLowerCase()]){seen[s.toLowerCase()]=1;cl.push(s)}});i.skus=cl;i.sku=cl[0]||'';i.code=cl[0]||''}
 function fmtDate(ts){const d=new Date(ts);return d.toLocaleDateString(locale(),{day:'numeric',month:'short',year:(d.getFullYear()!==new Date().getFullYear())?'numeric':undefined})}
@@ -843,7 +851,7 @@ const sub$=s=>{const m=document.getElementById('modal2');return m?m.querySelecto
 function showPhoto(dataUrl){
   let lb=$('#lightbox');
   if(!lb){lb=document.createElement('div');lb.id='lightbox';lb.className='lightbox';document.body.appendChild(lb)}
-  lb.innerHTML='<button class="lbx-close" aria-label="Close">'+ico('x')+'</button><img src="'+dataUrl+'" alt="">';
+  lb.innerHTML='<button class="lbx-close" aria-label="Close">'+ico('x')+'</button><img src="'+esc(dataUrl)+'" alt="">';
   lb.classList.add('show');
   lb.onclick=e=>{if(e.target===lb||e.target.closest('.lbx-close')){lb.classList.remove('show');lb.innerHTML=''}};
 }
@@ -897,14 +905,22 @@ function can(act){
 const cap1=s=>{s=String(s||'');return s?s.charAt(0).toUpperCase()+s.slice(1):s};
 const shadows={};
 const dirty={};
-const SYNC_COLS=['items','folders','lists','pos','trash','dispatches','approvals','awbs','workers'];
+const SYNC_COLS=['items','folders','lists','pos','trash','dispatches','approvals','awbs','workers','tasks'];
 
 function getSavedCfg(){
   if(FB_CONFIG && FB_CONFIG.projectId) return FB_CONFIG;
   try{
+    /* A #cfg= link tells this device which Firebase project to talk to. A link
+       is something anyone can send a worker, so it may only ever point at OUR
+       project — otherwise a crafted link would put the whole team on someone
+       else's database and harvest the passwords they type into it. */
     if(location.hash.indexOf('#cfg=')===0){
       const c=JSON.parse(atob(decodeURIComponent(location.hash.slice(5))));
-      if(c&&c.projectId){localStorage.setItem('gdwn:fbconfig',JSON.stringify(c));history.replaceState(null,'','#home');return c}
+      const mine=(FB_CONFIG&&FB_CONFIG.projectId)||'';
+      if(c&&c.projectId&&(!mine||c.projectId===mine)){
+        localStorage.setItem('gdwn:fbconfig',JSON.stringify(c));history.replaceState(null,'','#home');return c;
+      }
+      history.replaceState(null,'','#home');
     }
   }catch(e){}
   try{const v=localStorage.getItem('gdwn:fbconfig');if(v)return JSON.parse(v)}catch(e){}
@@ -961,7 +977,7 @@ const store={
 
 /* ---------- app state ---------- */
 const DEFAULT_META=()=>({company:'',user:'',currency:'$',lowDefault:5,view:'grid',sort:'updated',seq:{pl:0,po:0,ds:0,rt:0},setup:{},market:'dom',locTerm:'Location',locTermPlural:'',perms:{additem:true,delitem:true,adjqty:true,editloc:true,trash:true,export:true,dispatch:true,awbAccept:true,awbDispatch:true,awbReturn:true,awbDelete:false}});
-const S={meta:DEFAULT_META(),folders:[],items:[],txns:[],lists:[],pos:[],trash:[],dispatches:[],approvals:[],awbs:[],packphotos:[],workers:[]};
+const S={meta:DEFAULT_META(),folders:[],items:[],txns:[],lists:[],pos:[],trash:[],dispatches:[],approvals:[],awbs:[],packphotos:[],workers:[],tasks:[]};
 const UNITS=['unit','pcs','pair','set','box','pack','roll','sq.ft','sq.m','m','cm','ft','kg','g','L','ml','dozen'];
 
 function clean(o){const c=JSON.parse(JSON.stringify(o));Object.keys(c).forEach(k=>{if(k[0]==='_')delete c[k]});return c}
@@ -1161,6 +1177,7 @@ async function initCloud(cfg){
   wireCol('dispatches',db.collection('dispatches').orderBy('ts','desc').limit(400),s=>mergeCol('dispatches',s.docs),true);
   wireCol('approvals',db.collection('approvals'),s=>mergeCol('approvals',s.docs),true);
   wireCol('workers',db.collection('workers'),s=>mergeCol('workers',s.docs),true);
+  wireCol('tasks',db.collection('tasks').orderBy('at','desc').limit(400),s=>mergeCol('tasks',s.docs),true);
   wireCol('awbs',db.collection('awbs').orderBy('acceptedAt','desc').limit(1000),s=>mergeCol('awbs',s.docs),true);
   wireCol('trash',db.collection('trash').orderBy('deletedAt','desc'),s=>mergeCol('trash',s.docs),true);
   wireCol('txns',db.collection('txns').where('ts','>=',Date.now()-30*86400000).orderBy('ts','desc').limit(1200),s=>{S.txns=s.docs.map(d=>{const x=d.data();x.id=d.id;return x})},true);
@@ -1537,17 +1554,22 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 /* ============================================================
    ROUTER + NAV
    ============================================================ */
-const NAV=[['home','Home','home'],['stock','Stock','box'],['dispatch','Dispatch','truck'],['scan','Scan','scan'],['ai','AI','spark'],['flows','Workflows','flows'],['labels','Labels','label'],['reports','Reports','report'],['more','More','more']];
+const NAV=[['home','Home','home'],['stock','Stock','box'],['dispatch','Dispatch','truck'],['scan','Scan','scan'],['ai','AI','spark'],['flows','Workflows','flows'],['labels','Labels','label'],['tasks','Tasks','check'],['reports','Reports','report'],['more','More','more']];
 function paintNav(){
   NAV.forEach(([k,label,icon])=>{
-    const sn=$('#sn-'+k);if(sn)sn.innerHTML=ico(icon)+'<span>'+label+'</span>'+(k==='home'?'<span class="navbadge" id="sbadge" style="display:none"></span>':'');
+    const sn=$('#sn-'+k);if(sn)sn.innerHTML=ico(icon)+'<span>'+label+'</span>'+(k==='home'?'<span class="navbadge" id="sbadge" style="display:none"></span>':k==='tasks'?'<span class="navbadge" id="tbadge" style="display:none"></span>':'');
   });
   [['home','Home','home'],['stock','Stock','box'],['dispatch','Dispatch','truck'],['more','More','more']].forEach(([k,label,icon])=>{
     const bn=$('#bn-'+k);if(bn)bn.innerHTML=ico(icon)+'<span>'+label+'</span>'+(k==='home'?'<span class="navbadge" id="bbadge" style="display:none"></span>':'');
   });
   $('#bn-scan').innerHTML='<span class="ring">'+ico('scan')+'</span>';
 }
-function updateBadges(){const n=lowItems().length;['#sbadge','#bbadge'].forEach(s=>{const el=$(s);if(el){el.style.display=n?'grid':'none';el.textContent=n}})}
+function updateBadges(){
+  const n=lowItems().length;['#sbadge','#bbadge'].forEach(s=>{const el=$(s);if(el){el.style.display=n?'grid':'none';el.textContent=n}});
+  const mine=taskMine().length,el=$('#tbadge');
+  if(el){el.style.display=mine?'grid':'none';el.textContent=mine;
+    el.style.background=taskMine().some(t=>t.prio==='urgent'||taskLate(t))?'var(--red)':'';}
+}
 /* a thumbs-up, only when a parcel went through with nothing wrong */
 function thumbsUp(){
   try{
@@ -1639,7 +1661,7 @@ function wireAcct(){
 document.addEventListener('click',e=>{if(!e.target.closest('.tb-acct'))closeAcct()});
 function topbar(html){$('#topbar').innerHTML=html;wireAcct()}
 function topTitle(title,backHash,extra){
-  topbar((backHash?'<a class="icobtn ghost" href="'+backHash+'" aria-label="Back">'+ico('back')+'</a>':'<div class="brand"><span class="bx">'+LOGO+'</span></div>')+
+  topbar((backHash?'<a class="icobtn ghost" href="'+esc(backHash)+'" aria-label="Back">'+ico('back')+'</a>':'<div class="brand"><span class="bx">'+LOGO+'</span></div>')+
   '<div class="tb-title">'+esc(title)+'</div>'+(extra||'')+acctButtonHTML());
 }
 
@@ -1692,7 +1714,7 @@ function route(){
   const h=(location.hash||'#home').slice(1);
   const [p,a,b]=h.split('/');
   const main=$('#main');main.scrollTop=0;window.scrollTo(0,0);
-  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),ai:vAI,shopify:vShopify,skulink:vSkuLink,pack:vPack,workers:vWorkers,flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals,awb:()=>vAwb(a||null,b||null),uniexport:()=>{vMore();setTimeout(exportUnicommerce,30)},backups:vBackups,importfix:vImportFix,dash:()=>vDash(30),help:vHelp,aiscan:vAiScan,exportall:()=>{vMore();setTimeout(exportAllItems,30)}};
+  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),ai:vAI,shopify:vShopify,skulink:vSkuLink,pack:vPack,workers:vWorkers,flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals,awb:()=>vAwb(a||null,b||null),uniexport:()=>{vMore();setTimeout(exportUnicommerce,30)},backups:vBackups,importfix:vImportFix,tasks:()=>vTasks(a||null),dash:()=>vDash(30),help:vHelp,aiscan:vAiScan,exportall:()=>{vMore();setTimeout(exportAllItems,30)}};
   setActiveNav(p==='item'||p==='edit'||p==='folders'?'stock':(p==='list'||p==='po'?'flows':((p==='trash'||p==='import'||p==='importfix'||p==='shopify'||p==='skulink'||p==='workers')?'more':((p==='return'||p==='awb'||p==='aiscan'||p==='pack')?'dispatch':p))));
   try{(map[p]||vHome)();}
   catch(e){
@@ -1869,6 +1891,7 @@ function vHome(){
   if(!fresh){
     let days=30;try{days=+localStorage.getItem('invento_homedays')||30}catch(e){}
     const m=homeMetrics(days);
+    h+=taskCardHomeHTML();
     h+=ordersCardHTML();
     h+='<div class="section-h"><h2>'+(langHi()?'कारोबार':'Overview')+'</h2>'+(isAdminU()?'<a href="#dash">'+(langHi()?'पूरा डैशबोर्ड':'Full dashboard')+'</a>':'')+'</div>';
     h+='<div class="seg mb" id="hm-p">'+[7,30,90].map(d=>'<button data-hd="'+d+'" class="'+(d===days?'on':'')+'">'+d+(langHi()?' दिन':' days')+'</button>').join('')+'</div>';
@@ -1923,6 +1946,7 @@ function vHome(){
   $('#main').innerHTML=h;
   maybePoOverduePopup();
   startAwbNag();
+  taskNag();
   const mig=$('#mig-email');if(mig)mig.onclick=()=>attachEmailFlow();
   const ver=$('#ver-email');if(ver)ver.onclick=async()=>{const g=emailCool('ver');if(g){toast(g,'err');return}try{await fbUser.sendEmailVerification();toast('Verification email sent — check inbox/spam','ok');ver.disabled=true}catch(e){toast(authErrMsg(e),'err')}};
 
@@ -2262,7 +2286,7 @@ function vItem(id){
     :'<div class="sub">'+(langHi()?'अभी कोई हलचल नहीं':'No movements recorded yet.')+'</div>';
   $('#main').innerHTML=h;
   // photos
-  getPhotos(i.id).then(ps=>{if(!ps.length)return;const g=$('#gal');if(!g)return;g.innerHTML=(i.img?'<div class="g"><img src="'+esc(i.img)+'" alt="" referrerpolicy="no-referrer"></div>':'')+ps.map(p=>'<div class="g"><img src="'+p+'" alt=""></div>').join('')});
+  getPhotos(i.id).then(ps=>{if(!ps.length)return;const g=$('#gal');if(!g)return;g.innerHTML=(i.img?'<div class="g"><img src="'+esc(i.img)+'" alt="" referrerpolicy="no-referrer"></div>':'')+ps.map(p=>'<div class="g"><img src="'+esc(p)+'" alt=""></div>').join('')});
   // qty controls — delta only
   const an=$('#adj-n');
   const adj=async dir=>{
@@ -2367,7 +2391,7 @@ function vEdit(id,folderArg){
 function paintPhotoRow(i){
   const row=$('#photorow');if(!row)return;
   let h='';
-  editPhotos.forEach((p,ix)=>{h+='<div style="position:relative"><img src="'+p+'" alt="" style="width:74px;height:74px;object-fit:cover;border-radius:10px;border:1px solid var(--line)"><button class="icobtn" data-px="'+ix+'" style="position:absolute;top:-7px;right:-7px;width:26px;height:26px;background:var(--dark-surface);color:#fff;border:none" aria-label="Remove photo">'+ico('x')+'</button></div>'});
+  editPhotos.forEach((p,ix)=>{h+='<div style="position:relative"><img src="'+esc(p)+'" alt="" style="width:74px;height:74px;object-fit:cover;border-radius:10px;border:1px solid var(--line)"><button class="icobtn" data-px="'+ix+'" style="position:absolute;top:-7px;right:-7px;width:26px;height:26px;background:var(--dark-surface);color:#fff;border:none" aria-label="Remove photo">'+ico('x')+'</button></div>'});
   if(editPhotos.length<3)h+='<button class="btn" id="addph" type="button" style="width:74px;height:74px;flex-direction:column;font-size:10.5px;gap:4px">'+ico('camera')+'Add</button>';
   row.innerHTML=h;
   const ap=$('#addph');if(ap)ap.onclick=()=>$('#f-photo').click();
@@ -2426,7 +2450,7 @@ async function resolveLocPicker(prefix){
   const sel=$('#'+prefix+'-sel');if(!sel)return {folderId:null};
   if(sel.value==='__new__'){
     const nm=($('#'+prefix+'-new').value||'').trim();
-    if(!nm){toast('Type a '+locL()+' name, or enter a rack number','err');return null}
+    if(!nm){toast('Type a '+locTermRaw().toLowerCase()+' name, or enter a rack number','err');return null}
     return {folderId:await ensureFolderByName(nm)};
   }
   return {folderId:sel.value||null};
@@ -2586,12 +2610,12 @@ function folderDlg(parentId,editId){
 async function deleteFolder(id,skipApproval){
   const f=fById(id);if(!f)return;
   const kids=childFolders(id).length,its=itemsIn(id).length;
-  if(kids||its){toast(locTerm()+' not empty — move or delete its contents first','err');return}
+  if(kids||its){toast(locTermRaw()+' not empty — move or delete its contents first','err');return}
   if(!skipApproval){
     const res=await requestOrApprove('delLocation',{folderId:id,name:f.name},'Delete '+locL()+' “'+f.name+'”','Deleting a '+locL()+' needs admin approval: “'+esc(f.name)+'”.');
     if(res!=='approved'){return} // queued or cancelled — do not delete now
   }
-  S.folders=S.folders.filter(x=>x.id!==id);await saveNow('folders');logTx('folder',{detail:'Deleted '+locL()+' “'+f.name+'”'});toast(locTerm()+' deleted');
+  S.folders=S.folders.filter(x=>x.id!==id);await saveNow('folders');logTx('folder',{detail:'Deleted '+locTermRaw().toLowerCase()+' “'+f.name+'”'});toast(locTermRaw()+' deleted');
   if(location.hash.indexOf('#stock')===0||location.hash.indexOf('#folders')===0)route();
 }
 function vFolderMgr(){
@@ -2883,6 +2907,367 @@ function vLabels(){
   $('#lb-prev').onclick=()=>buildSheet($('#lb-stage'));
   $('#lb-print').onclick=async()=>{if(await buildSheet($('#printArea'))===false)return;lblPrintNow($('#lb-size').value)};
 }
+/* ============================================================
+   TASKS
+   A job handed to one named person. Three things make it work on a
+   warehouse floor:
+     · the person it is for sees it, and nobody else has to chase it;
+     · THEY set the time limit, not the person asking — so it is a
+       promise rather than a demand;
+     · that promise cannot be moved. Once the time is up the task stays
+       marked late for good, whether or not it is finished. Work carries
+       on; the record does not get tidied away.
+   ============================================================ */
+const TASK_KINDS={stock:1,ship:1,other:1};
+function taskKindLabel(k){return k==='stock'?(langHi()?'स्टॉक पूछा है':'Stock check')
+  :k==='ship'?(langHi()?'ऑर्डर भेजना है':'Ship an order'):(langHi()?'काम':'Job')}
+function tasks(){return (S.tasks||[])}
+function taskById(id){return tasks().find(t=>t.id===id)}
+function taskDone(t){return t.status==='done'||t.status==='cancelled'}
+/* Late means the clock ran out — and it keeps meaning that afterwards. */
+function taskLate(t){
+  if(!t||!t.dueAt)return false;
+  return taskDone(t)?(+t.doneAt||0)>t.dueAt:Date.now()>t.dueAt;
+}
+function taskMine(){
+  const me=userName();
+  return tasks().filter(t=>!taskDone(t)&&String(t.forName||'')===me);
+}
+function taskOpen(){return tasks().filter(t=>!taskDone(t))}
+function taskSort(list){
+  return list.slice().sort((a,b)=>{
+    const d=(x)=>taskDone(x)?1:0;
+    if(d(a)!==d(b))return d(a)-d(b);
+    const u=(x)=>x.prio==='urgent'?0:1;
+    if(u(a)!==u(b))return u(a)-u(b);
+    const la=taskLate(a)?0:1,lb=taskLate(b)?0:1;
+    if(la!==lb)return la-lb;
+    return (b.at||0)-(a.at||0);
+  });
+}
+/* How long is left, in words. Never negative — once it is past, it is "late". */
+function taskLeft(t){
+  const T=(hi,en)=>langHi()?hi:en;
+  if(!t.dueAt)return T('समय तय नहीं','no time set yet');
+  const ms=t.dueAt-Date.now();
+  if(ms<=0)return T('समय पूरा','time is up');
+  const mins=Math.round(ms/60000);
+  if(mins<60)return mins+T(' मिनट बचे',' min left');
+  const hrs=Math.round(mins/60);
+  if(hrs<48)return hrs+T(' घंटे बचे',' h left');
+  return Math.round(hrs/24)+T(' दिन बचे',' days left');
+}
+function taskOverBy(t){
+  const T=(hi,en)=>langHi()?hi:en;
+  const end=taskDone(t)?(+t.doneAt||Date.now()):Date.now();
+  const mins=Math.max(1,Math.round((end-t.dueAt)/60000));
+  if(mins<60)return mins+T(' मिनट लेट',' min late');
+  const hrs=Math.round(mins/60);
+  if(hrs<48)return hrs+T(' घंटे लेट',' h late');
+  return Math.round(hrs/24)+T(' दिन लेट',' days late');
+}
+function taskNo(){
+  let n=0;tasks().forEach(t=>{const v=+String(t.no||'').replace(/\D/g,'');if(v>n)n=v});
+  return 'T'+String(n+1).padStart(4,'0');
+}
+async function taskSave(){return await saveNow('tasks')}
+
+/* ---------------- create ---------------- */
+async function taskNewDlg(pre){
+  const T=(hi,en)=>langHi()?hi:en;
+  const list=workers();
+  if(!list.length){
+    toast(T('पहले टीम के नाम जोड़ें — More → काम कौन कर रहा है','Add your team first — More → Who is working'),'err');
+    return false;
+  }
+  let kind=(pre&&pre.kind)||'stock',prio='normal',forName=(pre&&pre.forName)||'',itemId=(pre&&pre.itemId)||'';
+  const draw=()=>{
+    const it=itemId&&iById(itemId);
+    openModal('<h3>'+T('नया काम सौंपें','Hand out a job')+'</h3>'+
+      '<div class="eyebrow mt">'+T('किस तरह का','What kind')+'</div>'+
+      '<div class="row wrap mb" style="gap:6px">'+
+        Object.keys(TASK_KINDS).map(k=>'<button class="btn sm'+(kind===k?' pri':'')+'" data-tk="'+k+'">'+esc(taskKindLabel(k))+'</button>').join('')+'</div>'+
+      (kind==='stock'
+        ?'<div class="field"><label>'+T('कौन सा आइटम','Which item')+'</label>'+
+           '<button class="btn block" id="tk-item" style="text-align:left">'+(it?esc(it.name)+(skusOf(it)[0]?' · '+esc(skusOf(it)[0]):''):T('आइटम चुनें…','Pick an item…'))+'</button></div>'
+        :'')+
+      (kind==='ship'
+        ?'<div class="field"><label>'+T('ऑर्डर / AWB नंबर','Order or AWB number')+'</label><input class="in mono" id="tk-ord" autocomplete="off" placeholder="'+T('जैसे 54226','e.g. 54226')+'"></div>'
+        :'')+
+      '<div class="field"><label>'+T('क्या करना है','What needs doing')+'</label><input class="in" id="tk-note" autocomplete="off" placeholder="'+
+        (kind==='stock'?T('जैसे: इसका स्टॉक गिनकर बताओ','e.g. count what is on the rack and tell me')
+        :kind==='ship'?T('जैसे: यह आज ही निकलना है','e.g. this has to go out today')
+        :T('काम लिखें','Describe the job'))+'"></div>'+
+      '<div class="eyebrow mt">'+T('किसे','Who does it')+'</div>'+
+      '<div class="row wrap mb" style="gap:6px">'+
+        list.map(w=>'<button class="btn sm'+(forName===w.name?' pri':'')+'" data-tw="'+esc(w.name)+'">'+esc(w.name)+'</button>').join('')+'</div>'+
+      '<div class="eyebrow">'+T('कितना ज़रूरी','How urgent')+'</div>'+
+      '<div class="row mb" style="gap:6px">'+
+        '<button class="btn grow'+(prio==='normal'?' pri':'')+'" data-tp="normal">'+T('सामान्य','Normal')+'</button>'+
+        '<button class="btn grow'+(prio==='urgent'?' danger':'')+'" data-tp="urgent" style="'+(prio==='urgent'?'':'border-color:var(--red);color:var(--red)')+'">'+T('ज़रूरी','Urgent')+'</button></div>'+
+      '<div class="hint mb">'+T('समय की सीमा आप नहीं, जिसे काम दिया है वही तय करेगा — काम देखते ही।','You do not set the deadline. The person it goes to sets it themselves, the moment they open it.')+'</div>'+
+      '<div class="row"><button class="btn grow" id="tk-x">'+T('रहने दें','Cancel')+'</button>'+
+      '<button class="btn pri grow" id="tk-go">'+T('भेजें','Send it')+'</button></div>');
+    const keep=()=>{const n=$('#tk-note');if(n)pre=Object.assign({},pre,{note:n.value})};
+    $$('#modal [data-tk]').forEach(b=>b.onclick=()=>{keep();kind=b.dataset.tk;draw();const n=$('#tk-note');if(n&&pre&&pre.note)n.value=pre.note});
+    $$('#modal [data-tw]').forEach(b=>b.onclick=()=>{keep();forName=b.dataset.tw;draw();const n=$('#tk-note');if(n&&pre&&pre.note)n.value=pre.note});
+    $$('#modal [data-tp]').forEach(b=>b.onclick=()=>{keep();prio=b.dataset.tp;draw();const n=$('#tk-note');if(n&&pre&&pre.note)n.value=pre.note});
+    const pi=$('#tk-item');
+    if(pi)pi.onclick=async()=>{keep();const id=await pickItemDlg();if(id){itemId=id}draw();const n=$('#tk-note');if(n&&pre&&pre.note)n.value=pre.note};
+  };
+  return await new Promise(res=>{
+    const finish=async()=>{
+      const note=(($('#tk-note')||{}).value||'').trim();
+      const ord=(($('#tk-ord')||{}).value||'').trim();
+      if(!forName){toast(T('किसे देना है यह चुनें','Pick who it goes to'),'err');return}
+      if(kind==='stock'&&!itemId){toast(T('आइटम चुनें','Pick the item'),'err');return}
+      if(kind==='ship'&&!ord){toast(T('ऑर्डर नंबर लिखें','Type the order number'),'err');return}
+      if(kind==='other'&&!note){toast(T('काम लिखें','Say what needs doing'),'err');return}
+      const it=itemId&&iById(itemId);
+      const t={id:uid('tk'),no:taskNo(),kind:kind,prio:prio,
+        forName:forName,by:userName(),at:Date.now(),status:'new',
+        note:note,itemId:kind==='stock'?itemId:'',
+        itemName:it?it.name:'',sku:it?(skusOf(it)[0]||''):'',
+        orderNo:kind==='ship'?ord:''};
+      S.tasks=[t].concat(tasks());
+      const okSave=await taskSave();
+      if(!okSave){S.tasks=tasks().filter(x=>x.id!==t.id);toast(T('सेव नहीं हुआ','Could not save the task'),'err');return}
+      logTx('task',{detail:'Task '+t.no+' · '+taskKindLabel(kind)+' · for '+forName+(t.prio==='urgent'?' · URGENT':'')+' · '+(t.itemName||t.orderNo||note)+' · by '+userName()});
+      toast(T('काम भेज दिया — ','Sent to ')+forName,'ok');
+      closeModal();updateBadges();res(true);
+    };
+    draw();
+    const wire=()=>{
+      const x=$('#tk-x');if(x)x.onclick=()=>{closeModal();res(false)};
+      const g=$('#tk-go');if(g)g.onclick=finish;
+    };
+    wire();
+    const ov=$('#ovl');
+    const obs=new MutationObserver(()=>{if(ov.classList.contains('show'))wire();else{obs.disconnect();res(false)}});
+    obs.observe(ov,{attributes:true,childList:true,subtree:true});
+  });
+}
+/* a small item picker shared by the task screens */
+function pickItemDlg(){
+  const T=(hi,en)=>langHi()?hi:en;
+  return new Promise(res=>{
+    openModal('<h3>'+T('आइटम चुनें','Pick the item')+'</h3><div class="searchbar mb">'+ico('search')+
+      '<input id="pi-q" placeholder="'+T('नाम या SKU','Name or SKU')+'" autocomplete="off"></div>'+
+      '<div id="pi-r" class="ilist" style="max-height:46dvh;overflow-y:auto"></div>'+
+      '<button class="btn block mt" id="pi-x">'+T('वापस','Back')+'</button>');
+    const q=$('#pi-q'),r=$('#pi-r');
+    setTimeout(()=>{try{q.focus()}catch(e){}},60);
+    const paint=()=>{
+      const v=(q.value||'').trim().toLowerCase();
+      const pool=v?sortItems(S.items.filter(i=>matches(i,v))).slice(0,14):sortItems(S.items).slice(0,14);
+      r.innerHTML=pool.length?pool.map(i=>'<div class="irow" data-pi="'+i.id+'" style="cursor:pointer"><span class="th">'+ico('box')+'</span>'+
+        '<div class="grow"><div class="nm ellip">'+esc(i.name)+'</div><div class="meta num">'+(skusOf(i)[0]?'<span class="skutag">'+esc(skusOf(i)[0])+'</span> ':'')+fmtQty(i.qty)+'</div></div></div>').join('')
+        :'<div class="hint">'+T('कुछ नहीं मिला','Nothing found')+'</div>';
+      $$('#pi-r [data-pi]').forEach(el=>el.onclick=()=>{closeModal();res(el.dataset.pi)});
+    };
+    q.oninput=paint;paint();
+    $('#pi-x').onclick=()=>{closeModal();res('')};
+  });
+}
+
+/* ---------------- accept: the assignee sets the clock ---------------- */
+async function taskAcceptDlg(t){
+  const T=(hi,en)=>langHi()?hi:en;
+  let n=30,unit='min';
+  const MULT={min:60000,hr:3600000,day:86400000};
+  const draw=()=>{
+    openModal('<h3>'+T('कितनी देर लगेगी?','How long will this take?')+'</h3>'+
+      '<p class="sub mb">'+T('आप खुद समय तय कर रहे हैं। एक बार तय हो गया तो बढ़ाया नहीं जा सकता — समय निकल गया तो काम चलता रहेगा पर रिकॉर्ड में लेट लिखा रहेगा।',
+        'You are setting this yourself. Once it is set it cannot be extended — if the time runs out the job carries on, but it stays marked late on the record.')+'</p>'+
+      '<div class="field"><label>'+T('कितना','How much')+'</label><input class="in num" id="ta-n" inputmode="numeric" value="'+n+'" style="max-width:140px"></div>'+
+      '<div class="row wrap mb" style="gap:6px">'+
+        [['min',T('मिनट','Minutes')],['hr',T('घंटे','Hours')],['day',T('दिन','Days')]]
+          .map(u=>'<button class="btn sm'+(unit===u[0]?' pri':'')+'" data-tu="'+u[0]+'">'+u[1]+'</button>').join('')+'</div>'+
+      '<div class="row wrap mb" style="gap:6px">'+
+        [[15,'min'],[30,'min'],[1,'hr'],[2,'hr'],[4,'hr'],[1,'day']]
+          .map(q=>'<button class="btn sm" data-tq="'+q[0]+'|'+q[1]+'">'+q[0]+' '+(q[1]==='min'?T('मिनट','min'):q[1]==='hr'?T('घंटे','h'):T('दिन','d'))+'</button>').join('')+'</div>'+
+      '<div class="splitbox mb" style="background:var(--saddle-bg);border:1px solid var(--saddle)"><div class="sl"><span>'+T('तब तक','Due by')+'</span><b id="ta-due">—</b></div></div>'+
+      '<div class="row"><button class="btn grow" id="ta-x">'+T('अभी नहीं','Not now')+'</button>'+
+      '<button class="btn pri grow" id="ta-go">'+T('हाँ, यह समय दे रहा हूँ','Yes — that is my time')+'</button></div>');
+    const upd=()=>{
+      const v=Math.round(+($('#ta-n')||{}).value||0);
+      const due=Date.now()+Math.max(1,v)*MULT[unit];
+      const el=$('#ta-due');if(el)el.textContent=v>0?fmtDT(due):'—';
+    };
+    $$('#modal [data-tu]').forEach(b=>b.onclick=()=>{n=Math.round(+$('#ta-n').value||n);unit=b.dataset.tu;draw()});
+    $$('#modal [data-tq]').forEach(b=>b.onclick=()=>{const [v,u]=b.dataset.tq.split('|');n=+v;unit=u;draw()});
+    const inp=$('#ta-n');if(inp)inp.oninput=upd;
+    upd();
+  };
+  return await new Promise(res=>{
+    draw();
+    const wire=()=>{
+      const x=$('#ta-x');if(x)x.onclick=()=>{closeModal();res(false)};
+      const g=$('#ta-go');if(g)g.onclick=async()=>{
+        const v=Math.round(+($('#ta-n')||{}).value||0);
+        if(!(v>0)){toast(T('समय लिखें','Put a number in'),'err');return}
+        const mins=Math.round(v*MULT[unit]/60000);
+        if(mins>60*24*60){toast(T('बहुत ज़्यादा — 60 दिन तक','That is too long — up to 60 days'),'err');return}
+        t.status='accepted';t.acceptedAt=Date.now();t.acceptedBy=userName();
+        t.dueMins=mins;t.dueAt=t.acceptedAt+mins*60000;
+        if(!await taskSave()){toast(T('सेव नहीं हुआ','Could not save'),'err');return}
+        logTx('task',{detail:'Task '+t.no+' accepted by '+userName()+' · '+v+' '+unit+' · due '+fmtDT(t.dueAt)});
+        closeModal();toast(T('समय तय — ','Clock set — ')+taskLeft(t),'ok');updateBadges();res(true);
+      };
+    };
+    wire();
+    const ov=$('#ovl');
+    const obs=new MutationObserver(()=>{if(ov.classList.contains('show'))wire();else{obs.disconnect();res(false)}});
+    obs.observe(ov,{attributes:true,childList:true,subtree:true});
+  });
+}
+
+/* ---------------- answer / finish ---------------- */
+async function taskAnswerDlg(t){
+  const T=(hi,en)=>langHi()?hi:en;
+  const isStock=t.kind==='stock';
+  const it=t.itemId&&iById(t.itemId);
+  return await new Promise(res=>{
+    openModal('<h3>'+T('जवाब दें','Answer and finish')+'</h3>'+
+      '<div class="splitbox mb" style="background:var(--saddle-bg);border:1px solid var(--saddle)"><div class="sl">'+
+        '<span>'+esc(t.no)+' · '+esc(taskKindLabel(t.kind))+'</span><b>'+esc(t.itemName||t.orderNo||'')+'</b></div></div>'+
+      (isStock
+        ?'<div class="field"><label>'+T('गिनती में कितने मिले','How many are actually there')+' *</label>'+
+           '<input class="in num" id="tn-q" inputmode="decimal" placeholder="0" style="max-width:160px"></div>'+
+         (it?'<div class="hint mb">'+T('ऐप में अभी ','Invento currently says ')+'<b>'+fmtQty(it.qty)+'</b>'+T(' दिखा रहा है','')+'</div>':'')
+        :'')+
+      '<div class="field"><label>'+T('कुछ कहना है','Anything to say')+(isStock?'':' *')+'</label>'+
+        '<input class="in" id="tn-note" autocomplete="off" placeholder="'+T('जैसे: भेज दिया','e.g. sent out')+'"></div>'+
+      (taskLate(t)?'<div class="splitbox mb" style="background:var(--red-bg);border:1px solid var(--red)"><div class="sl"><span style="color:var(--red)">'+T('समय निकल चुका है','The time ran out')+'</span><b style="color:var(--red)">'+esc(taskOverBy(t))+'</b></div></div>':'')+
+      '<div class="row"><button class="btn grow" id="tn-x">'+T('वापस','Back')+'</button>'+
+      '<button class="btn pri grow" id="tn-go">'+T('हो गया','Done')+'</button></div>');
+    $('#tn-x').onclick=()=>{closeModal();res(false)};
+    $('#tn-go').onclick=async()=>{
+      const note=(($('#tn-note')||{}).value||'').trim();
+      let qty=null;
+      if(isStock){
+        const raw=(($('#tn-q')||{}).value||'').trim();
+        if(raw===''){toast(T('गिनती लिखें','Put the count in'),'err');return}
+        qty=round4(+raw);
+        if(!(qty>=0)){toast(T('गिनती सही नहीं','That count does not look right'),'err');return}
+      } else if(!note){toast(T('कुछ लिखें','Write a line about it'),'err');return}
+      const late=taskLate(t);
+      t.status='done';t.doneAt=Date.now();t.doneBy=userName();
+      t.answer=note;if(isStock)t.qty=qty;
+      if(late)t.wasLate=true;
+      if(!await taskSave()){toast(T('सेव नहीं हुआ','Could not save'),'err');return}
+      logTx('task',{detail:'Task '+t.no+' done by '+userName()+(isStock?' · counted '+fmtQty(qty)+(it?' (app says '+fmtQty(it.qty)+')':''):'')+(note?' · '+note:'')+(late?' · LATE '+taskOverBy(t):'')});
+      closeModal();
+      if(!late)thumbsUp();
+      toast(late?T('दर्ज — पर लेट','Recorded — but late'):T('हो गया','Done'),late?'err':'ok');
+      updateBadges();res(true);
+    };
+  });
+}
+
+/* ---------------- the screen ---------------- */
+function vTasks(filter){
+  const T=(hi,en)=>langHi()?hi:en;
+  topTitle(T('काम','Tasks'),'#home');
+  const me=userName();
+  const f=filter||'mine';
+  const all=tasks();
+  const pool=f==='mine'?all.filter(t=>String(t.forName||'')===me)
+    :f==='done'?all.filter(t=>taskDone(t))
+    :f==='sent'?all.filter(t=>String(t.by||'')===me)
+    :all.filter(t=>!taskDone(t));
+  const rows=taskSort(pool);
+  const mineOpen=taskMine();
+  let h='<h1 class="page">'+T('काम','Tasks')+'</h1>';
+  if(mineOpen.length)h+='<div class="splitbox mb" style="background:'+(mineOpen.some(t=>t.prio==='urgent'||taskLate(t))?'var(--red-bg);border:1px solid var(--red)':'var(--amber-bg);border:1px solid var(--amber)')+'">'+
+    '<div class="sl"><span>'+T('आपके नाम पर','Waiting on you')+'</span><b class="num">'+mineOpen.length+'</b></div></div>';
+  h+='<button class="btn pri block mb" id="tk-new">'+ico('plus')+T('किसी को काम दें','Hand out a job')+'</button>';
+  h+='<div class="row wrap mb" style="gap:6px">'+
+    [['mine',T('मेरे','Mine')],['open',T('सब खुले','All open')],['sent',T('मैंने दिए','I sent')],['done',T('पूरे हुए','Finished')]]
+      .map(x=>'<button class="btn sm'+(f===x[0]?' pri':'')+'" data-tf="'+x[0]+'">'+x[1]+'</button>').join('')+'</div>';
+  h+=rows.length?rows.map(t=>taskCardHTML(t,me)).join('')
+    :'<div class="empty">'+ico('check')+'<div class="t">'+T('कुछ नहीं','Nothing here')+'</div><div class="s">'+
+      (f==='mine'?T('आपके नाम पर कोई काम नहीं है।','No jobs are waiting on you.'):T('इस छाँट में कुछ नहीं।','Nothing in this filter.'))+'</div></div>';
+  $('#main').innerHTML=h;
+  $('#tk-new').onclick=()=>taskNewDlg().then(ok=>{if(ok)vTasks(f)});
+  $$('#main [data-tf]').forEach(b=>b.onclick=()=>go('#tasks/'+b.dataset.tf));
+  $$('#main [data-tact]').forEach(b=>b.onclick=async()=>{
+    const t=taskById(b.dataset.tid);if(!t)return;
+    const act=b.dataset.tact;
+    if(act==='accept'){if(await taskAcceptDlg(t))vTasks(f);return}
+    if(act==='answer'){if(await taskAnswerDlg(t))vTasks(f);return}
+    if(act==='cancel'){
+      const why=await reasonDlg(T('काम रद्द करें?','Cancel this job?'),
+        '<b>'+esc(t.no)+'</b> · '+esc(t.itemName||t.orderNo||t.note||''),T('रद्द करें','Cancel the job'));
+      if(!why)return;
+      t.status='cancelled';t.doneAt=Date.now();t.doneBy=why.by;t.answer=why.reason;
+      await taskSave();
+      logTx('task',{detail:'Task '+t.no+' cancelled by '+why.by+' · '+why.reason});
+      updateBadges();vTasks(f);
+    }
+  });
+}
+function taskCardHTML(t,me){
+  const T=(hi,en)=>langHi()?hi:en;
+  const late=taskLate(t),mine=String(t.forName||'')===me,fin=taskDone(t);
+  const tone=fin?(t.status==='cancelled'?'var(--line2)':'var(--green)'):late?'var(--red)':t.prio==='urgent'?'var(--red)':'var(--saddle)';
+  const it=t.itemId&&iById(t.itemId);
+  return '<div class="card pad mb" style="border-left:4px solid '+tone+'">'+
+    '<div class="row wrap" style="align-items:baseline;gap:8px">'+
+      '<b class="grow">'+esc(t.itemName||t.orderNo||t.note||taskKindLabel(t.kind))+'</b>'+
+      '<span class="mono small muted">'+esc(t.no)+'</span>'+
+      (t.prio==='urgent'&&!fin?'<span class="pill" style="background:var(--red);color:#fff">'+T('ज़रूरी','URGENT')+'</span>':'')+
+      (late?'<span class="pill" style="background:var(--red);color:#fff">'+T('लेट','LATE')+'</span>':'')+
+      (t.status==='cancelled'?'<span class="pill low">'+T('रद्द','cancelled')+'</span>':fin?'<span class="pill ok">'+T('हो गया','done')+'</span>':'')+'</div>'+
+    '<div class="sub">'+esc(taskKindLabel(t.kind))+' · '+T('के लिए ','for ')+'<b>'+esc(t.forName||'')+'</b> · '+T('दिया ','from ')+esc(t.by||'')+'</div>'+
+    (t.note&&(t.itemName||t.orderNo)?'<div class="sub">'+esc(t.note)+'</div>':'')+
+    (t.sku?'<div class="sub mono"><span class="skutag">'+esc(t.sku)+'</span>'+(it?' · '+T('ऐप में ','app says ')+fmtQty(it.qty):'')+'</div>':'')+
+    '<div class="when mt">'+fmtDT(t.at)+
+      (t.dueAt?' · '+(fin?(late?esc(taskOverBy(t)):T('समय के अंदर','inside the time')):(late?'<b style="color:var(--red)">'+esc(taskOverBy(t))+'</b>':esc(taskLeft(t)))):'')+
+      (fin&&t.doneBy?' · '+T('किया ','by ')+esc(t.doneBy):'')+'</div>'+
+    (fin&&(t.answer||t.qty!=null)
+      ?'<div class="splitbox mt" style="background:var(--green-bg);border:1px solid var(--green)"><div class="sl">'+
+        '<span>'+(t.qty!=null?T('गिनती','Counted'):T('जवाब','Answer'))+'</span><b>'+(t.qty!=null?fmtQty(t.qty):esc(t.answer))+'</b></div></div>'+
+        (t.qty!=null&&t.answer?'<div class="sub mt">'+esc(t.answer)+'</div>':'')
+      :'')+
+    (!fin&&mine
+      ?(t.status==='new'
+        ?'<button class="btn pri block mt" data-tact="accept" data-tid="'+t.id+'">'+ico('check')+T('देखा — समय तय करें','Open it — set your time')+'</button>'
+        :'<button class="btn pri block mt" data-tact="answer" data-tid="'+t.id+'">'+ico('check')+T('जवाब देकर पूरा करें','Answer and finish')+'</button>')
+      :'')+
+    (!fin&&!mine&&t.status==='new'?'<div class="hint mt" style="color:var(--amber);font-weight:700">'+T('अभी इन्होंने खोला नहीं — समय तय नहीं हुआ','Not opened yet — no time set')+'</div>':'')+
+    (!fin&&(String(t.by||'')===me||isAdminU())?'<button class="btn sm block mt" data-tact="cancel" data-tid="'+t.id+'" style="color:var(--red);border-color:var(--red-bg)">'+T('रद्द करें','Cancel this job')+'</button>':'')+
+  '</div>';
+}
+/* The one thing a worker must see the moment they open the app. */
+function taskCardHomeHTML(){
+  const T=(hi,en)=>langHi()?hi:en;
+  const mine=taskMine();if(!mine.length)return '';
+  const hot=mine.filter(t=>t.prio==='urgent'||taskLate(t)).length;
+  const unopened=mine.filter(t=>t.status==='new').length;
+  return '<a href="#tasks" class="card pad mb" style="display:block;text-decoration:none;color:inherit;border-left:4px solid '+(hot?'var(--red)':'var(--amber)')+'">'+
+    '<div class="row" style="align-items:baseline;gap:8px"><b class="grow">'+T('आपके नाम पर काम','Jobs waiting on you')+'</b>'+
+    '<b class="num" style="font-size:22px;color:'+(hot?'var(--red)':'var(--amber)')+'">'+mine.length+'</b></div>'+
+    '<div class="sub">'+
+      (hot?'<b style="color:var(--red)">'+hot+T(' ज़रूरी या लेट',' urgent or late')+'</b> · ':'')+
+      (unopened?unopened+T(' पर अभी समय तय नहीं',' with no time set yet'):T('सब पर समय तय है','all have a time set'))+
+    '</div></a>';
+}
+/* A job nobody has opened, or one whose clock has run out, says so on arrival. */
+let _taskNagSeen={};
+function taskNag(){
+  if(MODE==='cloud'&&!cloudReady)return;
+  const mine=taskMine();if(!mine.length)return;
+  const ov=$('#ovl');if(ov&&ov.classList.contains('show'))return;
+  const fresh=mine.filter(t=>t.status==='new'&&!_taskNagSeen[t.id]);
+  if(!fresh.length)return;
+  fresh.forEach(t=>{_taskNagSeen[t.id]=1});
+  const T=(hi,en)=>langHi()?hi:en;
+  const urgent=fresh.some(t=>t.prio==='urgent');
+  if(urgent)alarmSound();else soundIn();
+  toast((urgent?'⚠ ':'')+fresh.length+T(' नया काम आपके नाम','  new job'+(fresh.length>1?'s':'')+' for you')+(urgent?T(' — ज़रूरी',' — URGENT'):''),urgent?'err':'ok');
+}
+
 /* Big printable barcode cards for the scanner keys */
 async function printScanKeys(){
   try{await lazyScript('https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js')}catch(e){toast('Code library offline','err');return}
@@ -3230,7 +3615,7 @@ function vList(id){
     q.oninput=()=>{const v=q.value.trim().toLowerCase();
       if(!v){res.style.display='none';res.innerHTML='';return}
       const pool=sortItems(S.items.filter(i=>matches(i,v))).slice(0,8);
-      res.innerHTML=pool.length?pool.map(i=>'<div class="irow" data-add="'+i.id+'"><span class="th">'+(i.thumb?'<img src="'+i.thumb+'" alt="">':ico('box'))+'</span><div class="grow"><div class="nm ellip">'+esc(i.name)+'</div><div class="meta num">'+fmtQty(i.qty)+' '+esc(i.unit||'')+(i.sku?' · '+esc(i.sku):'')+'</div></div>'+ico('plus','muted')+'</div>').join(''):'<div class="sub" style="padding:10px 4px">No matches.</div>';
+      res.innerHTML=pool.length?pool.map(i=>'<div class="irow" data-add="'+i.id+'"><span class="th">'+(i.thumb?'<img src="'+esc(i.thumb)+'" alt="">':ico('box'))+'</span><div class="grow"><div class="nm ellip">'+esc(i.name)+'</div><div class="meta num">'+fmtQty(i.qty)+' '+esc(i.unit||'')+(i.sku?' · '+esc(i.sku):'')+'</div></div>'+ico('plus','muted')+'</div>').join(''):'<div class="sub" style="padding:10px 4px">No matches.</div>';
       res.style.display='block';
       $$('#pl-res [data-add]').forEach(r=>r.onclick=()=>{const it=iById(r.dataset.add);if(!it)return;addLineToList(l,it,1);save('lists');toast('Added '+it.name,'ok');route()});
     };
@@ -3619,7 +4004,7 @@ function vPO(id){
     q.oninput=()=>{const v=q.value.trim().toLowerCase();
       if(!v){res.style.display='none';res.innerHTML='';return}
       const pool=sortItems(S.items.filter(i=>matches(i,v))).slice(0,8);
-      res.innerHTML=pool.length?pool.map(i=>'<div class="irow" data-add="'+i.id+'"><span class="th">'+(i.thumb?'<img src="'+i.thumb+'" alt="">':ico('box'))+'</span><div class="grow"><div class="nm ellip">'+esc(i.name)+'</div><div class="meta num">cost '+fmtMoney(+i.cost||0)+(i.sku?' · '+esc(i.sku):'')+'</div></div>'+ico('plus','muted')+'</div>').join(''):'<div class="sub" style="padding:10px 4px">No matches.</div>';
+      res.innerHTML=pool.length?pool.map(i=>'<div class="irow" data-add="'+i.id+'"><span class="th">'+(i.thumb?'<img src="'+esc(i.thumb)+'" alt="">':ico('box'))+'</span><div class="grow"><div class="nm ellip">'+esc(i.name)+'</div><div class="meta num">cost '+fmtMoney(+i.cost||0)+(i.sku?' · '+esc(i.sku):'')+'</div></div>'+ico('plus','muted')+'</div>').join(''):'<div class="sub" style="padding:10px 4px">No matches.</div>';
       res.style.display='block';
       $$('#po-res [data-add]').forEach(r=>r.onclick=()=>{const it=iById(r.dataset.add);if(!it)return;if(!addLineToPO(p,it,1))return;save('pos');toast('Added '+it.name,'ok');route()});
     };
@@ -3910,7 +4295,7 @@ function vReports(r){
     const tot=deepStats(null);
     let b='<div class="stats mb"><div class="stat"><div class="n num">'+tot.count+'</div><div class="l">Items</div></div><div class="stat"><div class="n num">'+fmtQty(tot.qty)+'</div><div class="l">Total units</div></div><div class="stat" style="grid-column:span 2"><div class="n num">'+fmtMoney(tot.value,0)+'</div><div class="l">Stock value (sell price)</div></div></div>';
     b+='<div class="tablewrap"><table class="t"><thead><tr><th>'+locTerm()+'</th><th class="r">Items</th><th class="r">Units</th><th class="r">Value</th></tr></thead><tbody>';
-    rowsData.forEach(x=>{b+='<tr><td>'+x.name.replace(/ /g,'\u00A0')+'</td><td class="r num">'+x.count+'</td><td class="r num">'+fmtQty(x.qty)+'</td><td class="r num">'+fmtMoney(x.value,0)+'</td></tr>'});
+    rowsData.forEach(x=>{b+='<tr><td>'+esc(x.name).replace(/ /g,'\u00A0')+'</td><td class="r num">'+x.count+'</td><td class="r num">'+fmtQty(x.qty)+'</td><td class="r num">'+fmtMoney(x.value,0)+'</td></tr>'});
     b+='<tr style="font-weight:800"><td>Total</td><td class="r num">'+tot.count+'</td><td class="r num">'+fmtQty(tot.qty)+'</td><td class="r num">'+fmtMoney(tot.value,0)+'</td></tr></tbody></table></div>';
     shell('Inventory summary','',b,
       ()=>printTable('Inventory summary','',[['Folder'],['Items',1],['Units',1],['Value',1]],rowsData.map(x=>[x.plain||x.name,x.count,fmtQty(x.qty),fmtMoney(x.value)]).concat([['TOTAL',tot.count,fmtQty(tot.qty),fmtMoney(tot.value)]])),
@@ -4096,7 +4481,7 @@ function vImport(){
   dz.ondrop=e=>{e.preventDefault();dz.style.borderColor='';const f=e.dataTransfer.files[0];if(f)readFile(f)};
   fin.onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)readFile(f)};
   $('#imp-tpl').onclick=()=>{
-    const headers=['Name','Quantity','Unit',locTerm(),'Price','Cost (USD)','Min quantity','SKU','Barcode','Other SKUs','Tags','Notes','Image URL'];
+    const headers=['Name','Quantity','Unit',locTermRaw(),'Price','Cost (USD)','Min quantity','SKU','Barcode','Other SKUs','Tags','Notes','Image URL'];
     const sample=[
       ['Leather Duffle — Vintage Brown','12','pcs','Workshop','7999','45','3','CLB-DUF-201','CLB-DUF-201','ETSY-DUF-201','duffle; bestseller','Full-grain, 22 inch'],
       ['Bifold Wallet — Black','40','pcs','Shelf A','1299','5','10','CLB-WAL-101','CLB-WAL-101','','wallet','Buffalo leather'],
@@ -5460,7 +5845,7 @@ function vTrash(){
   if(!S.trash.length)h+='<div class="empty">'+ico('trash')+'<div class="t">Trash is empty</div><div class="s">Deleted items wait here (last 300) until you restore or remove them for good.</div></div>';
   else{
     if(!isAdminU())h+='<div class="sub mb">Only admins can restore or permanently delete.</div>';
-    h+='<div class="ilist mb">'+S.trash.map((t,ix)=>'<div class="irow" style="cursor:default"><span class="th">'+(t.thumb?'<img src="'+t.thumb+'" alt="">':ico('box'))+'</span><div class="grow"><div class="nm ellip">'+esc(t.name)+'</div><div class="meta">from '+esc(t.deletedFrom||'—')+' · '+ago(t.deletedAt)+'</div></div>'+(isAdminU()?'<button class="btn sm" data-rs="'+ix+'">'+ico('undo')+'Restore</button><button class="icobtn ghost" data-pd="'+ix+'" aria-label="Delete forever" style="width:32px;height:32px">'+ico('x')+'</button>':'')+'</div>').join('')+'</div>';
+    h+='<div class="ilist mb">'+S.trash.map((t,ix)=>'<div class="irow" style="cursor:default"><span class="th">'+(t.thumb?'<img src="'+esc(t.thumb)+'" alt="">':ico('box'))+'</span><div class="grow"><div class="nm ellip">'+esc(t.name)+'</div><div class="meta">from '+esc(t.deletedFrom||'—')+' · '+ago(t.deletedAt)+'</div></div>'+(isAdminU()?'<button class="btn sm" data-rs="'+ix+'">'+ico('undo')+'Restore</button><button class="icobtn ghost" data-pd="'+ix+'" aria-label="Delete forever" style="width:32px;height:32px">'+ico('x')+'</button>':'')+'</div>').join('')+'</div>';
     if(isAdminU())h+='<button class="btn danger block" id="tr-empty">'+ico('trash')+'Empty trash</button>';
   }
   $('#main').innerHTML=h;
@@ -5994,7 +6379,7 @@ function dispatchLinesHTML(){
   let h='';
   dDraft.lines.forEach((ln,ix)=>{
     h+='<div class="dline">'+
-      (ln.thumb?'<img src="'+ln.thumb+'" alt="">':'<span class="ph">'+ico(ln.code?'box':'camera')+'</span>')+
+      (ln.thumb?'<img src="'+esc(ln.thumb)+'" alt="">':'<span class="ph">'+ico(ln.code?'box':'camera')+'</span>')+
       '<div class="grow"><div class="nm ellip" style="font-weight:700">'+esc(ln.name||(ln.code?ln.code:'Photo item'))+'</div>'+
       (ln.code?'<div class="meta mono">'+esc(ln.code)+'</div>':'<div class="meta">photo only</div>')+'</div>'+
       '<div class="stepper" style="max-width:118px"><button data-dm="'+ix+'">−</button><input class="num" data-dq="'+ix+'" inputmode="decimal" value="'+fmtQty(ln.qty)+'"><button data-dp="'+ix+'">+</button></div>'+
@@ -6196,7 +6581,7 @@ async function vDispatchView(id){
   h+='<div class="section-h"><h2>Items sent</h2><span class="num" style="font-weight:800">'+fmtQty(sum(d.lines||[],l=>+l.qty||0))+'</span></div>';
   h+='<div id="dv-lines"><div class="ilist">';
   (d.lines||[]).forEach((ln,ix)=>{
-    h+='<div class="dline"><span class="ph" id="dvph-'+ix+'">'+(ln.thumb?'<img src="'+ln.thumb+'" alt="" style="width:46px;height:46px;border-radius:9px;object-fit:cover">':ico(ln.code?'box':'camera'))+'</span>'+
+    h+='<div class="dline"><span class="ph" id="dvph-'+ix+'">'+(ln.thumb?'<img src="'+esc(ln.thumb)+'" alt="" style="width:46px;height:46px;border-radius:9px;object-fit:cover">':ico(ln.code?'box':'camera'))+'</span>'+
       '<div class="grow"><div class="nm" style="font-weight:700">'+esc(ln.name||(ln.code||'Photo item'))+'</div>'+(ln.code?'<div class="meta mono">'+esc(ln.code)+'</div>':'<div class="meta">photo</div>')+'</div>'+
       '<div class="num" style="font-weight:800">'+fmtQty(ln.qty)+'</div></div>';
   });
@@ -6217,8 +6602,8 @@ async function vDispatchView(id){
   const anyPhoto=(d.lines||[]).some(l=>l.hasPhoto);
   if((d.parcels||[]).length){store.get('p:par_'+d.id).then(arr=>{if(!arr)return;
     d.parcels.forEach((p,ix)=>{const full=arr[ix];const el=$('#dvpar-'+ix);
-      if(el&&full){el.innerHTML='<img src="'+full+'" alt="" style="width:46px;height:46px;border-radius:9px;object-fit:cover;cursor:zoom-in">';el.onclick=()=>showPhoto(full)}})}).catch(()=>{})}
-  if(anyPhoto){store.get('p:dsp_'+d.id).then(arr=>{if(!arr)return;let pi=0;(d.lines||[]).forEach((l,ix)=>{if(l.hasPhoto){const full=arr[pi];const el=$('#dvph-'+ix);if(el&&full){el.innerHTML='<img src="'+full+'" alt="" style="width:46px;height:46px;border-radius:9px;object-fit:cover;cursor:zoom-in">';el.style.cursor='zoom-in';el.onclick=()=>showPhoto(full)}pi++}})}).catch(()=>{})}
+      if(el&&full){el.innerHTML='<img src="'+esc(full)+'" alt="" style="width:46px;height:46px;border-radius:9px;object-fit:cover;cursor:zoom-in">';el.onclick=()=>showPhoto(full)}})}).catch(()=>{})}
+  if(anyPhoto){store.get('p:dsp_'+d.id).then(arr=>{if(!arr)return;let pi=0;(d.lines||[]).forEach((l,ix)=>{if(l.hasPhoto){const full=arr[pi];const el=$('#dvph-'+ix);if(el&&full){el.innerHTML='<img src="'+esc(full)+'" alt="" style="width:46px;height:46px;border-radius:9px;object-fit:cover;cursor:zoom-in">';el.style.cursor='zoom-in';el.onclick=()=>showPhoto(full)}pi++}})}).catch(()=>{})}
 }
 
 function vOrders(sub,arg){
@@ -6400,7 +6785,7 @@ function returnLinesHTML(){
   rDraft.lines.forEach((ln,ix)=>{
     const it=ln.itemId?iById(ln.itemId):null;
     h+='<div class="dline" style="flex-wrap:wrap">'+
-      (ln.thumb?'<img src="'+ln.thumb+'" alt="">':'<span class="ph">'+ico('box')+'</span>')+
+      (ln.thumb?'<img src="'+esc(ln.thumb)+'" alt="">':'<span class="ph">'+ico('box')+'</span>')+
       '<div class="grow"><div class="nm ellip" style="font-weight:700">'+esc(ln.name||ln.code||'Item')+'</div>'+(ln.code?'<div class="meta mono">'+esc(ln.code)+'</div>':'')+'</div>'+
       '<div class="stepper" style="max-width:118px"><button data-rm="'+ix+'">−</button><input class="num" data-rq="'+ix+'" inputmode="decimal" value="'+fmtQty(ln.qty)+'"><button data-rp="'+ix+'">+</button></div>'+
       '<button class="icobtn ghost" data-rx="'+ix+'" aria-label="Remove" style="width:30px;height:30px">'+ico('x')+'</button>'+
@@ -6450,7 +6835,7 @@ function returnByName(){
   const draw=()=>{
     const v=q.value.trim().toLowerCase();
     const pool=v?sortItems(S.items.filter(i=>matches(i,v))).slice(0,10):[];
-    res.innerHTML=pool.length?pool.map(i=>'<div class="irow" data-pick="'+i.id+'"><span class="th">'+(i.thumb?'<img src="'+i.thumb+'" alt="">':ico('box'))+'</span><div class="grow"><div class="nm ellip">'+esc(i.name)+'</div><div class="meta num">'+(i.sku?esc(i.sku)+' · ':'')+fmtQty(i.qty)+' in stock</div></div></div>').join(''):(v?'<div class="sub" style="padding:10px 4px">No matches.</div>':'<div class="sub" style="padding:10px 4px">Type to search your catalog.</div>');
+    res.innerHTML=pool.length?pool.map(i=>'<div class="irow" data-pick="'+i.id+'"><span class="th">'+(i.thumb?'<img src="'+esc(i.thumb)+'" alt="">':ico('box'))+'</span><div class="grow"><div class="nm ellip">'+esc(i.name)+'</div><div class="meta num">'+(i.sku?esc(i.sku)+' · ':'')+fmtQty(i.qty)+' in stock</div></div></div>').join(''):(v?'<div class="sub" style="padding:10px 4px">No matches.</div>':'<div class="sub" style="padding:10px 4px">Type to search your catalog.</div>');
     $$('#rn-res [data-pick]').forEach(r=>r.onclick=()=>{const it=iById(r.dataset.pick);if(!it)return;const ex=rDraft.lines.find(l=>l.itemId===it.id);if(ex)ex.qty=round4((+ex.qty||0)+1);else rDraft.lines.push({itemId:it.id,name:it.name,code:it.sku||'',qty:1,cond:'good',thumb:it.thumb||''});closeModal();vReturnNew();});
   };
   q.oninput=draw;draw();
@@ -7370,7 +7755,7 @@ function shipmentDlg(preQ){
         if(box)box.innerHTML='<div class="sub" style="color:var(--amber)">'+T('फोटो नहीं मिली — '+PACK_KEEP_DAYS+' दिन बाद हट जाती है','No photo — they are deleted after '+PACK_KEEP_DAYS+' days')+'</div>';
         return;
       }
-      if(box)box.innerHTML='<img src="'+p.photo+'" alt="" style="width:100%;max-height:44dvh;object-fit:contain;background:#000;border-radius:10px;cursor:zoom-in" data-shzoom="'+id+'">'+
+      if(box)box.innerHTML='<img src="'+esc(p.photo)+'" alt="" style="width:100%;max-height:44dvh;object-fit:contain;background:#000;border-radius:10px;cursor:zoom-in" data-shzoom="'+id+'">'+
         '<div class="hint">'+esc(p.by||'')+' · '+fmtDT(p.at)+' · '+T('बड़ा देखने के लिए दबाएँ','tap to view full size')+'</div>';
       const im=box&&box.querySelector('[data-shzoom]');if(im)im.onclick=()=>showPhoto(p.photo);
     });
@@ -7641,7 +8026,7 @@ async function parcelCamFlow(opts){
     if(!cam)h+='<div class="hint mb" style="color:var(--amber)">'+T('कैमरा नहीं मिला — फोटो के बिना चलेगा।','No camera — will run without photos.')+'</div>';
     if(stage==='idle')h+='<div class="card pad mb" style="text-align:center;border:2px dashed var(--line2)"><div style="font-size:26px">'+ico('ticket')+'</div><b>'+T('AWB स्कैन करें','Scan the AWB')+'</b><div class="sub">'+T('नया पार्सल शुरू करने के लिए','to start the next parcel')+'</div></div>';
     if(stage==='shot')h+='<div class="card pad mb" style="text-align:center;border:2px solid var(--saddle)"><div class="mono" style="font-weight:800">'+esc(cur)+'</div><b>'+T('फोटो ली जा रही है…','Taking photo…')+'</b></div>';
-    if(stage==='sku')h+='<div class="card pad mb" style="text-align:center;border:2px solid var(--green)"><div class="mono" style="font-weight:800">'+esc(cur)+'</div>'+(photo?'<img src="'+photo+'" style="max-width:150px;border-radius:10px;margin:8px auto;display:block">':'')+'<b>'+T('अब आइटम का SKU स्कैन करें','Now scan the item SKU')+'</b><div class="sub">'+T('स्कैन करते ही डिस्पैच होगा और स्टॉक घटेगा','scanning it dispatches the parcel and reduces stock')+'</div></div>';
+    if(stage==='sku')h+='<div class="card pad mb" style="text-align:center;border:2px solid var(--green)"><div class="mono" style="font-weight:800">'+esc(cur)+'</div>'+(photo?'<img src="'+esc(photo)+'" style="max-width:150px;border-radius:10px;margin:8px auto;display:block">':'')+'<b>'+T('अब आइटम का SKU स्कैन करें','Now scan the item SKU')+'</b><div class="sub">'+T('स्कैन करते ही डिस्पैच होगा और स्टॉक घटेगा','scanning it dispatches the parcel and reduces stock')+'</div></div>';
     if(cam&&(stage==='shot'||stage==='idle'))h+='<div class="scanwrap mb" style="max-height:30dvh"><video id="pc-v" playsinline muted autoplay></video></div>';
     h+='<div class="searchbar mb" style="border-color:var(--saddle)">'+ico('scan')+'<input id="pc-in" placeholder="'+T('स्कैन का इंतज़ार…','Waiting for scan…')+'" autocomplete="off" autocapitalize="characters"></div>';
     h+='<div id="pc-feed" class="sub" style="min-height:34px;margin-bottom:8px"></div>';
@@ -8278,7 +8663,7 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
     if(cam&&pf){cam.onclick=e=>{e.preventDefault();pf.click()};
       pf.onchange=()=>{const f=pf.files&&pf.files[0];if(!f)return;
         const r=new FileReader();
-        r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');const s=Math.min(1,640/Math.max(im.width,im.height));c.width=im.width*s;c.height=im.height*s;c.getContext('2d').drawImage(im,0,0,c.width,c.height);_awExtra.photo=c.toDataURL('image/jpeg',.6);const pv=$('#aw-pv');if(pv)pv.innerHTML='<img src="'+_awExtra.photo+'" alt="" style="max-width:110px;border-radius:9px">'};im.src=r.result};
+        r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');const s=Math.min(1,640/Math.max(im.width,im.height));c.width=im.width*s;c.height=im.height*s;c.getContext('2d').drawImage(im,0,0,c.width,c.height);_awExtra.photo=c.toDataURL('image/jpeg',.6);const pv=$('#aw-pv');if(pv)pv.innerHTML='<img src="'+esc(_awExtra.photo)+'" alt="" style="max-width:110px;border-radius:9px">'};im.src=r.result};
         r.readAsDataURL(f);pf.value='';};
     }
   }
