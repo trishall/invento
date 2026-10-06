@@ -2975,11 +2975,9 @@ async function taskSave(){return await saveNow('tasks')}
 /* ---------------- create ---------------- */
 async function taskNewDlg(pre){
   const T=(hi,en)=>langHi()?hi:en;
+  /* The saved team list is a convenience, never a gate: a job can go to any
+     name you type. The chips only save typing for the names already on file. */
   const list=workers();
-  if(!list.length){
-    toast(T('पहले टीम के नाम जोड़ें — More → काम कौन कर रहा है','Add your team first — More → Who is working'),'err');
-    return false;
-  }
   let kind=(pre&&pre.kind)||'stock',prio='normal',forName=(pre&&pre.forName)||'',itemId=(pre&&pre.itemId)||'';
   const draw=()=>{
     const it=itemId&&iById(itemId);
@@ -2999,8 +2997,10 @@ async function taskNewDlg(pre){
         :kind==='ship'?T('जैसे: यह आज ही निकलना है','e.g. this has to go out today')
         :T('काम लिखें','Describe the job'))+'"></div>'+
       '<div class="eyebrow mt">'+T('किसे','Who does it')+'</div>'+
-      '<div class="row wrap mb" style="gap:6px">'+
-        list.map(w=>'<button class="btn sm'+(forName===w.name?' pri':'')+'" data-tw="'+esc(w.name)+'">'+esc(w.name)+'</button>').join('')+'</div>'+
+      (list.length?'<div class="row wrap" style="gap:6px">'+
+        list.map(w=>'<button class="btn sm'+(forName===w.name?' pri':'')+'" data-tw="'+esc(w.name)+'">'+esc(w.name)+'</button>').join('')+'</div>':'')+
+      '<div class="field"><input class="in" id="tk-who" autocomplete="off" value="'+esc(forName)+'" placeholder="'+T('नाम लिखें','Type a name')+'">'+
+        '<div class="hint">'+T('कोई भी नाम चलेगा। रोज़ के नाम More → काम कौन कर रहा है में जोड़ दें, फिर दबाकर चुन सकेंगे।','Any name works. Add the regular ones under More → Who is working and you can tap instead of type.')+'</div></div>'+
       '<div class="eyebrow">'+T('कितना ज़रूरी','How urgent')+'</div>'+
       '<div class="row mb" style="gap:6px">'+
         '<button class="btn grow'+(prio==='normal'?' pri':'')+'" data-tp="normal">'+T('सामान्य','Normal')+'</button>'+
@@ -3008,7 +3008,10 @@ async function taskNewDlg(pre){
       '<div class="hint mb">'+T('समय की सीमा आप नहीं, जिसे काम दिया है वही तय करेगा — काम देखते ही।','You do not set the deadline. The person it goes to sets it themselves, the moment they open it.')+'</div>'+
       '<div class="row"><button class="btn grow" id="tk-x">'+T('रहने दें','Cancel')+'</button>'+
       '<button class="btn pri grow" id="tk-go">'+T('भेजें','Send it')+'</button></div>');
-    const keep=()=>{const n=$('#tk-note');if(n)pre=Object.assign({},pre,{note:n.value})};
+    /* Every redraw rebuilds the modal, so whatever was typed has to be carried
+       over by hand -- the note AND the name. */
+    const keep=()=>{const n=$('#tk-note');if(n)pre=Object.assign({},pre,{note:n.value});
+      const w=$('#tk-who');if(w)forName=(w.value||'').trim()};
     $$('#modal [data-tk]').forEach(b=>b.onclick=()=>{keep();kind=b.dataset.tk;draw();const n=$('#tk-note');if(n&&pre&&pre.note)n.value=pre.note});
     $$('#modal [data-tw]').forEach(b=>b.onclick=()=>{keep();forName=b.dataset.tw;draw();const n=$('#tk-note');if(n&&pre&&pre.note)n.value=pre.note});
     $$('#modal [data-tp]').forEach(b=>b.onclick=()=>{keep();prio=b.dataset.tp;draw();const n=$('#tk-note');if(n&&pre&&pre.note)n.value=pre.note});
@@ -3019,7 +3022,8 @@ async function taskNewDlg(pre){
     const finish=async()=>{
       const note=(($('#tk-note')||{}).value||'').trim();
       const ord=(($('#tk-ord')||{}).value||'').trim();
-      if(!forName){toast(T('किसे देना है यह चुनें','Pick who it goes to'),'err');return}
+      forName=(($('#tk-who')||{}).value||'').trim()||forName;
+      if(!forName){toast(T('किसे देना है यह लिखें','Say who it goes to'),'err');return}
       if(kind==='stock'&&!itemId){toast(T('आइटम चुनें','Pick the item'),'err');return}
       if(kind==='ship'&&!ord){toast(T('ऑर्डर नंबर लिखें','Type the order number'),'err');return}
       if(kind==='other'&&!note){toast(T('काम लिखें','Say what needs doing'),'err');return}
