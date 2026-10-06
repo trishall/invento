@@ -431,8 +431,8 @@ table.t tfoot td{font-weight:800;background:color-mix(in srgb,var(--ink) 4%,var(
 
 /* ---------- labels & print ---------- */
 .lblsheet{display:flex;flex-wrap:wrap;gap:4mm;align-content:flex-start}
-.lbl{border:none;border-radius:2mm;display:flex;align-items:center;gap:2.5mm;padding:2.5mm;background:#fff;overflow:hidden;page-break-inside:avoid;break-inside:avoid}.lbl.bordered{border:1px dashed #BBB}.lbl.codeonly{justify-content:center;padding:1.5mm}.lbl.textonly{justify-content:center;text-align:center}.lbl.textonly .tx{width:100%}.lbl.textonly .tn{font-size:1.45em;-webkit-line-clamp:3;line-height:1.15}.lbl.textonly .ts{font-size:1.2em;font-weight:700}
-.lblsheet{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:6px}
+.lbl{flex:0 0 auto;box-sizing:border-box;border:none;border-radius:2mm;display:flex;align-items:center;gap:2.5mm;padding:2.5mm;background:#fff;overflow:hidden;page-break-inside:avoid;break-inside:avoid}.lbl.bordered{border:1px dashed #BBB}.lbl.codeonly{justify-content:center;padding:1.5mm}.lbl.textonly{justify-content:center;text-align:center}.lbl.textonly .tx{width:100%}.lbl.textonly .tn{font-size:1.45em;-webkit-line-clamp:3;line-height:1.15}.lbl.textonly .ts{font-size:1.2em;font-weight:700}
+.lblsheet{margin-bottom:6px}
 .lblsheet .lbl{color:#222}
 .skel{background:linear-gradient(90deg,var(--line2) 25%,var(--card) 50%,var(--line2) 75%);background-size:200% 100%;animation:skel 1.1s infinite;border-radius:10px}
 @keyframes skel{to{background-position:-200% 0}}
@@ -456,6 +456,11 @@ body.printing #printArea{display:block;padding:8mm}
   #printArea{display:block!important;padding:0}
   .lbl.bordered{border-style:solid;border-color:#eee}
   @page{margin:8mm}
+  /* Labels print one to a page: a label printer feeds one sticker at a time,
+     and on A4 it keeps every label whole instead of splitting across a break. */
+  #printArea .lblsheet{display:block;gap:0;margin:0}
+  #printArea .lbl{margin:0;border-radius:0;page-break-after:always;break-after:page}
+  #printArea .lbl:last-child{page-break-after:auto;break-after:auto}
 }
 .printdoc h2{font-size:18pt;margin-bottom:2mm}
 .printdoc .pmeta{font-size:9.5pt;color:#444;margin-bottom:5mm}
@@ -2828,8 +2833,11 @@ function vLabels(){
       '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-sku"'+(LS.sku?' checked':'')+'> SKU under code</label>'+
       '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-price"'+(LS.price?' checked':'')+'> Price</label>'+
       '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-tags"'+(LS.tags?' checked':'')+'> Tags</label>'+
-      '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-loc"'+(LS.loc?' checked':'')+'> '+locTerm()+'</label></div>'+
-      '<div class="hint" style="margin-top:8px">Tick only what should print. For items with several SKUs, one label is produced for each SKU.</div></div>';
+      '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-loc"'+(LS.loc?' checked':'')+'> '+locTerm()+'</label>'+
+      '<label class="row" style="gap:7px;font-size:14px"><input type="checkbox" id="lb-allsku"'+(LS.allsku?' checked':'')+'> '+(langHi()?'हर SKU का अलग लेबल':'A label for every SKU')+'</label></div>'+
+      '<div class="hint" style="margin-top:8px">'+(langHi()
+        ?'जो छपना चाहिए सिर्फ़ वही टिक करें। एक पीस पर एक ही कोड जाता है — आइटम का पहला SKU। जिन आइटम के कई SKU हैं उनके सब SKU चाहिए तो ऊपर वाला टिक करें।'
+        :'Tick only what should print. One piece gets one code — the item\'s first SKU. Tick "A label for every SKU" only if an item with several SKUs really needs one sticker per SKU.')+'</div></div>';
   h+='<div class="card pad mb" style="border-left:4px solid var(--saddle)"><div class="row" style="gap:10px;align-items:center"><div class="grow"><b>'+(langHi()?'स्कैनर keys':'Scanner keys')+'</b><div class="small muted">'+(langHi()?'DONE key स्कैन करें = Enter दबाना। पैकिंग टेबल पर चिपकाएँ।':'Scan the DONE key instead of pressing Enter. Stick it on the packing table.')+'</div></div><button class="btn sm pri" id="lb-keys">'+ico('print')+(langHi()?'प्रिंट करें':'Print keys')+'</button></div></div>';
   if(lblNote)h+='<div class="splitbox mb" style="background:var(--green-bg);border:1px solid var(--green)"><div class="sl"><span>'+esc(lblNote)+'</span><b>'+(langHi()?'आइटम चुने हुए हैं':'items already selected')+'</b></div></div>';
   h+='<div class="row mb"><div class="searchbar grow">'+ico('search')+'<input id="lb-q" type="search" placeholder="Filter items…"></div><button class="btn sm" id="lb-all">Select all</button></div>';
@@ -2859,12 +2867,12 @@ function vLabels(){
     $('#lb-by').style.borderColor='';try{localStorage.setItem('lbl_by',by)}catch(e){}
     const p={mode,type,size,n,border:withBorder,
       name:$('#lb-name').checked,sku:$('#lb-sku').checked,price:$('#lb-price').checked,
-      tags:$('#lb-tags').checked,loc:$('#lb-loc').checked};
+      tags:$('#lb-tags').checked,loc:$('#lb-loc').checked,allsku:$('#lb-allsku').checked};
     lblPrefsSave(p);
     const rows=[];
     Array.from(sel).map(iById).filter(Boolean).forEach(i=>{
       const copies=perItem[i.id]||n;
-      skusOf(i).forEach(code=>{if(code)rows.push({item:i,code:code,copies:copies})});
+      lblCodesOf(i,p).forEach(code=>rows.push({item:i,code:code,copies:copies}));
     });
     const r=await lblRender(target,rows,p,by);
     if(!r.libOK)toast('Code library offline — labels show text only','err');
@@ -2873,7 +2881,7 @@ function vLabels(){
   }
   $('#lb-keys').onclick=printScanKeys;
   $('#lb-prev').onclick=()=>buildSheet($('#lb-stage'));
-  $('#lb-print').onclick=async()=>{if(await buildSheet($('#printArea'))===false)return;printNow()};
+  $('#lb-print').onclick=async()=>{if(await buildSheet($('#printArea'))===false)return;lblPrintNow($('#lb-size').value)};
 }
 /* Big printable barcode cards for the scanner keys */
 async function printScanKeys(){
@@ -2907,6 +2915,30 @@ async function lblLib(p){
     else await lazyScript('https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js');
     return true;
   }catch(e){return false}
+}
+/* The paper IS the label: one sticker per page, at the exact size chosen, so a
+   label printer feeds one at a time and an A4 sheet never splits one in half.
+   This @page rule is put up only while labels are printing and taken down
+   afterwards — everything else that prints (packing lists, POs, reports) must
+   keep the ordinary 8mm margin. */
+const LBL_MM={s:[48,24],m:[62,30],l:[96,46],x:[100,60]};
+function lblPrintNow(size){
+  const d=LBL_MM[size]||LBL_MM.m;
+  let el=document.getElementById('lbl-page');
+  if(!el){el=document.createElement('style');el.id='lbl-page';document.head.appendChild(el)}
+  /* Two things cost a blank page between every label: the page box rounds to
+     points (100mm comes out as 99.8mm), and the body's default margin pushes
+     the first label past the bottom. So margins go to zero and the label is
+     trimmed by 0.8mm — invisible on a sticker, and the page count comes out
+     exactly one per label. */
+  el.textContent='@media print{@page{size:'+d[0]+'mm '+d[1]+'mm;margin:0}'+
+    'html,body{margin:0!important;padding:0!important}'+
+    '#printArea{padding:0!important}'+
+    '#printArea .lbl{width:calc('+d[0]+'mm - 0.8mm);height:calc('+d[1]+'mm - 0.8mm);overflow:hidden}}';
+  const clear=()=>{const e=document.getElementById('lbl-page');if(e)e.textContent=''};
+  try{window.addEventListener('afterprint',clear,{once:true})}catch(e){}
+  setTimeout(clear,8000);                 /* fallback if afterprint never fires */
+  printNow();
 }
 async function lblRender(target,rows,p,by){
   const libOK=await lblLib(p);
@@ -2943,7 +2975,7 @@ async function lblRender(target,rows,p,by){
 }
 /* Whatever was set last time comes back next time — size above all, since a
    warehouse settles on one label stock and never changes it again. */
-const LBL_DEF={mode:'both',type:'qr',size:'m',n:1,border:false,name:true,sku:true,price:false,tags:false,loc:false};
+const LBL_DEF={mode:'both',type:'qr',size:'m',n:1,border:false,name:true,sku:true,price:false,tags:false,loc:false,allsku:false};
 function lblPrefs(){
   let v=null;try{v=JSON.parse(localStorage.getItem('lbl_prefs')||'null')}catch(e){}
   const o=Object.assign({},LBL_DEF,v&&typeof v==='object'?v:{});
@@ -2954,6 +2986,13 @@ function lblPrefs(){
   return o;
 }
 function lblPrefsSave(o){try{localStorage.setItem('lbl_prefs',JSON.stringify(o))}catch(e){}}
+/* Which codes go on an item's labels. A piece carries ONE code — a second
+   sticker for the same piece is just a second thing to scan by mistake — so
+   only the item's first SKU is used unless someone asks for all of them. */
+function lblCodesOf(i,p){
+  const all=skusOf(i).filter(Boolean);
+  return (p&&p.allsku)?all:all.slice(0,1);
+}
 /* Send a parcel's contents to the Labels screen — one label per piece. */
 function lblForAwb(a,note){
   const rows=awbItems(a).map(x=>({id:x.itemId,qty:+x.outQty||+x.qty||1})).filter(x=>x.id&&iById(x.id));
@@ -7933,7 +7972,7 @@ function awbCustReturnFlow(){
     lastArrived.forEach(x=>{
       const it=x.itemId&&iById(x.itemId);if(!it)return;
       const q=Math.max(1,Math.round(+x.outQty||+x.qty||1));
-      const codes=skusOf(it).filter(Boolean);
+      const codes=lblCodesOf(it,lblPrefs());
       if(!codes.length)return;
       out.push({item:it,codes:codes,qty:q});
     });
@@ -7990,7 +8029,7 @@ function awbCustReturnFlow(){
              '<b class="num" style="font-size:26px;color:var(--saddle)">×'+fmtQty(r.qty)+'</b></div>'+
            '<div class="sub mono">'+r.codes.map(c=>'<span class="skutag" style="margin-right:4px">'+esc(c)+'</span>').join('')+'</div>'+
            '<div class="hint mt">'+retT('इतने ही लेबल छपेंगे — हर पीस के लिए एक।','That many labels print — one for each piece.')+
-             (r.codes.length>1?retT(' इस आइटम के '+r.codes.length+' SKU हैं, हर SKU के लिए अलग।',' This item has '+r.codes.length+' SKUs, so one set per SKU.'):'')+'</div></div>';
+             (r.codes.length>1?retT(' इस आइटम के '+r.codes.length+' SKU चुने हैं, हर SKU के लिए अलग सेट।',' Every SKU is switched on for this item, so one set per SKU.'):'')+'</div></div>';
         h+='<div class="card pad mb" id="rt-lblprev" style="overflow:auto;max-height:34dvh"><div class="sub">'+retT('लेबल बन रहा है…','Drawing the label…')+'</div></div>';
         h+='<button class="btn pri block mb" id="rt-lblgo">'+ico('print')+retT('प्रिंट करें और आगे (Enter)','Print and carry on (Enter)')+'</button>';
         h+='<button class="btn block mb" id="rt-lblskip">'+retT('यह छोड़ें','Skip this item')+'</button>';
@@ -8134,7 +8173,7 @@ function awbCustReturnFlow(){
         const out=await lblRender($('#printArea'),rows,p,by);
         if(!out.n){msg(retT('इस आइटम का कोई कोड नहीं','This item has no code to print'),true);lblBusy=false;return}
         logTx('label',{detail:out.n+' label'+(out.n===1?'':'s')+' · '+r.item.name+' · '+retT('वापसी','return')+' '+(cur&&cur.awb||'')+' · by '+by});
-        printNow();
+        lblPrintNow(p.size);
       }catch(e){msg(String(e&&e.message||e).slice(0,80),true);lblBusy=false;return}
       lblBusy=false;lblNext();
     };
