@@ -2979,6 +2979,12 @@ async function taskNewDlg(pre){
      name you type. The chips only save typing for the names already on file. */
   const list=workers();
   let kind=(pre&&pre.kind)||'stock',prio='normal',forName=(pre&&pre.forName)||'',itemId=(pre&&pre.itemId)||'';
+  /* The item picker closes this modal and reopens it. That used to tear down the
+     Send button's handler and leave the dialog dead -- filled in, and nothing
+     happened on Send. So the buttons are wired inside draw(), every time, and
+     `picking` tells the watcher below that a close mid-pick is not the user
+     walking away. */
+  let onGo=()=>{},onX=()=>{},picking=false;
   const draw=()=>{
     const it=itemId&&iById(itemId);
     openModal('<h3>'+T('नया काम सौंपें','Hand out a job')+'</h3>'+
@@ -3016,7 +3022,11 @@ async function taskNewDlg(pre){
     $$('#modal [data-tw]').forEach(b=>b.onclick=()=>{keep();forName=b.dataset.tw;draw();const n=$('#tk-note');if(n&&pre&&pre.note)n.value=pre.note});
     $$('#modal [data-tp]').forEach(b=>b.onclick=()=>{keep();prio=b.dataset.tp;draw();const n=$('#tk-note');if(n&&pre&&pre.note)n.value=pre.note});
     const pi=$('#tk-item');
-    if(pi)pi.onclick=async()=>{keep();const id=await pickItemDlg();if(id){itemId=id}draw();const n=$('#tk-note');if(n&&pre&&pre.note)n.value=pre.note};
+    if(pi)pi.onclick=async()=>{keep();picking=true;const id=await pickItemDlg();if(id){itemId=id}draw();
+      setTimeout(()=>{picking=false},0);
+      const n=$('#tk-note');if(n&&pre&&pre.note)n.value=pre.note};
+    const bx=$('#tk-x');if(bx)bx.onclick=()=>onX();
+    const bg=$('#tk-go');if(bg)bg.onclick=()=>onGo();
   };
   return await new Promise(res=>{
     const finish=async()=>{
@@ -3040,14 +3050,14 @@ async function taskNewDlg(pre){
       toast(T('काम भेज दिया — ','Sent to ')+forName,'ok');
       closeModal();updateBadges();res(true);
     };
+    onX=()=>{closeModal();res(false)};
+    onGo=finish;
     draw();
-    const wire=()=>{
-      const x=$('#tk-x');if(x)x.onclick=()=>{closeModal();res(false)};
-      const g=$('#tk-go');if(g)g.onclick=finish;
-    };
-    wire();
     const ov=$('#ovl');
-    const obs=new MutationObserver(()=>{if(ov.classList.contains('show'))wire();else{obs.disconnect();res(false)}});
+    const obs=new MutationObserver(()=>{
+      if(picking)return;                      /* the item picker borrowed the screen */
+      if(!ov.classList.contains('show')){obs.disconnect();res(false)}
+    });
     obs.observe(ov,{attributes:true,childList:true,subtree:true});
   });
 }
@@ -3075,10 +3085,43 @@ function pickItemDlg(){
 }
 
 /* ---------------- accept: the assignee sets the clock ---------------- */
+/* Anyone can pick a job up or answer it -- it is not locked to the name on the
+   card. So the record has to say who ACTUALLY did it, exactly the way a stock
+   change does: the assignee is offered first, then everyone the app has seen,
+   then a free-typed name. */
+function taskWhoOptions(sel){
+  let o=nameOptions(sel);
+  if(sel&&o.indexOf('value="'+esc(sel)+'"')<0)
+    o='<option value="'+esc(sel)+'" selected>'+esc(sel)+'</option>'+o;
+  return o;
+}
+function taskWhoField(id,sel){
+  const T=(hi,en)=>langHi()?hi:en;
+  return '<div class="field"><label>'+T('यह कौन कर रहा है','Who is doing this')+'</label>'+
+    '<select class="in" id="'+id+'-w">'+taskWhoOptions(sel)+
+      '<option value="__other__">'+T('कोई और…','Someone else…')+'</option></select></div>'+
+    '<div class="field" id="'+id+'-owrap" style="display:none"><input class="in" id="'+id+'-o" autocomplete="off" placeholder="'+T('पूरा नाम','Full name')+'"></div>';
+}
+function taskWhoWire(id){
+  const sw=$('#'+id+'-w');if(!sw)return;
+  sw.onchange=()=>{
+    const other=sw.value==='__other__',wrap=$('#'+id+'-owrap');
+    if(wrap)wrap.style.display=other?'':'none';
+    if(other)setTimeout(()=>{try{$('#'+id+'-o').focus()}catch(e){}},30);
+  };
+}
+function taskWhoValue(id){
+  const sw=$('#'+id+'-w');let by=sw?String(sw.value||''):'';
+  if(by==='__other__')by=(($('#'+id+'-o')||{}).value||'').trim();
+  return by;
+}
 async function taskAcceptDlg(t){
   const T=(hi,en)=>langHi()?hi:en;
-  let n=30,unit='min';
+  let n=30,unit='min',who=t.forName||userName();
   const MULT={min:60000,hr:3600000,day:86400000};
+  /* every redraw rebuilds the modal, so carry the number and the name over */
+  const keep=()=>{const nn=$('#ta-n');if(nn)n=Math.round(+nn.value||n);
+    const v=taskWhoValue('ta');if(v&&v!=='__other__')who=v};
   const draw=()=>{
     openModal('<h3>'+T('कितनी देर लगेगी?','How long will this take?')+'</h3>'+
       '<p class="sub mb">'+T('आप खुद समय तय कर रहे हैं। एक बार तय हो गया तो बढ़ाया नहीं जा सकता — समय निकल गया तो काम चलता रहेगा पर रिकॉर्ड में लेट लिखा रहेगा।',
@@ -3091,6 +3134,7 @@ async function taskAcceptDlg(t){
         [[15,'min'],[30,'min'],[1,'hr'],[2,'hr'],[4,'hr'],[1,'day']]
           .map(q=>'<button class="btn sm" data-tq="'+q[0]+'|'+q[1]+'">'+q[0]+' '+(q[1]==='min'?T('मिनट','min'):q[1]==='hr'?T('घंटे','h'):T('दिन','d'))+'</button>').join('')+'</div>'+
       '<div class="splitbox mb" style="background:var(--saddle-bg);border:1px solid var(--saddle)"><div class="sl"><span>'+T('तब तक','Due by')+'</span><b id="ta-due">—</b></div></div>'+
+      taskWhoField('ta',who)+
       '<div class="row"><button class="btn grow" id="ta-x">'+T('अभी नहीं','Not now')+'</button>'+
       '<button class="btn pri grow" id="ta-go">'+T('हाँ, यह समय दे रहा हूँ','Yes — that is my time')+'</button></div>');
     const upd=()=>{
@@ -3098,9 +3142,10 @@ async function taskAcceptDlg(t){
       const due=Date.now()+Math.max(1,v)*MULT[unit];
       const el=$('#ta-due');if(el)el.textContent=v>0?fmtDT(due):'—';
     };
-    $$('#modal [data-tu]').forEach(b=>b.onclick=()=>{n=Math.round(+$('#ta-n').value||n);unit=b.dataset.tu;draw()});
-    $$('#modal [data-tq]').forEach(b=>b.onclick=()=>{const [v,u]=b.dataset.tq.split('|');n=+v;unit=u;draw()});
+    $$('#modal [data-tu]').forEach(b=>b.onclick=()=>{keep();unit=b.dataset.tu;draw()});
+    $$('#modal [data-tq]').forEach(b=>b.onclick=()=>{keep();const [v,u]=b.dataset.tq.split('|');n=+v;unit=u;draw()});
     const inp=$('#ta-n');if(inp)inp.oninput=upd;
+    taskWhoWire('ta');
     upd();
   };
   return await new Promise(res=>{
@@ -3112,10 +3157,12 @@ async function taskAcceptDlg(t){
         if(!(v>0)){toast(T('समय लिखें','Put a number in'),'err');return}
         const mins=Math.round(v*MULT[unit]/60000);
         if(mins>60*24*60){toast(T('बहुत ज़्यादा — 60 दिन तक','That is too long — up to 60 days'),'err');return}
-        t.status='accepted';t.acceptedAt=Date.now();t.acceptedBy=userName();
+        const by=taskWhoValue('ta')||userName();
+        if(by==='__other__'||by.trim().length<2){toast(T('नाम चुनें','Say who is doing it'),'err');return}
+        t.status='accepted';t.acceptedAt=Date.now();t.acceptedBy=by.trim();
         t.dueMins=mins;t.dueAt=t.acceptedAt+mins*60000;
         if(!await taskSave()){toast(T('सेव नहीं हुआ','Could not save'),'err');return}
-        logTx('task',{detail:'Task '+t.no+' accepted by '+userName()+' · '+v+' '+unit+' · due '+fmtDT(t.dueAt)});
+        logTx('task',{detail:'Task '+t.no+' accepted by '+t.acceptedBy+(t.acceptedBy===t.forName?'':' (assigned to '+t.forName+')')+' · '+v+' '+unit+' · due '+fmtDT(t.dueAt)});
         closeModal();toast(T('समय तय — ','Clock set — ')+taskLeft(t),'ok');updateBadges();res(true);
       };
     };
@@ -3143,8 +3190,10 @@ async function taskAnswerDlg(t){
       '<div class="field"><label>'+T('कुछ कहना है','Anything to say')+(isStock?'':' *')+'</label>'+
         '<input class="in" id="tn-note" autocomplete="off" placeholder="'+T('जैसे: भेज दिया','e.g. sent out')+'"></div>'+
       (taskLate(t)?'<div class="splitbox mb" style="background:var(--red-bg);border:1px solid var(--red)"><div class="sl"><span style="color:var(--red)">'+T('समय निकल चुका है','The time ran out')+'</span><b style="color:var(--red)">'+esc(taskOverBy(t))+'</b></div></div>':'')+
+      taskWhoField('tn',t.acceptedBy||t.forName||userName())+
       '<div class="row"><button class="btn grow" id="tn-x">'+T('वापस','Back')+'</button>'+
       '<button class="btn pri grow" id="tn-go">'+T('हो गया','Done')+'</button></div>');
+    taskWhoWire('tn');
     $('#tn-x').onclick=()=>{closeModal();res(false)};
     $('#tn-go').onclick=async()=>{
       const note=(($('#tn-note')||{}).value||'').trim();
@@ -3155,12 +3204,14 @@ async function taskAnswerDlg(t){
         qty=round4(+raw);
         if(!(qty>=0)){toast(T('गिनती सही नहीं','That count does not look right'),'err');return}
       } else if(!note){toast(T('कुछ लिखें','Write a line about it'),'err');return}
+      const by=taskWhoValue('tn')||userName();
+      if(by==='__other__'||by.trim().length<2){toast(T('नाम चुनें','Say who answered it'),'err');return}
       const late=taskLate(t);
-      t.status='done';t.doneAt=Date.now();t.doneBy=userName();
+      t.status='done';t.doneAt=Date.now();t.doneBy=by.trim();
       t.answer=note;if(isStock)t.qty=qty;
       if(late)t.wasLate=true;
       if(!await taskSave()){toast(T('सेव नहीं हुआ','Could not save'),'err');return}
-      logTx('task',{detail:'Task '+t.no+' done by '+userName()+(isStock?' · counted '+fmtQty(qty)+(it?' (app says '+fmtQty(it.qty)+')':''):'')+(note?' · '+note:'')+(late?' · LATE '+taskOverBy(t):'')});
+      logTx('task',{detail:'Task '+t.no+' done by '+t.doneBy+(t.doneBy===t.forName?'':' (assigned to '+t.forName+')')+(isStock?' · counted '+fmtQty(qty)+(it?' (app says '+fmtQty(it.qty)+')':''):'')+(note?' · '+note:'')+(late?' · LATE '+taskOverBy(t):'')});
       closeModal();
       if(!late)thumbsUp();
       toast(late?T('दर्ज — पर लेट','Recorded — but late'):T('हो गया','Done'),late?'err':'ok');
@@ -3174,12 +3225,12 @@ function vTasks(filter){
   const T=(hi,en)=>langHi()?hi:en;
   topTitle(T('काम','Tasks'),'#home');
   const me=userName();
-  const f=filter||'mine';
+  /* One shared board. Everyone sees every job and anyone may pick one up --
+     who it is FOR is printed on the card, and who actually did it is asked at
+     the end. Old #tasks/mine and #tasks/sent links land on Open, as they should. */
+  const f=(filter==='done')?'done':'open';
   const all=tasks();
-  const pool=f==='mine'?all.filter(t=>String(t.forName||'')===me)
-    :f==='done'?all.filter(t=>taskDone(t))
-    :f==='sent'?all.filter(t=>String(t.by||'')===me)
-    :all.filter(t=>!taskDone(t));
+  const pool=f==='done'?all.filter(t=>taskDone(t)):all.filter(t=>!taskDone(t));
   const rows=taskSort(pool);
   const mineOpen=taskMine();
   let h='<h1 class="page">'+T('काम','Tasks')+'</h1>';
@@ -3187,11 +3238,11 @@ function vTasks(filter){
     '<div class="sl"><span>'+T('आपके नाम पर','Waiting on you')+'</span><b class="num">'+mineOpen.length+'</b></div></div>';
   h+='<button class="btn pri block mb" id="tk-new">'+ico('plus')+T('किसी को काम दें','Hand out a job')+'</button>';
   h+='<div class="row wrap mb" style="gap:6px">'+
-    [['mine',T('मेरे','Mine')],['open',T('सब खुले','All open')],['sent',T('मैंने दिए','I sent')],['done',T('पूरे हुए','Finished')]]
+    [['open',T('चल रहे','Open')],['done',T('पूरे हुए','Finished')]]
       .map(x=>'<button class="btn sm'+(f===x[0]?' pri':'')+'" data-tf="'+x[0]+'">'+x[1]+'</button>').join('')+'</div>';
   h+=rows.length?rows.map(t=>taskCardHTML(t,me)).join('')
     :'<div class="empty">'+ico('check')+'<div class="t">'+T('कुछ नहीं','Nothing here')+'</div><div class="s">'+
-      (f==='mine'?T('आपके नाम पर कोई काम नहीं है।','No jobs are waiting on you.'):T('इस छाँट में कुछ नहीं।','Nothing in this filter.'))+'</div></div>';
+      (f==='done'?T('अभी कुछ पूरा नहीं हुआ।','Nothing has been finished yet.'):T('अभी कोई काम चल नहीं रहा।','No jobs are open right now.'))+'</div></div>';
   $('#main').innerHTML=h;
   $('#tk-new').onclick=()=>taskNewDlg().then(ok=>{if(ok)vTasks(f)});
   $$('#main [data-tf]').forEach(b=>b.onclick=()=>go('#tasks/'+b.dataset.tf));
@@ -3223,7 +3274,8 @@ function taskCardHTML(t,me){
       (t.prio==='urgent'&&!fin?'<span class="pill" style="background:var(--red);color:#fff">'+T('ज़रूरी','URGENT')+'</span>':'')+
       (late?'<span class="pill" style="background:var(--red);color:#fff">'+T('लेट','LATE')+'</span>':'')+
       (t.status==='cancelled'?'<span class="pill low">'+T('रद्द','cancelled')+'</span>':fin?'<span class="pill ok">'+T('हो गया','done')+'</span>':'')+'</div>'+
-    '<div class="sub">'+esc(taskKindLabel(t.kind))+' · '+T('के लिए ','for ')+'<b>'+esc(t.forName||'')+'</b> · '+T('दिया ','from ')+esc(t.by||'')+'</div>'+
+    '<div class="sub">'+esc(taskKindLabel(t.kind))+' · '+T('के लिए ','for ')+'<b>'+esc(t.forName||'')+'</b> · '+T('दिया ','from ')+esc(t.by||'')+
+      (t.acceptedBy&&t.acceptedBy!==t.forName?' · '+T('ले लिया ','taken by ')+'<b>'+esc(t.acceptedBy)+'</b>':'')+'</div>'+
     (t.note&&(t.itemName||t.orderNo)?'<div class="sub">'+esc(t.note)+'</div>':'')+
     (t.sku?'<div class="sub mono"><span class="skutag">'+esc(t.sku)+'</span>'+(it?' · '+T('ऐप में ','app says ')+fmtQty(it.qty):'')+'</div>':'')+
     '<div class="when mt">'+fmtDT(t.at)+
@@ -3234,12 +3286,12 @@ function taskCardHTML(t,me){
         '<span>'+(t.qty!=null?T('गिनती','Counted'):T('जवाब','Answer'))+'</span><b>'+(t.qty!=null?fmtQty(t.qty):esc(t.answer))+'</b></div></div>'+
         (t.qty!=null&&t.answer?'<div class="sub mt">'+esc(t.answer)+'</div>':'')
       :'')+
-    (!fin&&mine
+    (!fin
       ?(t.status==='new'
-        ?'<button class="btn pri block mt" data-tact="accept" data-tid="'+t.id+'">'+ico('check')+T('देखा — समय तय करें','Open it — set your time')+'</button>'
+        ?'<button class="btn pri block mt" data-tact="accept" data-tid="'+t.id+'">'+ico('check')+
+           (mine?T('देखा — समय तय करें','Open it — set your time'):T('यह लेकर समय तय करें','Take it on — set the time'))+'</button>'
         :'<button class="btn pri block mt" data-tact="answer" data-tid="'+t.id+'">'+ico('check')+T('जवाब देकर पूरा करें','Answer and finish')+'</button>')
       :'')+
-    (!fin&&!mine&&t.status==='new'?'<div class="hint mt" style="color:var(--amber);font-weight:700">'+T('अभी इन्होंने खोला नहीं — समय तय नहीं हुआ','Not opened yet — no time set')+'</div>':'')+
     (!fin&&(String(t.by||'')===me||isAdminU())?'<button class="btn sm block mt" data-tact="cancel" data-tid="'+t.id+'" style="color:var(--red);border-color:var(--red-bg)">'+T('रद्द करें','Cancel this job')+'</button>':'')+
   '</div>';
 }
