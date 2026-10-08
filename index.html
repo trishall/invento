@@ -1178,7 +1178,16 @@ async function initCloud(cfg){
   wireCol('approvals',db.collection('approvals'),s=>mergeCol('approvals',s.docs),true);
   wireCol('workers',db.collection('workers'),s=>mergeCol('workers',s.docs),true);
   wireCol('tasks',db.collection('tasks').orderBy('at','desc').limit(400),s=>mergeCol('tasks',s.docs),true);
-  wireCol('awbs',db.collection('awbs').orderBy('acceptedAt','desc').limit(1000),s=>mergeCol('awbs',s.docs),true);
+  /* How far back parcels are remembered is decided by purgeOldAwbs() -- it drops
+     resolved ones after AWB_KEEP_DAYS. This loader must therefore reach the whole
+     collection, not a fixed slice of it: the old .limit(1000) meant a busy
+     fortnight pushed older parcels out of the app, and a customer return then
+     came back as "never scanned inward" while the parcel sat in Firestore the
+     whole time. A date filter cannot be used here either -- it would hide an old
+     parcel that is STILL waiting to go out, which is exactly the one you must not
+     lose. The cap below is only a runaway guard; offline persistence means the
+     full set is fetched once and then only the changes. */
+  wireCol('awbs',db.collection('awbs').orderBy('acceptedAt','desc').limit(20000),s=>mergeCol('awbs',s.docs),true);
   wireCol('trash',db.collection('trash').orderBy('deletedAt','desc'),s=>mergeCol('trash',s.docs),true);
   wireCol('txns',db.collection('txns').where('ts','>=',Date.now()-30*86400000).orderBy('ts','desc').limit(1200),s=>{S.txns=s.docs.map(d=>{const x=d.data();x.id=d.id;return x})},true);
   wireCol('meta',db.collection('meta').doc('app'),s=>{
@@ -7052,10 +7061,15 @@ function vReturnView(id){
    ============================================================ */
 const AWB_OVERDUE_DAYS=7;
 const AWB_KEEP_DAYS=60;   // dispatched/returned docs are remembered this long, then aged out
+/* When a parcel was last FINISHED WITH. A customer return keeps the dispatch
+   date in resolvedAt and records the return in returnedAt, so going by
+   resolvedAt alone aged a parcel out 60 days after it went out -- which could be
+   the day after it came back. Retention has to run from whichever happened last. */
+function awbResolvedAt(a){return Math.max(+(a&&a.resolvedAt)||0,+(a&&a.returnedAt)||0)}
 async function purgeOldAwbs(){
   try{
     const cut=Date.now()-AWB_KEEP_DAYS*86400000;
-    const old=(S.awbs||[]).filter(a=>(a.status==='dispatched'||a.status==='returned'||a.status==='custreturn')&&(a.resolvedAt||0)<cut);
+    const old=(S.awbs||[]).filter(a=>(a.status==='dispatched'||a.status==='returned'||a.status==='custreturn')&&awbResolvedAt(a)<cut);
     if(!old.length)return;
     const gone=new Set(old.map(a=>a.id));
     S.awbs=S.awbs.filter(a=>!gone.has(a.id));
@@ -7539,7 +7553,7 @@ function vAwb(sub,arg){
   h+='<div class="awbcols">';
   h+=awbColHTML(langHi()?'बाकी':'Pending',pend,'accept');
   h+='</div>';
-  const hist=(S.awbs||[]).filter(a=>a.status==='dispatched'||a.status==='returned'||a.status==='custreturn').sort((a,b)=>(b.resolvedAt||0)-(a.resolvedAt||0));
+  const hist=(S.awbs||[]).filter(a=>a.status==='dispatched'||a.status==='returned'||a.status==='custreturn').sort((a,b)=>awbResolvedAt(b)-awbResolvedAt(a));
   h+='<div class="card pad mt"><div class="row" style="align-items:center;gap:8px">'+
      '<b class="grow">'+(langHi()?'हिस्ट्री':'History')+' <span class="muted num" style="font-weight:600">'+disp.length+(langHi()?' डिस्पैच · ':' dispatched · ')+ret.length+(langHi()?' वापस':' returned')+'</span></b>'+
      '<button class="btn sm" id="aw-hist">'+(langHi()?'देखें':'View')+'</button><button class="btn sm" id="aw-csv">'+ico('csv')+'CSV</button></div>'+
@@ -8207,8 +8221,11 @@ function awbScanFlow(mode){
   if(accept && !can('awbAccept')){toast('No permission','err');go('#awb');return}
   if(!accept && !can('awbDispatch')){toast('No permission','err');go('#awb');return}
   scanSessionStart();
-  awbScanModal(accept?(langHi()?'Inward — लेबल अंदर लें':'Inward — accept AWBs'):'Outward — dispatch AWBs',
-    accept?(langHi()?'1) लेबल के सारे बारकोड स्कैन करें। 2) फिर हर आइटम का SKU स्कैन करें। 3) Enter दबाकर अगला ऑर्डर। स्टॉक तब घटेगा जब पार्सल बाहर जाएगा।':'1) Scan every barcode on the label. 2) Then scan each item SKU. 3) Press Enter for the next order. Stock is deducted when the parcel goes out, not now.')
+  /* The step strip inside the modal walks through the three stages, so the
+     subtitle only carries what the stages cannot: which kind of parcels these
+     are, and that nothing leaves stock yet. */
+  awbScanModal(accept?((langHi()?'इनवर्ड — ':'Inward — ')+okLabel(_inKind||'daily')):'Outward — dispatch AWBs',
+    accept?(langHi()?'स्टॉक अभी नहीं घटेगा — पार्सल बाहर जाने पर घटेगा।':'Nothing comes out of stock yet — that happens when the parcel goes out.')
            :'Scan each AWB you are sending out. SKU or photo optional.',
     async(code)=>accept?acceptAwb(code):dispatchAwbByNo(code,awbExtra()), ()=>{scanSessionEnd();vAwb()}, !accept, accept);
 }
@@ -8692,23 +8709,26 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
   const hw=hwScanner();
   let h='<h3>'+esc(title)+(hw?' <span class="pill ok" style="font-size:10px">Machine</span>':'')+'</h3>';
   h+='<p class="sub mb">'+esc(subtitle)+'</p>';
-  if(!hw)h+='<div class="scanwrap mb" id="awsw" style="max-height:40dvh"><div class="scanbox"><div class="laser"></div></div><video id="awsv" playsinline muted></video></div>';
+  /* Which stage you are on goes ABOVE the camera. On a phone the preview is the
+     tallest thing on screen, and anything under it starts below the fold. */
+  if(group)h+='<div class="row wrap" id="aw-steps" style="gap:6px;margin-bottom:8px"></div>';
+  /* ...and the preview is capped in pixels, not just in dvh: 40dvh of a tall
+     phone pushed the parcel and the Enter prompt off the bottom. */
+  if(!hw)h+='<div class="scanwrap mb" id="awsw" style="max-height:min(34dvh,240px)"><div class="scanbox"><div class="laser"></div></div><video id="awsv" playsinline muted></video></div>';
   h+='<div class="searchbar mb" style="border-color:var(--saddle)">'+ico('ticket')+'<input id="aw-in2" placeholder="'+(hw?'Waiting for scan…':'or type the number')+'" autocomplete="off" autocapitalize="characters"></div>';
+  if(group)h+='<div class="hint" id="aw-stage-hint" style="min-height:34px;margin:-4px 0 8px"></div>';
   if(withExtra){
     h+='<div class="row mb" style="gap:8px;align-items:center">'+
        '<input class="in grow" id="aw-sku" placeholder="'+(langHi()?'SKU / नोट (ज़रूरी नहीं)':'SKU / note (optional)')+'" autocomplete="off">'+
        '<button class="btn" id="aw-cam" style="flex:0 0 auto">'+ico('camera')+'</button></div>'+
        '<input type="file" id="aw-pf" accept="image/*" capture="environment" style="display:none"><div id="aw-pv" class="mb"></div>';
   }
-  if(group)h+='<div class="field" style="margin-bottom:10px"><label>'+(langHi()?'ऑर्डर नंबर (ज़रूरी नहीं)':'Order number (optional)')+'</label>'+
-    '<div class="row" style="gap:6px"><input class="in mono grow" id="aw-ord" placeholder="'+(langHi()?'जैसे 54226 या amaz09092601':'e.g. 54226 or amaz09092601')+'" autocomplete="off" autocapitalize="off"><button class="btn" id="aw-ord-x" style="flex:0 0 auto" title="'+(langHi()?'खाली करें':'Clear')+'">'+ico('x')+'</button></div>'+
-    '<div class="hint" id="aw-ord-hint"></div></div>';
   if(group)h+='<div class="splitbox mb" id="aw-count" style="background:var(--green-bg);border:1px solid var(--green)"><div class="sl"><span>'+(langHi()?'अब तक इनवर्ड हुए':'Parcels inwarded so far')+'</span><b class="num" id="aw-n">0</b></div></div>';
   if(group)h+='<div id="aw-cur" style="margin-bottom:8px"></div>';
   h+='<div id="aw-feed2" class="sub" style="min-height:40px;margin-bottom:8px"></div>';
   if(!group)h+='<div id="aw-act"></div>';   /* the way forward, chosen by WHY the scan was refused */
   if(group)h+='<button class="btn block mb" id="aw-find">'+ico('search')+(langHi()?'बारकोड नहीं चला? नाम से आइटम जोड़ें':'Barcode not working? Add item by name')+'</button>';
-  if(group)h+='<button class="btn block mb" id="aw-next" disabled>'+ico('check')+(langHi()?'यह पार्सल पूरा — अगला (Enter)':'Parcel done — next (Enter)')+'</button>';
+  if(group)h+='<button class="btn block mb" id="aw-next" disabled>'+ico('check')+(langHi()?'यह पार्सल पूरा — अगला (Enter दो बार)':'Parcel done — next (Enter twice)')+'</button>';
   h+='<button class="btn pri block" id="aw-done2">'+ico('check')+(langHi()?'सब हो गया':'Finish')+'</button>';
   openModal(h);
   const inp=$('#aw-in2'),feed=$('#aw-feed2');
@@ -8724,6 +8744,12 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
     }
   }
   let n=0,cur=null,pend=null,busy=false,lastCode='',lastAt=0;
+  /* Inward runs in three stages through this one box: the label barcodes, then
+     the order number, then the item SKUs. `armed` is the first press of a
+     double-Enter -- the deliberate confirmation for the two things that are
+     easy to do by accident: carrying on with no order number, and declaring a
+     parcel finished. */
+  let stage='awb',ordNo='',armed=false;
   /* pend = a parcel being built that is NOT saved yet. Nothing is registered until
      an item SKU is scanned — an AWB with no item is not a parcel. */
   const T=(hi,en)=>langHi()?hi:en;
@@ -8738,14 +8764,14 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
     box.innerHTML='<div class="awbmini '+(saved?'fresh':'aging')+'"><div class="awb-no">'+esc(codes[0]||'')+
       (saved?'':' <span class="pill low" style="font-size:9px">'+T('अभी दर्ज नहीं','not registered yet')+'</span>')+'</div>'+
       '<div class="awb-meta">'+codes.length+' '+T('बारकोड इस पार्सल पर','barcode'+(codes.length===1?'':'s')+' on this parcel')+
-        (()=>{const e=$('#aw-ord'),v=e?(e.value||'').trim():'';return v?' · '+T('ऑर्डर ','order ')+'<span class="mono">'+esc(v)+'</span>':''})()+'</div>'+
+        (ordNo?' · '+T('ऑर्डर ','order ')+'<span class="mono">'+esc(ordNo)+'</span>':'')+'</div>'+
       '<div class="sub mono" style="margin-top:3px">'+codes.map(c=>esc(c)+(awbShared(c)?' <span class="pill low" style="font-size:9px">'+T('कई लेबल','shared')+'</span>':'')).join(' · ')+'</div>'+
       (items.length
         ?'<div style="margin-top:6px;border-top:1px solid var(--line2);padding-top:5px">'+items.map((x,xi)=>'<div class="row" style="gap:6px;padding:2px 0;font-size:13px"><span class="grow ellip">'+esc(x.name)+(x.rack!==undefined?' <span class="skutag" style="font-size:10px">'+esc(shelfName(x.rack))+'</span>':'')+(x.manual?' <span class="pill warn" style="font-size:9px">'+T('नाम से','by name')+'</span>':'')+'</span><b class="num">×'+fmtQty(x.qty)+'</b><button class="icobtn ghost" data-rmitem="'+xi+'" style="width:26px;height:26px;flex:0 0 auto">'+ico('x')+'</button></div>').join('')+'</div>'
         :'<div class="hint" style="margin-top:5px;color:var(--amber);font-weight:700">'+T('आइटम का SKU स्कैन करें — तभी यह पार्सल दर्ज होगा','scan an item SKU — nothing is saved until you do')+'</div>')+
       (saved?''
         :'<div class="hint" style="margin-top:6px;padding:6px 8px;border-radius:8px;background:var(--amber-bg);color:var(--amber);font-weight:700">'+
-          (items.length?T('अब DONE स्कैन करें (या Enter) — तभी यह दर्ज होगा','Now scan DONE (or press Enter) — only then is it saved'):T('कुछ भी सेव नहीं हुआ है','nothing has been saved yet'))+'</div>')+
+          (items.length?T('अब Enter दो बार (या DONE स्कैन) — तभी यह दर्ज होगा','Now press Enter twice (or scan DONE) — only then is it saved'):T('कुछ भी सेव नहीं हुआ है','nothing has been saved yet'))+'</div>')+
       '</div>';
     if(nx)nx.disabled=!items.length;
     $$('#aw-cur [data-rmitem]').forEach(b=>b.onclick=async()=>{
@@ -8760,13 +8786,44 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
       toast(T('हटाया','Removed'),'ok');paintCur();
     });
   };
-  /* The box is cleared after each parcel — order numbers do not run in sequence
-     here, so guessing the next one would only invite a wrong number. */
-  function clearOrderNo(){
-    const el=$('#aw-ord'),hint=$('#aw-ord-hint');
-    if(el)el.value='';
-    if(hint)hint.textContent='';
+  /* Cleared after each parcel — order numbers do not run in sequence here, so
+     carrying the last one over would only invite a wrong number. */
+  function clearOrderNo(){ordNo=''}
+  const STEPS=()=>[['awb',T('1 · लेबल','1 · Labels')],['ord',T('2 · ऑर्डर नं.','2 · Order no.')],['sku',T('3 · आइटम','3 · Items')]];
+  function paintStage(){
+    const strip=$('#aw-steps');
+    if(strip)strip.innerHTML=STEPS().map(x=>'<span class="pill'+(stage===x[0]?' info':' low')+'">'+x[1]+'</span>').join('');
+    const hint=$('#aw-stage-hint');
+    if(hint)hint.innerHTML=
+      stage==='awb'?T('लेबल के सारे बारकोड स्कैन करें, फिर Enter दबाएँ।','Scan every barcode on the label, then press Enter.')
+      :stage==='ord'?(armed
+        ?'<b style="color:var(--amber)">'+T('ऑर्डर नंबर के बिना आगे बढ़ने के लिए Enter फिर दबाएँ।','Press Enter again to carry on with no order number.')+'</b>'
+        :T('ऑर्डर नंबर लिखें और Enter। नंबर नहीं है तो Enter दो बार।','Type the order number and press Enter. No number? Press Enter twice.'))
+      :(armed
+        ?'<b style="color:var(--green)">'+T('पार्सल पूरा करने के लिए Enter फिर दबाएँ।','Press Enter again to finish this parcel.')+'</b>'
+        :T('हर आइटम स्कैन करें, या नाम लिखकर Enter। पूरा हो जाए तो Enter दो बार।','Scan each item, or type a name and press Enter. Then Enter twice when the parcel is done.'));
+    if(inp)inp.placeholder=
+      stage==='awb'?(hw?T('लेबल का बारकोड…','Waiting for the label barcode…'):T('या लेबल नंबर टाइप करें','or type the label number'))
+      :stage==='ord'?T('ऑर्डर नंबर — ज़रूरी नहीं','Order number — optional')
+      :(hw?T('आइटम का SKU…','Waiting for an item SKU…'):T('SKU या नाम','SKU or name'));
   }
+  /* Enter on an empty box. Each stage decides what "next" means. */
+  const advance=async()=>{
+    if(stage==='awb'){
+      if(!codesOf().length){errBox('',T('पहले लेबल का बारकोड स्कैन करें','scan the label barcode first'));return}
+      stage='ord';armed=false;paintStage();paintCur();refocusSafe();return;
+    }
+    if(stage==='ord'){
+      if(!armed){armed=true;paintStage();beep(true);return}
+      armed=false;stage='sku';paintStage();paintCur();refocusSafe();return;
+    }
+    if(!itemsOf().length){
+      errBox(codesOf()[0]||'',T('कम से कम एक आइटम स्कैन करें — बिना आइटम पार्सल दर्ज नहीं होगा','scan at least one item — a parcel with no item is not registered'));
+      return;
+    }
+    if(!armed){armed=true;paintStage();beep(true);return}
+    armed=false;await closeParcel();
+  };
   const closeParcel=async(quiet)=>{
     if(!cur&&!pend)return;
     if(group&&!itemsOf().length){
@@ -8779,7 +8836,9 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
       if(!rec){paintCur();return}
       done=rec;
     }
-    cur=null;pend=null;paintCur();
+    cur=null;pend=null;
+    stage='awb';ordNo='';armed=false;       /* back to the top for the next parcel */
+    paintCur();paintStage();
     const cEl=$('#aw-n');if(cEl)cEl.textContent=String(n);
     if(!quiet&&done){
       successChime();
@@ -8806,8 +8865,7 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
         return false;
       }
     }
-    const ordEl=$('#aw-ord');
-    const ord=ordEl?(ordEl.value||'').trim():'';
+    const ord=(ordNo||'').trim();
     const r=await onCode(pend.codes[0]);
     if(!r||!r.ok){errBox(pend.codes[0],(r&&r.msg));return false}
     thumbsUp();
@@ -8857,7 +8915,7 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
     if(how==='search')entry.manual=true;
     items.push(entry);
     if(cur)await awbSetItems(cur,items);else pend.items=items;
-    okBox(code,esc(it.name)+' × 1 · '+esc(shelfName(rack))+(how==='search'?T(' · नाम से जोड़ा',' · added by search'):'')+T(' · DONE दबाने पर दर्ज होगा',' · press DONE to register'));
+    okBox(code,esc(it.name)+' × 1 · '+esc(shelfName(rack))+(how==='search'?T(' · नाम से जोड़ा',' · added by search'):'')+T(' · Enter दो बार दबाने पर दर्ज होगा',' · press Enter twice to register'));
     paintCur();return true;
   };
   /* Search the catalog when a SKU barcode will not read. Stays open so several
@@ -8900,7 +8958,9 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
     sub$('#fi-x').onclick=()=>{subClose();paintCur();setTimeout(()=>{try{inp.focus()}catch(e){}},60)};
     draw();
   };
-  const fb=$('#aw-find');if(fb)fb.onclick=findItemDlg;
+  /* Not `onclick=findItemDlg` -- that hands the click event in as the search
+     text and the box opens prefilled with "[object PointerEvent]". */
+  const fb=$('#aw-find');if(fb)fb.onclick=()=>findItemDlg();
   /* A parcel that is merely unpacked must NOT be offered the force-dispatch
      escape hatch — that would walk straight around the camera rule. It is sent
      to Packing instead. Force dispatch stays for what it is for: a parcel that
@@ -8918,17 +8978,20 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
     const fcb=$('#aw-force');if(fcb)fcb.onclick=async()=>{if(await forceDispatchDlg(lastCode))n++;};
   }
   if(!group)setAct(null);
-  const handle=async(code)=>{
+  /* `scanned` means it came off a barcode -- the gun or the camera -- rather than
+     being typed. Only a human types, and only a human types a product NAME, so
+     this is what tells a mis-scan apart from a search. */
+  const handle=async(code,scanned)=>{
     if(SUB_OPEN)return;                               // a question is open — the gun waits
     code=String(code||'').replace(/\s+/g,' ').trim();if(!code)return;
     const key=scanKeyOf(code);
     if(key){
       inp.value='';
       if(!group){errBox(code,T('यह key सिर्फ Inward में चलती है','this key only works on the Inward screen'));return}
-      if(key==='done'){await closeParcel();return}
+      if(key==='done'){armed=false;await closeParcel();return}   /* the printed card finishes from any stage */
       if(key==='cancel'){
         if(cur){errBox(code,T('यह पार्सल दर्ज हो चुका है — हटाने के लिए AWB स्क्रीन पर वजह लिखें','this parcel is already registered — remove it from the AWB screen with a reason'));return}
-        if(pend){const a=pend.codes[0];pend=null;paintCur();beep(false);feed.innerHTML='<div class="sub">'+T('छोड़ा — ','dropped — ')+esc(a)+T(' दर्ज नहीं हुआ',' was not registered')+'</div>';return}
+        if(pend){const a=pend.codes[0];pend=null;stage='awb';ordNo='';armed=false;paintCur();paintStage();beep(false);feed.innerHTML='<div class="sub">'+T('छोड़ा — ','dropped — ')+esc(a)+T(' दर्ज नहीं हुआ',' was not registered')+'</div>';return}
         errBox(code,T('छोड़ने को कुछ नहीं','nothing to drop'));return;
       }
     }
@@ -8940,8 +9003,42 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
     busy=true;lastCode=code;lastAt=now;inp.value='';
     try{
       if(group){
+        /* stage 2: whatever lands here IS the order number, typed or scanned */
+        if(stage==='ord'){
+          ordNo=code;armed=false;
+          if(scanned){
+            /* On a phone the camera is live through this stage, and a frame can
+               catch a barcode nobody meant to read. So a SCAN only fills the
+               number in -- moving on stays a deliberate Enter, and a wrong one
+               is visible on screen first. Typing it and pressing Enter is
+               already deliberate, so that goes straight on. */
+            okBox(code,T('ऑर्डर नंबर भरा — सही है तो Enter दबाएँ','order number filled in — press Enter if that is right'));
+          } else {
+            stage='sku';
+            okBox(code,T('ऑर्डर नंबर दर्ज — अब आइटम स्कैन करें','order number noted — now scan the items'));
+          }
+          paintCur();paintStage();return;
+        }
         const it=findByCode(code);
-        if(it){await addItem(it,code,'scan');return}
+        if(it){
+          if(stage==='awb'){errBox(code,T('यह आइटम है — पहले लेबल पूरे करें और Enter दबाएँ','that is an item — finish the labels first, then press Enter'));return}
+          await addItem(it,code,'scan');return;
+        }
+        if(stage==='sku'){
+          /* Not a known item. It is either a label at the wrong stage, or a name
+             somebody typed to search for -- what it must NEVER become is another
+             barcode silently stuck onto this parcel. */
+          const known=awbIsPrimaryOf(code)||awbMatches(code)[0]||codesOf().some(c=>awbKey(c)===awbKey(code));
+          if(known){
+            errBox(code,T('इस पार्सल के लेबल पूरे हो चुके — Enter दो बार दबाकर इसे पूरा करें, फिर अगला लेबल','the labels are done for this parcel — press Enter twice to finish it, then scan the next label'));
+            return;
+          }
+          if(scanned){
+            errBox(code,T('यह कोई जाना-पहचाना आइटम नहीं — अगला लेबल है तो पहले Enter दो बार दबाकर यह पार्सल पूरा करें','not an item we know — if that is the next parcel\'s label, press Enter twice to finish this one first'));
+            return;
+          }
+          findItemDlg(code);return;
+        }
         /* a label barcode */
         if(codesOf().some(c=>awbKey(c)===awbKey(code))){errBox(code,T('यह बारकोड पहले ही जुड़ा है','already on this parcel'));return}
         if(cur){
@@ -8973,7 +9070,7 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
           if(prim){errBox(code,T('यह दूसरे पार्सल का AWB है · ','this is another parcel\'s AWB · ')+prim.awb);return}
           pend.codes.push(code);
         }
-        okBox(code,T('बारकोड जोड़ा — अब आइटम का SKU स्कैन करें','barcode added — now scan the item SKU'));
+        okBox(code,T('बारकोड जोड़ा — लेबल पर और बारकोड हों तो स्कैन करें, वरना Enter','barcode added — scan any others on the label, or press Enter'));
         paintCur();return;
       }
       const r=await onCode(code);
@@ -8981,17 +9078,29 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
       else {errBox(code,(r&&r.msg));setAct(r||{})}
     } finally { busy=false }
   };
-  inp.onkeydown=e=>{if(SUB_OPEN)return;if(e.key==='Enter'){e.preventDefault();const v=inp.value.trim();inp.value='';if(v)handle(v);else if(group)closeParcel()}};   /* closeParcel is async; fire-and-forget is fine here */
-  if(group)paintCur();
-  const nx=$('#aw-next');if(nx)nx.onclick=()=>{closeParcel();refocusSafe()};
-  const ox=$('#aw-ord-x');if(ox)ox.onclick=()=>{const e=$('#aw-ord');if(e){e.value='';e.focus()}const hh=$('#aw-ord-hint');if(hh)hh.textContent=''};
-  const oe=$('#aw-ord');if(oe)oe.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();refocusSafe()}};   /* Enter jumps to the scan field */
+  inp.onkeydown=e=>{if(SUB_OPEN)return;if(e.key!=='Enter')return;e.preventDefault();
+    const v=inp.value.trim();inp.value='';
+    if(v){armed=false;handle(v);return}                 /* async; fire-and-forget is fine here */
+    if(group)advance();
+  };
+  /* Typing anything cancels a half-made double-Enter, so the second press can
+     never land on a decision the person has moved on from. */
+  inp.addEventListener('input',()=>{if(armed&&inp.value){armed=false;paintStage()}});
+  if(group){paintCur();paintStage()}
+  const nx=$('#aw-next');if(nx)nx.onclick=()=>{armed=false;closeParcel();refocusSafe()};
   function refocusSafe(){try{inp.focus()}catch(e){}}
   const refocus=()=>{try{inp.focus()}catch(e){}};refocus();
   let fi=null,stop=null;
   if(hw){
     fi=setInterval(()=>{if(!document.querySelector('#aw-in2')){clearInterval(fi);return}if(focusIsBusy(inp))return;refocus()},450);
-    let at=null;inp.oninput=()=>{clearTimeout(at);at=setTimeout(()=>{if(SUB_OPEN)return;const v=inp.value.trim();if(v.length>=4){inp.value='';handle(v)}},170)};
+    /* The gun types fast and we submit on a pause. A HUMAN types the order
+       number, though, so auto-submit is off for that stage -- otherwise "54226"
+       fires halfway through. That stage waits for a real Enter. */
+    let at=null;inp.oninput=()=>{clearTimeout(at);at=setTimeout(()=>{
+      if(SUB_OPEN)return;
+      if(group&&stage==='ord')return;
+      const v=inp.value.trim();if(v.length>=4){inp.value='';handle(v,true)}
+    },170)};
   } else {
     (async()=>{
       if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return;
@@ -9000,7 +9109,7 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
       v.srcObject=stream;await v.play().catch(()=>{});stop=()=>{try{stream.getTracks().forEach(t=>t.stop())}catch(e){}};
       if(!('BarcodeDetector' in window))return;let fmts;try{fmts=await BarcodeDetector.getSupportedFormats()}catch(e){fmts=[]}
       const det=new BarcodeDetector({formats:fmts.length?fmts:['code_128','code_39','qr_code','ean_13']});let last='',lt=0;
-      const loop=async()=>{if(!stop)return;try{const cs=await det.detect(v);if(cs&&cs.length){const c=cs[0].rawValue;const now=Date.now();if(c&&(c!==last||now-lt>2500)){last=c;lt=now;handle(c)}}}catch(e){}if(stop)setTimeout(()=>requestAnimationFrame(loop),200)};
+      const loop=async()=>{if(!stop)return;try{const cs=await det.detect(v);if(cs&&cs.length){const c=cs[0].rawValue;const now=Date.now();if(c&&(c!==last||now-lt>2500)){last=c;lt=now;handle(c,true)}}}catch(e){}if(stop)setTimeout(()=>requestAnimationFrame(loop),200)};
       requestAnimationFrame(loop);
     })();
   }
