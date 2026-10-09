@@ -905,6 +905,9 @@ function can(act){
 const cap1=s=>{s=String(s||'');return s?s.charAt(0).toUpperCase()+s.slice(1):s};
 const shadows={};
 const dirty={};
+/* collection -> why its live listener died. Empty means everything is syncing.
+   Anything in here means the screen is showing data that has stopped updating. */
+const SYNC_DEAD={};
 const SYNC_COLS=['items','folders','lists','pos','trash','dispatches','approvals','awbs','workers','tasks'];
 
 function getSavedCfg(){
@@ -1159,15 +1162,28 @@ async function initCloud(cfg){
     else if(bootDone&&was&&was.role!==p.role){toast('Your role is now '+p.role,'ok');route()}
   },()=>{});
   const first=[],later=[];
+  /* A listener that dies is the most dangerous failure this app has: everything
+     keeps working, on data frozen at whatever the offline cache last held, and
+     nobody is told. That is exactly how a bad query once left a whole day's
+     parcels invisible while the warehouse carried on scanning. So a dead
+     listener is now loud -- a toast at once, and a standing warning on Home
+     until it is fixed. */
   function wireCol(col,query,apply,defer){
     (defer?later:first).push(new Promise((res,rej)=>{
       let done=false;
       query.onSnapshot(snap=>{
         if(dirty[col]){saveNow(col)}
         else apply(snap);
+        delete SYNC_DEAD[col];
         if(!done){done=true;res()}
         else repaintSoon();
-      },err=>{if(!done){done=true;rej(err)}else console.error(col,err)});
+      },err=>{
+        SYNC_DEAD[col]=String((err&&err.message)||err).slice(0,160);
+        console.error('SYNC DEAD:',col,err);
+        try{toast((langHi()?'सिंक रुका — ':'Not syncing — ')+col+(langHi()?': पुराना डेटा दिख रहा है':': you are seeing old data'),'err')}catch(e){}
+        try{repaintSoon()}catch(e){}
+        if(!done){done=true;rej(err)}
+      });
     }));
   }
   wireCol('items',db.collection('items').orderBy('createdAt'),s=>mergeCol('items',s.docs));
@@ -1178,16 +1194,19 @@ async function initCloud(cfg){
   wireCol('approvals',db.collection('approvals'),s=>mergeCol('approvals',s.docs),true);
   wireCol('workers',db.collection('workers'),s=>mergeCol('workers',s.docs),true);
   wireCol('tasks',db.collection('tasks').orderBy('at','desc').limit(400),s=>mergeCol('tasks',s.docs),true);
-  /* How far back parcels are remembered is decided by purgeOldAwbs() -- it drops
-     resolved ones after AWB_KEEP_DAYS. This loader must therefore reach the whole
-     collection, not a fixed slice of it: the old .limit(1000) meant a busy
-     fortnight pushed older parcels out of the app, and a customer return then
-     came back as "never scanned inward" while the parcel sat in Firestore the
-     whole time. A date filter cannot be used here either -- it would hide an old
-     parcel that is STILL waiting to go out, which is exactly the one you must not
-     lose. The cap below is only a runaway guard; offline persistence means the
-     full set is fetched once and then only the changes. */
-  wireCol('awbs',db.collection('awbs').orderBy('acceptedAt','desc').limit(20000),s=>mergeCol('awbs',s.docs),true);
+  /* No orderBy, no limit, and both on purpose.
+     · limit: Firestore REFUSES any limit over 10000 -- the whole listener dies
+       with "Limit value in the structured query is over the maximum value of
+       10000" and the app silently runs on its offline cache forever. The old
+       .limit(1000) was worse in a quieter way: a busy fortnight pushed older
+       parcels out, so a customer return came back as "never scanned inward"
+       while the parcel sat in Firestore the whole time.
+     · orderBy('acceptedAt'): Firestore drops any document MISSING that field, so
+       parcels cancelled before they were ever accepted vanished -- and a vanished
+       AWB is one the duplicate-scan check cannot warn you about.
+     How far back parcels are kept is purgeOldAwbs()'s job, not this query's.
+     Order does not matter here: every view sorts for itself. */
+  wireCol('awbs',db.collection('awbs'),s=>mergeCol('awbs',s.docs),true);
   wireCol('trash',db.collection('trash').orderBy('deletedAt','desc'),s=>mergeCol('trash',s.docs),true);
   wireCol('txns',db.collection('txns').where('ts','>=',Date.now()-30*86400000).orderBy('ts','desc').limit(1200),s=>{S.txns=s.docs.map(d=>{const x=d.data();x.id=d.id;return x})},true);
   wireCol('meta',db.collection('meta').doc('app'),s=>{
@@ -1884,11 +1903,24 @@ function ordersCardHTML(){
     (s.who.length?'<div class="small muted mt">'+T('किसने भेजे: ','By: ')+s.who.map(w=>esc(w[0])+' <b class="num">'+w[1]+'</b>').join(' · ')+'</div>':'')+
   '</div>';
 }
+/* Shown at the top of Home whenever a collection has stopped syncing. Silence
+   here once hid a whole day of parcels, so this says plainly that the numbers
+   below are stale and cannot be trusted. */
+function syncDeadHTML(){
+  const cols=Object.keys(SYNC_DEAD);if(!cols.length)return '';
+  const T=(hi,en)=>langHi()?hi:en;
+  return '<div class="card pad mb" style="border-left:4px solid var(--red);background:var(--red-bg)">'+
+    '<b style="color:var(--red)">'+T('यह डेटा अपडेट होना बंद हो गया है','This data has stopped updating')+'</b>'+
+    '<div class="sub">'+T('नीचे के आँकड़े पुराने हैं — ','The numbers below are stale — ')+esc(cols.join(', '))+
+    T(' सिंक नहीं हो रहा। ऐप बंद करके दोबारा खोलें; फिर भी रहे तो बताएं।',
+      ' is not syncing. Close the app and open it again; tell me if it comes back.')+'</div>'+
+    '<div class="hint mono" style="margin-top:6px">'+esc(cols.map(c=>c+': '+SYNC_DEAD[c]).join(' · '))+'</div></div>';
+}
 function vHome(){
   topbar('<div class="brand"><span class="bx">'+LOGO+'</span><span style="font-size:15px">INVENTO<small>'+esc(S.meta.company||'by Trishal')+'</small></span></div>'+acctButtonHTML());
   const st=deepStats(null);const low=lowItems();
   const fresh=S.items.length===0&&S.folders.length===0;
-  let h='';
+  let h=syncDeadHTML();
   if(fresh){
     h+='<div class="welcome"><div class="eyebrow" style="color:#C9A86C">Welcome</div><h2>Set up Invento</h2><p>Track items, locations, quantities and labels — built for the workshop floor. Start clean, import a spreadsheet, or try it with sample leather-goods data.</p><div class="row wrap">'+(can('additem')?'<button class="btn dark" style="background:#F4E9D8;color:#3A2A18;border-color:#F4E9D8" data-act="newitem">'+ico('plus')+'Add first item</button>':'')+(can('export')?'<a class="btn" style="background:transparent;color:#F4E9D8;border-color:rgba(244,233,216,.5)" href="#import">Import CSV</a>':'')+'<button class="btn" style="background:transparent;color:#F4E9D8;border-color:rgba(244,233,216,.5)" id="loadSample">Load sample data</button></div></div>';
   }
