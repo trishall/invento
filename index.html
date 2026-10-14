@@ -1,4 +1,4 @@
-<!DOCTYPE html><!--INVENTO_BUILD 2026-10-14.1-->
+<!DOCTYPE html><!--INVENTO_BUILD 2026-10-14.2-->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -912,7 +912,7 @@ const cap1=s=>{s=String(s||'');return s?s.charAt(0).toUpperCase()+s.slice(1):s};
    · FIRESTORE's offline copy of the data. That one stays -- without it the
      warehouse stops working the moment the wifi dips -- but it must say when it
      is what you are reading, instead of looking exactly like live data. */
-const APP_BUILD='2026-10-14.1';
+const APP_BUILD='2026-10-14.2';
 const shadows={};
 const dirty={};
 /* col -> true while its latest snapshot came from the offline copy, not the
@@ -2046,16 +2046,24 @@ function syncDeadHTML(){
    GitHub Pages gives no version signal, so a browser will happily serve a
    cached index.html for as long as it likes. The stamp is in the first bytes
    of the file, so asking costs a 512-byte range request. */
-let _updBar=false;
+let _updBar=false,_updSnoozeUntil=0;
+/* Pull the stamp out of "<!--INVENTO_BUILD x.y-->". It must be anchored on the
+   closing "-->": a character class that allows "-" (and version numbers need
+   "-") eats the comment terminator too, so the live build reads back as
+   "2026-10-14.1--", never equals the running one, and the bar nags forever. */
+function buildStampIn(text){
+  const m=String(text||'').match(/INVENTO_BUILD\s+(.+?)\s*-->/);
+  return m?m[1].trim():'';
+}
 async function checkForUpdate(){
-  if(_updBar)return;
+  if(_updBar||Date.now()<_updSnoozeUntil)return;
   try{
     const base=location.href.split('#')[0].split('?')[0];
     const r=await fetch(base+'?_='+Date.now(),{cache:'no-store',headers:{Range:'bytes=0-511'}});
     if(!r.ok&&r.status!==206)return;
-    const m=(await r.text()).slice(0,2048).match(/INVENTO_BUILD\s+([\w.\-]+)/);
-    if(!m||m[1]===APP_BUILD)return;
-    showUpdateBar(m[1]);
+    const live=buildStampIn((await r.text()).slice(0,2048));
+    if(!live||live===APP_BUILD)return;
+    showUpdateBar(live);
   }catch(e){/* offline, or the range was refused — try again later */}
 }
 function showUpdateBar(v){
@@ -2079,7 +2087,8 @@ function showUpdateBar(v){
     const base=location.href.split('#')[0].split('?')[0];
     location.replace(base+'?v='+encodeURIComponent(v)+location.hash);
   };
-  el.querySelector('#upd-x').onclick=()=>{el.remove();_updBar=false};
+  /* "Later" means later, not in five minutes when the tab regains focus. */
+  el.querySelector('#upd-x').onclick=()=>{el.remove();_updBar=false;_updSnoozeUntil=Date.now()+2*3600000};
 }
 function startUpdateWatch(){
   setTimeout(checkForUpdate,20000);
