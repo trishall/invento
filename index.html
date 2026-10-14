@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html><!--INVENTO_BUILD 2026-10-14.1-->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -903,8 +903,23 @@ function can(act){
   return p[act]!==false;                      // regular user: governed by toggle (default allow)
 }
 const cap1=s=>{s=String(s||'');return s?s.charAt(0).toUpperCase()+s.slice(1):s};
+/* ---------- knowing what you are looking at ----------
+   This app keeps two caches and neither one used to announce itself.
+   · The BROWSER's copy of this file. GitHub Pages sends no version signal, so a
+     phone ran yesterday's build all day while the PC had today's and nothing on
+     screen said so. The stamp sits in the first bytes of this file, so checking
+     for a newer one costs a 512-byte range request, not the whole 800KB.
+   · FIRESTORE's offline copy of the data. That one stays -- without it the
+     warehouse stops working the moment the wifi dips -- but it must say when it
+     is what you are reading, instead of looking exactly like live data. */
+const APP_BUILD='2026-10-14.1';
 const shadows={};
 const dirty={};
+/* col -> true while its latest snapshot came from the offline copy, not the
+   server. Firestore re-emits with fromCache=true the moment it loses the
+   connection, so this is the honest "are we live?" signal. */
+const SYNC_CACHED={};
+let cacheSince=0;          // when we first went to cache-only, 0 = we are live
 /* collection -> why its live listener died. Empty means everything is syncing.
    Anything in here means the screen is showing data that has stopped updating. */
 const SYNC_DEAD={};
@@ -1171,9 +1186,19 @@ async function initCloud(cfg){
   function wireCol(col,query,apply,defer){
     (defer?later:first).push(new Promise((res,rej)=>{
       let done=false;
-      query.onSnapshot(snap=>{
-        if(dirty[col]){saveNow(col)}
-        else apply(snap);
+      query.onSnapshot({includeMetadataChanges:true},snap=>{
+        /* fromCache means Firestore answered from the offline copy, not the
+           server -- it flips the moment the connection drops. Tracking it is
+           the only honest way to tell live data from a saved copy. */
+        SYNC_CACHED[col]=!!snap.metadata.fromCache;
+        cacheSince=Object.keys(SYNC_CACHED).some(c=>SYNC_CACHED[c])?(cacheSince||Date.now()):0;
+        /* A metadata-only snapshot carries no document changes; re-merging
+           thousands of records for it would be pure waste. */
+        const metaOnly=done&&!snap.docChanges().length;
+        if(!metaOnly){
+          if(dirty[col]){saveNow(col)}
+          else apply(snap);
+        }
         delete SYNC_DEAD[col];
         if(!done){done=true;res()}
         else repaintSoon();
@@ -1208,6 +1233,11 @@ async function initCloud(cfg){
      Order does not matter here: every view sorts for itself. */
   wireCol('awbs',db.collection('awbs'),s=>mergeCol('awbs',s.docs),true);
   wireCol('trash',db.collection('trash').orderBy('deletedAt','desc'),s=>mergeCol('trash',s.docs),true);
+  /* S.txns is the RECENT-ACTIVITY feed, not the report data set. At this volume
+     1200 entries is about three days, so anything asking for "last 30 days" must
+     go to the server for itself -- see txnsForPeriod(). Keeping this window small
+     is deliberate: holding 12,000 records in memory on a warehouse phone is not
+     worth it just to render a list of the last few actions. */
   wireCol('txns',db.collection('txns').where('ts','>=',Date.now()-30*86400000).orderBy('ts','desc').limit(1200),s=>{S.txns=s.docs.map(d=>{const x=d.data();x.id=d.id;return x})},true);
   wireCol('meta',db.collection('meta').doc('app'),s=>{
     const d=s.exists?(s.data()||{}):{};
@@ -1220,19 +1250,34 @@ async function initCloud(cfg){
   bgBusy(true);
   Promise.all(later).then(()=>{bgBusy(false);repaintSoon()}).catch(()=>bgBusy(false));
   cloudReady=true;
-  if(isAdminU()){purgeOldTxns();purgeOldAwbs();}
+  /* Deliberately NOT purging here any more. Both of these delete real business
+     records -- shipment history and the movement log -- and they used to run
+     silently on every admin sign-in with every error swallowed. Worse, until
+     today purgeOldAwbs() could only see the ~1000 parcels the old loader
+     fetched; now that the whole collection loads, the very same code would
+     have deleted thousands of older ones on the next sign-in. Nothing in this
+     app removes records on its own. purgeCount() just reports what is eligible;
+     deleting is a deliberate act. */
+  if(isAdminU())purgeCount();
   return 'cloud';
 }
-async function purgeOldTxns(){
-  try{
-    const cutoff=Date.now()-30*86400000;
-    for(let k=0;k<3;k++){
-      const q=await db.collection('txns').where('ts','<',cutoff).limit(300).get();
-      if(q.empty)break;
-      const b=db.batch();q.docs.forEach(d=>b.delete(d.ref));await b.commit();
-      if(q.size<300)break;
-    }
-  }catch(e){}
+/* The movement log is the audit trail -- who moved what, when, and why. It used
+   to be trimmed to 30 days automatically on every admin sign-in, silently, with
+   errors swallowed. It is no longer deleted by anything that runs on its own.
+   Call this by hand, with the number you were shown, if you ever want it. */
+async function purgeOldTxns(confirmedOlderThanDays){
+  if(!(confirmedOlderThanDays>0)){console.warn('purgeOldTxns refused: say how many days to keep');return 0}
+  const cutoff=Date.now()-confirmedOlderThanDays*86400000;
+  let gone=0;
+  for(let k=0;k<3;k++){
+    const q=await db.collection('txns').where('ts','<',cutoff).limit(300).get();
+    if(q.empty)break;
+    const b=db.batch();q.docs.forEach(d=>b.delete(d.ref));await b.commit();
+    gone+=q.size;
+    if(q.size<300)break;
+  }
+  if(gone)logTx('list',{detail:'Cleared '+gone+' movement-log entries older than '+confirmedOlderThanDays+' days · by '+userName()});
+  return gone;
 }
 async function loadLocal(){
   MODE='local';
@@ -1295,6 +1340,62 @@ function userName(){
 function accountName(){
   if(MODE==='cloud'&&fbUser)return cap1((myProfile&&myProfile.name)||fbUser.displayName||String(fbUser.email||'').split('@')[0])||'User';
   return S.meta.user||'You';
+}
+/* Reports read from HERE, never from S.txns.
+   S.txns is capped at the newest 1200 entries -- roughly three days of a busy
+   warehouse -- so an "Item flow, last 30 days" built from it quietly reported
+   three days and looked completely plausible. This asks the server for the
+   real period, in pages, and is strictly read-only. */
+const _txnPeriod={};
+async function txnsForPeriod(days){
+  const key=String(days||0);
+  const hit=_txnPeriod[key];
+  if(hit&&Date.now()-hit.at<120000)return hit.rows;      // a report does not need to be second-fresh
+  if(MODE!=='cloud')return (S.txns||[]).slice();          // local mode holds everything already
+  const cut=days?Date.now()-days*86400000:0;
+  const PAGE=2000,MAX_PAGES=15;                           // hard stop at 30,000 rows
+  const rows=[];let cursor=null,truncated=false;
+  for(let p=0;p<MAX_PAGES;p++){
+    let q=db.collection('txns');
+    if(cut)q=q.where('ts','>=',cut);
+    q=q.orderBy('ts','desc').limit(PAGE);
+    if(cursor)q=q.startAfter(cursor);
+    const snap=await q.get();
+    if(snap.empty)break;
+    snap.docs.forEach(d=>{const x=d.data();x.id=d.id;rows.push(x)});
+    cursor=snap.docs[snap.docs.length-1];
+    if(snap.size<PAGE)break;
+    if(p===MAX_PAGES-1)truncated=true;
+  }
+  _txnPeriod[key]={at:Date.now(),rows:rows,truncated:truncated};
+  rows.truncated=truncated;
+  return rows;
+}
+
+/* ---------- one item's full movement history ----------
+   S.txns is a rolling window of the newest 1200 entries across the WHOLE
+   warehouse -- roughly three days here -- so filtering it by item made a bag
+   that had moved for months look like it had moved since yesterday. These two
+   keep the instant paint (from whatever is cached) and then correct it with
+   everything Firestore holds for that item. Read-only. */
+const _itemHist={};
+function itemHistoryCached(itemId){
+  const hit=_itemHist[itemId];
+  const live=(S.txns||[]).filter(t=>t.itemId===itemId);
+  if(!hit)return live;
+  /* merge: the fetched history plus anything that happened since, no duplicates */
+  const seen={};const out=[];
+  live.concat(hit.rows).forEach(t=>{const k=t.id||(t.ts+'|'+t.act+'|'+t.fromQ+'|'+t.toQ);if(seen[k])return;seen[k]=1;out.push(t)});
+  return out.sort((a,b)=>(+b.ts||0)-(+a.ts||0));
+}
+async function itemHistoryLoad(itemId){
+  if(MODE!=='cloud')return false;
+  const hit=_itemHist[itemId];
+  if(hit&&Date.now()-hit.at<120000)return false;
+  const snap=await db.collection('txns').where('itemId','==',itemId).get();
+  const rows=snap.docs.map(d=>{const x=d.data();x.id=d.id;return x});
+  _itemHist[itemId]={at:Date.now(),rows:rows};
+  return true;
 }
 function logTx(act,o){
   const t=Object.assign({id:uid('t'),ts:Date.now(),user:userName(),act:act},o||{});
@@ -1787,10 +1888,20 @@ function chartDonut(slices){
   const leg='<div class="grow" style="min-width:130px">'+slices.map((x,i)=>'<div class="row" style="gap:7px;align-items:center;padding:2.5px 0;font-size:12.5px"><span style="width:10px;height:10px;border-radius:3px;background:'+CH_COL[i%CH_COL.length]+';flex:0 0 auto"></span><span class="grow ellip">'+esc(x.k)+'</span><b class="num">'+Math.round(x.v/tot*100)+'%</b></div>').join('')+'</div>';
   return '<div class="row" style="gap:14px;align-items:center;flex-wrap:wrap">'+s+leg+'</div>';
 }
+/* The period's movements, complete, once they have been fetched; the cached
+   window until then. periodRowsReady() says which of the two you got, so a
+   screen can show that its numbers are still filling in rather than printing a
+   confident figure built from three days of a thirty-day question. */
+function periodRows(days){
+  const hit=_txnPeriod[String(days||0)];
+  if(hit)return hit.rows;
+  return (S.txns||[]);
+}
+function periodRowsReady(days){return !!_txnPeriod[String(days||0)]}
 function homeMetrics(days){
   const since=Date.now()-days*86400000;
   const OUT=['out','dispatch','pick'];
-  const t=(S.txns||[]).filter(x=>x.ts>=since);
+  const t=periodRows(days).filter(x=>x.ts>=since);
   const soldU=t.filter(x=>OUT.indexOf(x.act)>=0).reduce((a,x)=>a+(+x.qty||0),0);
   const inU=t.filter(x=>x.act==='in'||x.act==='received').reduce((a,x)=>a+(+x.qty||0),0);
   const disp=t.filter(x=>x.act==='dispatch').length;
@@ -1903,18 +2014,85 @@ function ordersCardHTML(){
     (s.who.length?'<div class="small muted mt">'+T('किसने भेजे: ','By: ')+s.who.map(w=>esc(w[0])+' <b class="num">'+w[1]+'</b>').join(' · ')+'</div>':'')+
   '</div>';
 }
-/* Shown at the top of Home whenever a collection has stopped syncing. Silence
-   here once hid a whole day of parcels, so this says plainly that the numbers
-   below are stale and cannot be trusted. */
+/* Shown at the top of Home whenever what you are reading is not live. Silence
+   here once hid a whole day of parcels, so both states say so plainly:
+   a listener that DIED (red -- the numbers are wrong and will stay wrong), and
+   a working app reading its OFFLINE COPY (amber -- normal on bad wifi, but you
+   should know before you trust a count). */
 function syncDeadHTML(){
-  const cols=Object.keys(SYNC_DEAD);if(!cols.length)return '';
   const T=(hi,en)=>langHi()?hi:en;
-  return '<div class="card pad mb" style="border-left:4px solid var(--red);background:var(--red-bg)">'+
-    '<b style="color:var(--red)">'+T('यह डेटा अपडेट होना बंद हो गया है','This data has stopped updating')+'</b>'+
-    '<div class="sub">'+T('नीचे के आँकड़े पुराने हैं — ','The numbers below are stale — ')+esc(cols.join(', '))+
-    T(' सिंक नहीं हो रहा। ऐप बंद करके दोबारा खोलें; फिर भी रहे तो बताएं।',
-      ' is not syncing. Close the app and open it again; tell me if it comes back.')+'</div>'+
-    '<div class="hint mono" style="margin-top:6px">'+esc(cols.map(c=>c+': '+SYNC_DEAD[c]).join(' · '))+'</div></div>';
+  const dead=Object.keys(SYNC_DEAD);
+  if(dead.length)
+    return '<div class="card pad mb" style="border-left:4px solid var(--red);background:var(--red-bg)">'+
+      '<b style="color:var(--red)">'+T('यह डेटा अपडेट होना बंद हो गया है','This data has stopped updating')+'</b>'+
+      '<div class="sub">'+T('नीचे के आँकड़े पुराने हैं — ','The numbers below are stale — ')+esc(dead.join(', '))+
+      T(' सिंक नहीं हो रहा। ऐप बंद करके दोबारा खोलें; फिर भी रहे तो बताएं।',
+        ' is not syncing. Close the app and open it again; tell me if it comes back.')+'</div>'+
+      '<div class="hint mono" style="margin-top:6px">'+esc(dead.map(c=>c+': '+SYNC_DEAD[c]).join(' · '))+'</div></div>';
+  /* A few seconds on the cache is just a slow network, not news. */
+  const offline=(typeof navigator!=='undefined'&&navigator.onLine===false);
+  const stuck=cacheSince&&(Date.now()-cacheSince>20000);
+  if(!offline&&!stuck)return '';
+  return '<div class="card pad mb" style="border-left:4px solid var(--amber);background:var(--amber-bg)">'+
+    '<b style="color:var(--amber)">'+T('यह सेव की हुई कॉपी है','You are seeing a saved copy')+'</b>'+
+    '<div class="sub">'+
+      (offline?T('इंटरनेट नहीं है। ','No internet right now. ')
+             :T('सर्वर से बात नहीं हो पा रही। ','Cannot reach the server. '))+
+      T('काम चलता रहेगा और बाद में अपने आप सिंक हो जाएगा, पर अभी के आँकड़े ताज़ा नहीं हैं।',
+        'You can carry on working and it will sync by itself later, but the numbers here are not up to date.')+
+    '</div></div>';
+}
+/* ---------- is this device running the current build? ----------
+   GitHub Pages gives no version signal, so a browser will happily serve a
+   cached index.html for as long as it likes. The stamp is in the first bytes
+   of the file, so asking costs a 512-byte range request. */
+let _updBar=false;
+async function checkForUpdate(){
+  if(_updBar)return;
+  try{
+    const base=location.href.split('#')[0].split('?')[0];
+    const r=await fetch(base+'?_='+Date.now(),{cache:'no-store',headers:{Range:'bytes=0-511'}});
+    if(!r.ok&&r.status!==206)return;
+    const m=(await r.text()).slice(0,2048).match(/INVENTO_BUILD\s+([\w.\-]+)/);
+    if(!m||m[1]===APP_BUILD)return;
+    showUpdateBar(m[1]);
+  }catch(e){/* offline, or the range was refused — try again later */}
+}
+function showUpdateBar(v){
+  if(_updBar)return;
+  const ov=document.getElementById('ovl');
+  if(ov&&ov.classList.contains('show'))return;   // never cover a scan in progress
+  _updBar=true;
+  const T=(hi,en)=>langHi()?hi:en;
+  const el=document.createElement('div');
+  el.id='updbar';
+  el.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:9000;background:var(--saddle);color:#fff;'+
+    'padding:12px 14px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;'+
+    'box-shadow:0 -6px 18px rgba(0,0,0,.35);padding-bottom:calc(12px + env(safe-area-inset-bottom))';
+  el.innerHTML='<b>'+T('नया वर्ज़न तैयार है','A newer version is ready')+'</b>'+
+    '<span class="small" style="opacity:.85" class="mono">'+esc(APP_BUILD)+' → '+esc(v)+'</span>'+
+    '<button class="btn" id="upd-go" style="background:#fff;color:#5A3A1A;border-color:#fff">'+T('अभी लोड करें','Reload now')+'</button>'+
+    '<button class="btn" id="upd-x" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.55)">'+T('बाद में','Later')+'</button>';
+  document.body.appendChild(el);
+  /* a fresh query string is what actually defeats the browser cache */
+  el.querySelector('#upd-go').onclick=()=>{
+    const base=location.href.split('#')[0].split('?')[0];
+    location.replace(base+'?v='+encodeURIComponent(v)+location.hash);
+  };
+  el.querySelector('#upd-x').onclick=()=>{el.remove();_updBar=false};
+}
+function startUpdateWatch(){
+  setTimeout(checkForUpdate,20000);
+  setInterval(checkForUpdate,15*60000);
+  let last=0;
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState!=='visible')return;
+    if(Date.now()-last<5*60000)return;
+    last=Date.now();checkForUpdate();
+  });
+  /* the saved-copy banner should appear and clear the moment the line does */
+  window.addEventListener('online',()=>{try{repaintSoon()}catch(e){}});
+  window.addEventListener('offline',()=>{try{repaintSoon()}catch(e){}});
 }
 function vHome(){
   topbar('<div class="brand"><span class="bx">'+LOGO+'</span><span style="font-size:15px">INVENTO<small>'+esc(S.meta.company||'by Trishal')+'</small></span></div>'+acctButtonHTML());
@@ -1932,10 +2110,17 @@ function vHome(){
   if(!fresh){
     let days=30;try{days=+localStorage.getItem('invento_homedays')||30}catch(e){}
     const m=homeMetrics(days);
+    if(!periodRowsReady(days))
+      txnsForPeriod(days).then(()=>{if(/^#?(home)?$/.test(location.hash||''))vHome()}).catch(e=>console.error('home overview fetch failed',e));
     h+=taskCardHomeHTML();
     h+=ordersCardHTML();
     h+='<div class="section-h"><h2>'+(langHi()?'कारोबार':'Overview')+'</h2>'+(isAdminU()?'<a href="#dash">'+(langHi()?'पूरा डैशबोर्ड':'Full dashboard')+'</a>':'')+'</div>';
     h+='<div class="seg mb" id="hm-p">'+[7,30,90].map(d=>'<button data-hd="'+d+'" class="'+(d===days?'on':'')+'">'+d+(langHi()?' दिन':' days')+'</button>').join('')+'</div>';
+    /* Until the real period lands these figures come from the recent-activity
+       window, which is only a few days. Say so rather than show a confident
+       number that answers a different question. */
+    if(!periodRowsReady(days))
+      h+='<div class="hint mb" style="color:var(--amber)">'+(langHi()?'पूरे '+days+' दिन का हिसाब लग रहा है…':'Still adding up the full '+days+' days…')+'</div>';
     h+='<div class="row wrap mb" style="gap:9px">'+
       '<div class="card pad" style="flex:1 1 44%"><div class="eyebrow">'+(langHi()?'बिका / गया':'Sold / out')+'</div><div class="num" style="font-weight:800;font-size:21px">'+fmtQty(m.soldU)+'</div><div class="small muted">'+fmtMoney(m.soldV,0)+' · '+m.disp+(langHi()?' डिस्पैच':' dispatches')+'</div></div>'+
       '<div class="card pad" style="flex:1 1 44%"><div class="eyebrow">'+(langHi()?'आया':'Stocked in')+'</div><div class="num" style="font-weight:800;font-size:21px">'+fmtQty(m.inU)+'</div><div class="small muted">'+(langHi()?'पिछले ':'last ')+days+(langHi()?' दिन':' days')+'</div></div>'+
@@ -2298,8 +2483,13 @@ function vItem(id){
   '</div>';
   if(i.notes)h+='<div class="card pad mb"><div class="eyebrow" style="margin-bottom:5px">Notes</div><div style="white-space:pre-wrap;font-size:14px">'+esc(i.notes)+'</div></div>';
   if(can('delitem'))h+='<button class="btn danger block mt" data-act="delitem" data-id="'+i.id+'">'+ico('trash')+'Move to trash</button>';
-  /* ---- movement history for this item: pieces in / out, rack, why, who ---- */
-  const allTx=(S.txns||[]).filter(t=>t.itemId===i.id);
+  /* ---- movement history for this item: pieces in / out, rack, why, who ----
+     Read from the cache FIRST so the page paints instantly, then replaced with
+     this item's full history from the server. S.txns only holds the newest 1200
+     entries across the whole warehouse -- about three days -- so filtering it by
+     item showed "no movements before yesterday" on items that had moved for
+     months. itemHistory() fixes that; see the refresh at the end of this view. */
+  const allTx=itemHistoryCached(i.id);
   const myTx=allTx.slice(0,40);
   const win=Date.now()-30*86400000;
   const rec=allTx.filter(t=>t.ts>=win);
@@ -2326,6 +2516,13 @@ function vItem(id){
     }).join('')+'</div></div>'+(allTx.length>40?'<div class="small muted mt">'+(langHi()?'पुरानी एंट्री एक्टिविटी लॉग में हैं।':'Older entries are in the Activity log.')+'</div>':''))
     :'<div class="sub">'+(langHi()?'अभी कोई हलचल नहीं':'No movements recorded yet.')+'</div>';
   $('#main').innerHTML=h;
+  /* The page is now on screen built from whatever was cached. Fetch this item's
+     real history and, if it brought anything new, draw the view again. */
+  itemHistoryLoad(i.id).then(fresh=>{
+    if(!fresh)return;
+    if((location.hash||'').indexOf(i.id)<0)return;     // they navigated away
+    vItem(id);
+  }).catch(e=>console.error('item history fetch failed',e));
   // photos
   getPhotos(i.id).then(ps=>{if(!ps.length)return;const g=$('#gal');if(!g)return;g.innerHTML=(i.img?'<div class="g"><img src="'+esc(i.img)+'" alt="" referrerpolicy="no-referrer"></div>':'')+ps.map(p=>'<div class="g"><img src="'+esc(p)+'" alt=""></div>').join('')});
   // qty controls — delta only
@@ -3983,7 +4180,9 @@ function vDash(days){
   days=+days||30;const since=Date.now()-days*86400000;
   topTitle('Dashboard','#more');
   const OUT=['out','dispatch'];
-  const t=(S.txns||[]).filter(x=>x.ts>=since);
+  const t=periodRows(days).filter(x=>x.ts>=since);
+  /* fetch the real period in the background, then draw again with it */
+  if(!periodRowsReady(days))txnsForPeriod(days).then(()=>{if((location.hash||'').indexOf('dash')>=0)vDash(days)}).catch(e=>console.error('dashboard fetch failed',e));
   const disp=t.filter(x=>x.act==='dispatch');
   const outUnits=t.filter(x=>OUT.indexOf(x.act)>=0).reduce((a,x)=>a+(+x.qty||0),0);
   const totUnits=S.items.reduce((a,i)=>a+(+i.qty||0),0);
@@ -4407,10 +4606,19 @@ function vReports(r){
     $$('#rep-body [data-i]').forEach(tr=>tr.onclick=()=>go('#item/'+tr.dataset.i));
   }
   else if(r==='activity'){
-    let period=30,typ='';
+    let period=30,typ='',src=null;      // src = the real period, fetched from the server
     const controls='<div class="row mb" style="gap:8px"><select class="in" id="ra-p" style="flex:1"><option value="7">Last 7 days</option><option value="15">Last 15 days</option><option value="30" selected>Last 30 days (full history)</option></select><select class="in" id="ra-t" style="flex:1"><option value="">All actions</option>'+Object.keys(ACT_LABEL).map(k=>'<option value="'+k+'">'+ACT_LABEL[k]+'</option>').join('')+'</select></div>';
-    function rowsFor(){const cut=period?Date.now()-period*86400000:0;return S.txns.filter(t=>t.ts>=cut&&(!typ||t.act===typ))}
-    function bodyFor(){const rs=rowsFor();return rs.length?'<div class="card" style="padding:4px 14px"><div class="hist">'+rs.slice(0,250).map(txHTML).join('')+'</div></div>'+(rs.length>250?'<div class="sub mt">Showing first 250 of '+rs.length+' — use CSV for everything.</div>':''):'<div class="empty"><div class="t">No activity in this period</div></div>'}
+    function rowsFor(){const cut=period?Date.now()-period*86400000:0;return (src||[]).filter(t=>t.ts>=cut&&(!typ||t.act===typ))}
+    function bodyFor(){
+      if(src===null)return '<div class="empty"><div class="t">Reading the last '+period+' days…</div></div>';
+      const rs=rowsFor();
+      const note=src.truncated?'<div class="sub mb" style="color:var(--amber)">This period holds more entries than can be shown at once — the oldest are left out. Use a shorter period or the CSV.</div>':'';
+      return rs.length?note+'<div class="card" style="padding:4px 14px"><div class="hist">'+rs.slice(0,250).map(txHTML).join('')+'</div></div>'+(rs.length>250?'<div class="sub mt">Showing first 250 of '+rs.length+' — use CSV for everything.</div>':''):'<div class="empty"><div class="t">No activity in this period</div></div>'}
+    async function reload(){
+      src=null;const b=$('#rep-body');if(b)b.innerHTML=bodyFor();
+      try{src=await txnsForPeriod(period)}catch(e){console.error('activity fetch failed',e);src=[];toast(langHi()?'पूरा डेटा नहीं मिला':'Could not read the full period','err')}
+      const b2=$('#rep-body');if(b2)b2.innerHTML=bodyFor();
+    }
     shell('Activity log',controls,bodyFor(),
       ()=>{const rs=rowsFor();printTable('Activity log',(period?'Last '+period+' days':'All time')+(typ?' · '+ACT_LABEL[typ]:''),[['When'],['Who'],['Action'],['Item'],['Pieces',1],['Detail']],rs.map(t=>{const dl=txDelta(t);return [fmtDT(t.ts),t.user||'',ACT_LABEL[t.act]||t.act,t.itemName||'',
         dl==null?'':((dl<0?'-':'+')+fmtQty(Math.abs(dl))),
@@ -4419,15 +4627,16 @@ function vReports(r){
         rs.forEach(t=>{const dl=txDelta(t);rows.push([new Date(t.ts).toISOString(),t.user,ACT_LABEL[t.act]||t.act,t.itemName||'',
           dl==null?'':dl,t.fromQ!=null?t.fromQ:'',t.toQ!=null?t.toQ:'',t.rack||'',t.awb||'',t.reason||'',
           t.qtyMoved!=null?t.qtyMoved:'',t.from||'',t.to||'',t.detail||''])});download('activity.csv',buildCSV(rows),'text/csv');logTx('export',{detail:'Activity CSV'})});
-    $('#ra-p').onchange=e=>{period=+e.target.value;$('#rep-body').innerHTML=bodyFor()};
-    $('#ra-t').onchange=e=>{typ=e.target.value;$('#rep-body').innerHTML=bodyFor()};
+    $('#ra-p').onchange=e=>{period=+e.target.value;reload()};
+    $('#ra-t').onchange=e=>{typ=e.target.value;const b=$('#rep-body');if(b)b.innerHTML=bodyFor()};
+    reload();
   }
   else if(r==='flow'){
-    let period=30;
+    let period=30,src=null;        // src = the real period's rows, fetched from the server
     const controls='<div class="field"><select class="in" id="rf-p"><option value="7">Last 7 days</option><option value="15">Last 15 days</option><option value="30" selected>Last 30 days</option></select></div>';
     function calc(){
       const cut=Date.now()-period*86400000;const m={};
-      S.txns.forEach(t=>{
+      (src||[]).forEach(t=>{
         if(t.ts<cut||t.fromQ==null||t.toQ==null||!t.itemId)return;
         const d=round4(t.toQ-t.fromQ);if(!d)return;
         const e=m[t.itemId]||(m[t.itemId]={name:t.itemName||'?',inn:0,out:0});
@@ -4435,21 +4644,31 @@ function vReports(r){
       });
       return Object.keys(m).map(k=>Object.assign({id:k},m[k])).sort((a,b)=>(b.inn+b.out)-(a.inn+a.out));
     }
-    function bodyFor(){const rs=calc();return rs.length?'<div class="tablewrap"><table class="t"><thead><tr><th>Item</th><th class="r">In</th><th class="r">Out</th><th class="r">Net</th></tr></thead><tbody>'+rs.map(x=>'<tr><td>'+esc(x.name)+'</td><td class="r num" style="color:var(--green)">+'+fmtQty(x.inn)+'</td><td class="r num" style="color:var(--red)">−'+fmtQty(x.out)+'</td><td class="r num" style="font-weight:700">'+fmtQty(round4(x.inn-x.out))+'</td></tr>').join('')+'</tbody></table></div>':'<div class="empty"><div class="t">No quantity changes in this period</div><div class="s">Adjustments, picks and receipts will show up here.</div></div>'}
+    function bodyFor(){
+      if(src===null)return '<div class="empty"><div class="t">Reading the last '+period+' days…</div><div class="s">Fetching every movement in the period, not just the recent ones.</div></div>';
+      const rs=calc();
+      const note=src.truncated?'<div class="sub mb" style="color:var(--amber)">This period holds more movements than can be shown at once — the oldest are left out. Use a shorter period or the CSV.</div>':'';
+      return rs.length?note+'<div class="tablewrap"><table class="t"><thead><tr><th>Item</th><th class="r">In</th><th class="r">Out</th><th class="r">Net</th></tr></thead><tbody>'+rs.map(x=>'<tr><td>'+esc(x.name)+'</td><td class="r num" style="color:var(--green)">+'+fmtQty(x.inn)+'</td><td class="r num" style="color:var(--red)">−'+fmtQty(x.out)+'</td><td class="r num" style="font-weight:700">'+fmtQty(round4(x.inn-x.out))+'</td></tr>').join('')+'</tbody></table></div>':'<div class="empty"><div class="t">No quantity changes in this period</div><div class="s">Adjustments, picks and receipts will show up here.</div></div>'}
+    async function reload(){
+      src=null;const b=$('#rep-body');if(b)b.innerHTML=bodyFor();
+      try{src=await txnsForPeriod(period)}catch(e){console.error('item flow fetch failed',e);src=[];toast(langHi()?'पूरा डेटा नहीं मिला':'Could not read the full period','err')}
+      const b2=$('#rep-body');if(b2)b2.innerHTML=bodyFor();
+    }
     shell('Item flow',controls,bodyFor(),
       ()=>{const rs=calc();printTable('Item flow','Last '+period+' days',[['Item'],['In',1],['Out',1],['Net',1]],rs.map(x=>[x.name,'+'+fmtQty(x.inn),'-'+fmtQty(x.out),fmtQty(round4(x.inn-x.out))]))},
       ()=>{const rs=calc();const rows=[['Item','Units in','Units out','Net']];rs.forEach(x=>rows.push([x.name,x.inn,x.out,round4(x.inn-x.out)]));download('item-flow.csv',buildCSV(rows),'text/csv');logTx('export',{detail:'Item flow CSV'})});
-    $('#rf-p').onchange=e=>{period=+e.target.value;$('#rep-body').innerHTML=bodyFor()};
+    $('#rf-p').onchange=e=>{period=+e.target.value;reload()};
+    reload();
   }
   else if(r==='moves'){
-    let period=30,dir='',reason='';
+    let period=30,dir='',reason='',src=null;   // src = the real period, from the server
     const reasonOpts=[...new Set([...IN_REASONS,...OUT_REASONS,...ADJ_REASONS,'Transfer'])];
     const controls='<div class="row mb" style="gap:8px;flex-wrap:wrap">'+
       '<select class="in" id="rm-p" style="flex:1;min-width:120px"><option value="7">Last 7 days</option><option value="15">Last 15 days</option><option value="30" selected>Last 30 days</option></select>'+
       '<select class="in" id="rm-d" style="flex:1;min-width:110px"><option value="">In &amp; out</option><option value="in">Stock in only</option><option value="out">Stock out only</option></select></div>';
     function rowsFor(){
       const cut=Date.now()-period*86400000;
-      return S.txns.filter(t=>{
+      return (src||[]).filter(t=>{
         if(t.ts<cut)return false;
         const isIn=t.act==='in'||t.act==='received';
         const isOut=t.act==='out'||t.act==='picked';
@@ -4476,8 +4695,14 @@ function vReports(r){
     shell('Stock movements',controls,bodyFor(),
       ()=>{const rs=rowsFor();printTable('Stock movements','Last '+period+' days'+(dir?' · '+dir:''),[['When'],['Item'],['Direction'],['Reason'],['Qty',1],['By']],rs.map(x=>[fmtDate(x.ts),x.name,x.dir==='in'?'IN':'OUT',x.reason,(x.dir==='in'?'+':'-')+fmtQty(x.qty),x.user]))},
       ()=>{const rs=rowsFor();const rows=[['Date','Item','Direction','Reason','Qty','Balance after','By']];rs.forEach(x=>rows.push([new Date(x.ts).toISOString(),x.name,x.dir,x.reason,x.qty,x.balance,x.user]));download('stock-movements.csv',buildCSV(rows),'text/csv');logTx('export',{detail:'Stock movements CSV'})});
-    $('#rm-p').onchange=e=>{period=+e.target.value;$('#rep-body').innerHTML=bodyFor()};
-    $('#rm-d').onchange=e=>{dir=e.target.value;$('#rep-body').innerHTML=bodyFor()};
+    async function reload(){
+      src=null;const b=$('#rep-body');if(b)b.innerHTML='<div class="empty"><div class="t">Reading the last '+period+' days…</div></div>';
+      try{src=await txnsForPeriod(period)}catch(e){console.error('movements fetch failed',e);src=[];toast(langHi()?'पूरा डेटा नहीं मिला':'Could not read the full period','err')}
+      const b2=$('#rep-body');if(b2)b2.innerHTML=bodyFor();
+    }
+    $('#rm-p').onchange=e=>{period=+e.target.value;reload()};
+    $('#rm-d').onchange=e=>{dir=e.target.value;const b=$('#rep-body');if(b)b.innerHTML=bodyFor()};
+    reload();
   }
   else go('#reports');
 }
@@ -5902,7 +6127,22 @@ function vMore(){
   const cc=$('#cl-cfg');if(cc)cc.onclick=()=>{vSetup()};
   const co=$('#cl-out');if(co)co.onclick=async()=>{const ok=await confirmDlg('Sign out?','You will need the user ID and password to sign back in.','Sign out');if(!ok)return;try{await firebase.auth().signOut()}catch(e){};location.reload()};
   if($('#bk-out'))$('#bk-out').onclick=async()=>{
-    const out={app:'invento',version:1,exportedAt:new Date().toISOString(),meta:S.meta,folders:S.folders,items:S.items,txns:S.txns,lists:S.lists,pos:S.pos,trash:S.trash,dispatches:S.dispatches,approvals:S.approvals,awbs:S.awbs,photos:{}};
+    /* A backup must hold the WHOLE movement log, not the few days S.txns keeps
+       on hand. Exporting the cached window produced a file that looked complete
+       and quietly contained about three days of history. */
+    let txnsOut=S.txns;
+    try{
+      toast(langHi()?'पूरा हिसाब इकट्ठा हो रहा है…':'Collecting the full movement log…','ok');
+      const full=await txnsForPeriod(0);
+      if(full&&full.length>=txnsOut.length)txnsOut=full;
+    }catch(e){
+      console.error('backup: full movement log fetch failed',e);
+      const go=await confirmDlg(langHi()?'पूरा हिसाब नहीं मिला':'Could not read the full movement log',
+        langHi()?'बैकअप में सिर्फ हाल की एंट्री जाएँगी। बाकी सब पूरा रहेगा। फिर भी बनाएँ?':'The backup will hold only recent movements. Everything else will be complete. Make it anyway?',
+        langHi()?'हाँ, बनाएँ':'Make it anyway');
+      if(!go)return;
+    }
+    const out={app:'invento',version:1,exportedAt:new Date().toISOString(),meta:S.meta,folders:S.folders,items:S.items,txns:txnsOut,lists:S.lists,pos:S.pos,trash:S.trash,dispatches:S.dispatches,approvals:S.approvals,awbs:S.awbs,photos:{}};
     if($('#bk-ph').checked){
       const keys=await store.listPhotoKeys();
       for(const k of keys){const v=await store.get(k);if(v)out.photos[k]=v}
@@ -7098,16 +7338,37 @@ const AWB_KEEP_DAYS=60;   // dispatched/returned docs are remembered this long, 
    resolvedAt alone aged a parcel out 60 days after it went out -- which could be
    the day after it came back. Retention has to run from whichever happened last. */
 function awbResolvedAt(a){return Math.max(+(a&&a.resolvedAt)||0,+(a&&a.returnedAt)||0)}
-async function purgeOldAwbs(){
+/* Which parcels are OLD ENOUGH to drop. Reporting only -- this never deletes. */
+function awbsEligibleForPurge(){
+  const cut=Date.now()-AWB_KEEP_DAYS*86400000;
+  return (S.awbs||[]).filter(a=>(a.status==='dispatched'||a.status==='returned'||a.status==='custreturn')&&awbResolvedAt(a)<cut);
+}
+let PURGE_DUE=0;
+function purgeCount(){
   try{
-    const cut=Date.now()-AWB_KEEP_DAYS*86400000;
-    const old=(S.awbs||[]).filter(a=>(a.status==='dispatched'||a.status==='returned'||a.status==='custreturn')&&awbResolvedAt(a)<cut);
-    if(!old.length)return;
-    const gone=new Set(old.map(a=>a.id));
-    S.awbs=S.awbs.filter(a=>!gone.has(a.id));
-    if(MODE==='cloud'){for(const a of old){try{await db.collection('awbs').doc(a.id).delete()}catch(e){}}}
-    else await saveNow('awbs');
-  }catch(e){}
+    PURGE_DUE=awbsEligibleForPurge().length;
+    if(PURGE_DUE)console.info(PURGE_DUE+' AWBs are older than '+AWB_KEEP_DAYS+' days and could be cleared — nothing has been deleted.');
+  }catch(e){PURGE_DUE=0}
+  return PURGE_DUE;
+}
+/* The only way old parcels ever leave. Called by a person, from a button, after
+   being shown the exact count -- never on a timer and never at sign-in. */
+async function purgeOldAwbs(confirmedCount){
+  const old=awbsEligibleForPurge();
+  if(!old.length)return 0;
+  if(confirmedCount!==old.length){
+    console.warn('purgeOldAwbs refused: expected a confirmed count of '+old.length);
+    return 0;                      // refuses unless the caller saw this exact number
+  }
+  const gone=new Set(old.map(a=>a.id));
+  S.awbs=S.awbs.filter(a=>!gone.has(a.id));
+  let done=0,failed=0;
+  if(MODE==='cloud'){
+    for(const a of old){try{await db.collection('awbs').doc(a.id).delete();done++}catch(e){failed++;console.error('purge failed for',a.awb,e)}}
+  } else {await saveNow('awbs');done=old.length}
+  logTx('shipment',{detail:'Cleared '+done+' parcel record'+(done===1?'':'s')+' older than '+AWB_KEEP_DAYS+' days'+(failed?' · '+failed+' could not be deleted':'')+' · by '+userName()});
+  PURGE_DUE=awbsEligibleForPurge().length;
+  return done;
 }
 function awbPending(){return (S.awbs||[]).filter(a=>a.status==='accepted'||a.status==='packed')}
 function awbToPack(){return (S.awbs||[]).filter(a=>a.status==='accepted')}
@@ -7421,8 +7682,12 @@ async function packPhotoPurge(){
       const q=await db.collection('packphotos').where('at','<',cut).limit(40).get();
       if(q.empty)return 0;
       const b=db.batch();q.forEach(d=>b.delete(d.ref));await b.commit();
+      /* This one DOES still run on its own, because it enforces a retention you
+         set yourself and unbounded photos cost you storage every month. What it
+         no longer does is vanish without trace. */
+      logTx('shipment',{detail:'Removed '+q.size+' packing photo'+(q.size===1?'':'s')+' older than '+PACK_KEEP_DAYS+' days (retention setting)'});
       return q.size;
-    }catch(e){return 0}
+    }catch(e){console.error('packPhotoPurge failed',e);return 0}
   }
   const before=(S.packphotos||[]).length;
   S.packphotos=(S.packphotos||[]).filter(p=>p.at>=cut);
@@ -9920,6 +10185,7 @@ function bootLoaderHTML(msg,sub){
   OPERATOR=opLoad();      // the person from earlier in the shift, if the code is still fresh
   bootDone=true;
   scheduleAutoPO();
+  startUpdateWatch();
   setTimeout(()=>{autoRecoveryCheck()},4000);
   route();
 })();
