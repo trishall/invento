@@ -1,4 +1,4 @@
-<!DOCTYPE html><!--INVENTO_BUILD 2026-10-16.1-->
+<!DOCTYPE html><!--INVENTO_BUILD 2026-10-17.2-->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -912,7 +912,7 @@ const cap1=s=>{s=String(s||'');return s?s.charAt(0).toUpperCase()+s.slice(1):s};
    · FIRESTORE's offline copy of the data. That one stays -- without it the
      warehouse stops working the moment the wifi dips -- but it must say when it
      is what you are reading, instead of looking exactly like live data. */
-const APP_BUILD='2026-10-16.1';
+const APP_BUILD='2026-10-17.2';
 const shadows={};
 const dirty={};
 /* col -> true while its latest snapshot came from the offline copy, not the
@@ -1843,8 +1843,8 @@ function route(){
   const h=(location.hash||'#home').slice(1);
   const [p,a,b]=h.split('/');
   const main=$('#main');main.scrollTop=0;window.scrollTo(0,0);
-  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),ai:vAI,shopify:vShopify,skulink:vSkuLink,pack:vPack,workers:vWorkers,flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals,awb:()=>vAwb(a||null,b||null),uniexport:()=>{vMore();setTimeout(exportUnicommerce,30)},backups:vBackups,importfix:vImportFix,tasks:()=>vTasks(a||null),dash:()=>vDash(30),help:vHelp,aiscan:vAiScan,exportall:()=>{vMore();setTimeout(exportAllItems,30)}};
-  setActiveNav(p==='item'||p==='edit'||p==='folders'?'stock':(p==='list'||p==='po'?'flows':((p==='trash'||p==='import'||p==='importfix'||p==='shopify'||p==='skulink'||p==='workers')?'more':((p==='return'||p==='awb'||p==='aiscan'||p==='pack')?'dispatch':p))));
+  const map={home:vHome,stock:()=>vStock(a||null),item:()=>vItem(a),edit:()=>vEdit(a,b),scan:()=>vScan(a,b),ai:vAI,shopify:vShopify,shpick:vShPick,shlook:vShLook,skulink:vSkuLink,pack:vPack,workers:vWorkers,flows:()=>vFlows(a||'pick'),list:()=>vList(a),po:()=>vPO(a),labels:vLabels,reports:()=>vReports(a),more:vMore,trash:vTrash,'import':vImport,folders:vFolderMgr,users:vUsers,perms:vPerms,dispatch:()=>vDispatch(a||null,b||null),'return':()=>vReturn(a||null,b||null),orders:()=>vOrders(a||null,b||null),approvals:vApprovals,awb:()=>vAwb(a||null,b||null),uniexport:()=>{vMore();setTimeout(exportUnicommerce,30)},backups:vBackups,importfix:vImportFix,tasks:()=>vTasks(a||null),dash:()=>vDash(30),help:vHelp,aiscan:vAiScan,exportall:()=>{vMore();setTimeout(exportAllItems,30)}};
+  setActiveNav(p==='item'||p==='edit'||p==='folders'?'stock':(p==='list'||p==='po'?'flows':((p==='trash'||p==='import'||p==='importfix'||p==='shopify'||p==='shpick'||p==='shlook'||p==='skulink'||p==='workers')?'more':((p==='return'||p==='awb'||p==='aiscan'||p==='pack')?'dispatch':p))));
   try{(map[p]||vHome)();}
   catch(e){
     console.error('view error',p,e);
@@ -5078,7 +5078,7 @@ async function shLoad(){
   try{
     const d=(await shFn()({action:'getSettings'})).data||{};
     if(d.settingsSupported!==true){SH={loaded:true,ok:false,err:'',settings:null,shops:[],lastAuto:null}}
-    else SH={loaded:true,ok:true,err:'',settings:d.settings,shops:d.shops||[],lastAuto:d.lastAuto||null};
+    else SH={loaded:true,ok:true,err:'',settings:d.settings,shops:d.shops||[],lastAuto:d.lastAuto||null,editSupported:d.editSupported===true};
   }catch(e){SH={loaded:true,ok:false,err:String(e&&e.message||e),settings:null,shops:[],lastAuto:null}}
   shPaint();
 }
@@ -5946,6 +5946,340 @@ function wireUncounted(i){
     beep(true);toast('Counted — '+fmtQty(n),'ok');route();
   };
 }
+/* ---------- Send chosen products to Shopify ----------
+   Search Invento by name or SKU, pick the one or two products you actually mean,
+   send only those. A screen of its own on purpose: the scheduled sync and its
+   on/off switch have nothing to do with this -- it is a deliberate, hand-picked
+   push, and it works whether the store is switched on or off.
+   It writes to SHOPIFY only. Nothing on this screen changes Invento's stock. */
+var _spPicks=[];     // item ids chosen, in the order they were chosen
+var _spOK=null;      // fingerprint of the last clean preview
+function spItems(){return _spPicks.map(id=>iById(id)).filter(Boolean)}
+function spSkus(){
+  const out=[],seen={};
+  spItems().forEach(i=>skusOf(i).forEach(sk=>{
+    const k=String(sk||'').trim().toUpperCase();
+    if(k&&!seen[k]){seen[k]=1;out.push(String(sk).trim())}
+  }));
+  return out;
+}
+function spFp(){return JSON.stringify([spSkus().map(x=>x.toUpperCase()).sort(),($('#sp-shop')||{}).value,JSON.stringify(SH.settings)])}
+function spPaint(){
+  const T=(hi,en)=>langHi()?hi:en;
+  const sel=$('#sp-shop');
+  if(sel&&SH.shops.length&&sel.options.length!==SH.shops.length){
+    const cur=sel.value;
+    sel.innerHTML=SH.shops.map(d=>'<option value="'+esc(d)+'">'+esc(shName(d))+'</option>').join('');
+    if(SH.shops.indexOf(cur)>=0)sel.value=cur;
+  }
+  const shop=sel?sel.value:'';
+  const dir=$('#sp-dir');
+  if(dir)dir.innerHTML=shop&&SH.ok
+    ? esc(shModeLabel(shStore(shop).mode))+(shStore(shop).on?'':' · '+T('स्टोर बंद है','store is off'))
+    : '—';
+  const tip=$('#sp-tip');
+  if(tip)tip.textContent=shop&&SH.ok?shModeTip(shStore(shop).mode):'';
+  const box=$('#sp-picks'),items=spItems();
+  if(box){
+    box.innerHTML=items.length?items.map(i=>{
+      const codes=skusOf(i).filter(Boolean);
+      return '<div class="row" style="gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)">'+
+        '<div class="grow"><div class="nm ellip">'+esc(i.name)+'</div>'+
+        '<div class="meta num">'+(codes.length?codes.map(c=>'<span class="skutag">'+esc(c)+'</span>').join(' '):'<span style="color:var(--red)">'+T('कोई SKU नहीं — नहीं भेजा जा सकता','no SKU — cannot be sent')+'</span>')+
+        (codes.length>1?' <span class="pill warn" style="font-size:9px">'+codes.length+T(' SKU — हर एक पर यही मात्रा जाएगी',' SKUs — each gets this same number')+'</span>':'')+'</div></div>'+
+        '<b class="num">'+fmtQty(i.qty)+'</b>'+
+        '<button class="icobtn ghost" data-sprm="'+esc(i.id)+'" title="'+T('हटाएँ','Remove')+'">'+ico('x')+'</button></div>';
+    }).join(''):'<div class="hint">'+T('अभी कोई प्रोडक्ट नहीं चुना।','No product picked yet.')+'</div>';
+    $$('#sp-picks [data-sprm]').forEach(b=>b.onclick=()=>{_spPicks=_spPicks.filter(x=>x!==b.dataset.sprm);_spOK=null;spPaint()});
+  }
+  const n=spSkus().length;
+  const cnt=$('#sp-count');
+  if(cnt)cnt.textContent=items.length?(items.length+T(' प्रोडक्ट · ',' product'+(items.length===1?'':'s')+' · ')+n+T(' SKU',' SKU'+(n===1?'':'s'))):'';
+  const prev=$('#sp-prev'),send=$('#sp-send');
+  if(prev)prev.disabled=!(SH.ok&&n>0);
+  if(send)send.disabled=!(SH.ok&&n>0&&_spOK&&_spOK===spFp());
+}
+function spSearch(){
+  const T=(hi,en)=>langHi()?hi:en;
+  const q=$('#sp-q'),res=$('#sp-res');
+  if(!q||!res)return;
+  const v=(q.value||'').trim().toLowerCase();
+  if(!v){res.innerHTML='<div class="hint">'+T('नाम या SKU लिखना शुरू करें।','Start typing a name or SKU.')+'</div>';return}
+  const pool=sortItems(S.items.filter(i=>matches(i,v))).slice(0,12);
+  res.innerHTML=pool.length?pool.map(i=>{
+    const picked=_spPicks.indexOf(i.id)>=0;
+    const codes=skusOf(i).filter(Boolean);
+    return '<div class="irow" data-spadd="'+esc(i.id)+'" style="cursor:pointer;opacity:'+(picked?'.5':'1')+'">'+
+      '<span class="th">'+((i.img||i.thumb)?'<img src="'+esc(i.img||i.thumb)+'" alt="" referrerpolicy="no-referrer">':ico('box'))+'</span>'+
+      '<div class="grow"><div class="nm ellip">'+esc(i.name)+(picked?' <span class="pill ok" style="font-size:9px">'+T('चुना हुआ','picked')+'</span>':'')+'</div>'+
+      '<div class="meta num">'+(codes[0]?'<span class="skutag">'+esc(codes[0])+'</span> ':'')+fmtQty(i.qty)+' '+esc(i.unit||'')+'</div></div>'+
+      ico('plus','muted')+'</div>';
+  }).join(''):'<div class="hint">'+T('कुछ नहीं मिला।','Nothing found.')+'</div>';
+  $$('#sp-res [data-spadd]').forEach(el=>el.onclick=()=>{
+    const id=el.dataset.spadd,it=iById(id);
+    if(!it)return;
+    if(!skusOf(it).filter(Boolean).length){toast(T('इस प्रोडक्ट पर SKU नहीं है','This product has no SKU'),'err');return}
+    if(_spPicks.indexOf(id)<0)_spPicks.push(id);
+    _spOK=null;q.value='';spSearch();spPaint();
+    try{q.focus()}catch(e){}
+  });
+}
+async function spCall(dryRun){
+  const T=(hi,en)=>langHi()?hi:en;
+  const skus=spSkus(),shop=($('#sp-shop')||{}).value,fp=spFp(),items=spItems();
+  if(!skus.length){toast(T('पहले प्रोडक्ट चुनें','Pick a product first'),'err');return}
+  if(!shop){toast(T('स्टोर चुनें','Pick a store'),'err');return}
+  if(!dryRun){
+    if(_spOK!==fp){toast(T('पहले "पहले देखें" चलाएँ','Run Preview first'),'err');return}
+    const yes=await confirmDlg(T('Shopify पर भेजें?','Send to Shopify?'),
+      '<b>'+items.length+'</b>'+T(' प्रोडक्ट',' product'+(items.length===1?'':'s'))+' → <b>'+esc(shName(shop))+'</b> ('+esc(shModeLabel(shStore(shop).mode))+')'+
+      '<div class="sub mt">'+T('Invento का स्टॉक इससे नहीं बदलेगा।','This does not change Invento\'s own stock.')+'</div>',
+      T('भेजें','Send'),true);
+    if(!yes)return;
+  }
+  const bp=$('#sp-prev'),bs=$('#sp-send'),out=$('#sp-out');
+  [bp,bs].forEach(b=>{if(b)b.disabled=true});
+  if(out)out.innerHTML='<div class="sub">'+(dryRun?T('जाँच रहे हैं…','Checking…'):T('भेज रहे हैं…','Sending…'))+'</div>';
+  try{
+    const d=(await shFn()({dryRun:!!dryRun,stores:[shop],skus:skus})).data||{};
+    const rows=d.results||[];
+    /* the same guard the SKU push uses: an older function ignores `skus` and
+       would push the whole catalogue, which must never pass silently */
+    if(d.skusSupported!==true||rows.some(r=>shId(r)!==shop)){
+      _spOK=null;SH.ok=false;
+      if(out)out.innerHTML='<div class="card pad" style="border-left:4px solid var(--red)"><b style="color:var(--red)">'+
+        T('पुराना Cloud Function — चुने हुए प्रोडक्ट नहीं समझता।','The deployed Cloud Function is too old to honour a picked list.')+'</b><div class="sub mt">'+
+        (dryRun?T('कुछ नहीं भेजा गया।','Nothing was sent.'):T('⚠ पूरा कैटलॉग चला गया हो सकता है — Shopify जाँचें।','⚠ It may have pushed the whole catalogue — check Shopify.'))+'</div></div>';
+    }else{
+      if(out)out.innerHTML=rows.map(shopifyResultHTML).join('');
+      if(dryRun)_spOK=rows.some(r=>r.error)?null:fp;
+      else{
+        _spOK=null;
+        logTx('export',{detail:'Shopify · sent '+items.length+' picked product'+(items.length===1?'':'s')+' ('+skus.length+' SKU'+(skus.length===1?'':'s')+') · '+shName(shop)+' · '+rows.map(r=>r.error?'error':(r.applied||0)+' changed').join(' · ')+' · by '+userName()});
+        toast(T('भेज दिया','Sent'),'ok');
+      }
+    }
+  }catch(e){_spOK=null;if(out)out.innerHTML='<div class="sub" style="color:var(--red)">'+esc(String(e&&e.message||e).slice(0,200))+'</div>'}
+  if(bp)bp.disabled=false;
+  spPaint();
+}
+function vShPick(){
+  if(!isAdminU()){toast(langHi()?'सिर्फ एडमिन':'Admins only','err');go('#more');return}
+  const T=(hi,en)=>langHi()?hi:en;
+  topTitle(T('चुने हुए प्रोडक्ट Shopify पर','Send products to Shopify'),'#shopify');
+  _spOK=null;
+  let h='<h1 class="page">'+T('चुने हुए प्रोडक्ट Shopify पर','Send products to Shopify')+'</h1>';
+  h+='<div class="card pad mb"><div class="sub">'+T('नाम या SKU से प्रोडक्ट ढूँढें, जो भेजने हैं वही चुनें, और सिर्फ़ उन्हीं की मात्रा Shopify पर भेजें। बाकी कैटलॉग को कुछ नहीं होगा, और Invento का अपना स्टॉक इससे नहीं बदलता।',
+    'Find a product by name or SKU, pick the ones you want, and send only their quantities to Shopify. The rest of the catalogue is left alone, and this never changes Invento\'s own stock.')+'</div></div>';
+  h+='<div class="searchbar mb">'+ico('search')+'<input id="sp-q" placeholder="'+T('नाम या SKU','Product name or SKU')+'" autocomplete="off"></div>';
+  h+='<div id="sp-res" class="ilist mb" style="max-height:34dvh;overflow:auto"></div>';
+  h+='<div class="section-h"><h2>'+T('भेजे जाएँगे','Going to Shopify')+'</h2><span class="small muted" id="sp-count"></span></div>';
+  h+='<div class="card pad mb"><div id="sp-picks"></div></div>';
+  h+='<div class="row wrap mb" style="gap:8px;align-items:center">'+
+     '<select class="in" id="sp-shop" style="flex:1;min-width:170px"></select>'+
+     '<span class="pill info" id="sp-dir">—</span></div>';
+  h+='<div class="hint mb" id="sp-tip"></div>';
+  h+='<div class="row" style="gap:8px"><button class="btn grow" id="sp-prev" disabled>'+ico('search')+T('पहले देखें','Preview')+'</button>'+
+     '<button class="btn pri grow" id="sp-send" disabled>'+ico('spark')+T('भेजें','Send')+'</button></div>';
+  h+='<div id="sp-out" class="mt"></div>';
+  $('#main').innerHTML=h;
+  const q=$('#sp-q');
+  if(q){q.oninput=spSearch;setTimeout(()=>{try{q.focus()}catch(e){}},60)}
+  const sel=$('#sp-shop');if(sel)sel.onchange=()=>{_spOK=null;spPaint()};
+  $('#sp-prev').onclick=()=>spCall(true);
+  $('#sp-send').onclick=()=>spCall(false);
+  spSearch();spPaint();
+  shLoad().then(()=>spPaint()).catch(()=>spPaint());
+}
+/* ---------- Shopify look-up ----------
+   Search a Shopify store directly -- by name, SKU or barcode, or list every
+   variant with no SKU / with tracking off -- and fix one variant at a time:
+   its quantity, its SKU (picked from Invento), or tracking on/off.
+   It writes to SHOPIFY only, one variant per save, after a confirm that
+   shows from -> to. Nothing here touches Invento's stock: the only Invento
+   write is a line in the movement log saying what was changed on Shopify. */
+var _slRows=[];   // what the last search returned
+var _slSeq=0;     // newest search wins
+var _slNote='';
+var _slMode='search';
+function slShop(){return ($('#sl-shop')||{}).value||''}
+function slInvento(sku){
+  const k=String(sku||'').trim().toUpperCase();if(!k)return null;
+  return S.items.find(i=>skusOf(i).some(s=>String(s||'').trim().toUpperCase()===k))||null;
+}
+function slReady(){return !!(SH.ok&&SH.editSupported)}
+function slGateHTML(){
+  const T=(hi,en)=>langHi()?hi:en;
+  if(!SH.loaded)return '<div class="hint">'+T('जाँच रहे हैं…','Checking…')+'</div>';
+  if(slReady())return '';
+  return '<div class="card pad mb" style="border-left:4px solid var(--red)"><b style="color:var(--red)">'+T('Cloud Function अपडेट चाहिए','Cloud Function update needed')+'</b>'+
+    '<div class="sub mt">'+T('यह स्क्रीन नए shopifySync से चलती है। deploy होने तक यहाँ से कुछ नहीं होगा — न ढूँढना, न बदलना।','This screen needs the new shopifySync deployed. Until then it does nothing at all — no search, no changes.')+'</div>'+
+    (SH.err?'<div class="small muted mt mono">'+esc(SH.err.slice(0,200))+'</div>':'')+'</div>';
+}
+function slRowHTML(r,ix){
+  const T=(hi,en)=>langHi()?hi:en;
+  const inv=slInvento(r.sku);
+  const name=esc(r.product||'')+(r.variant?' <span class="muted">· '+esc(r.variant)+'</span>':'');
+  return '<div class="card pad mb" style="padding:10px 12px"><div class="row" style="gap:10px;align-items:flex-start">'+
+    '<span class="th" style="flex:0 0 auto">'+(r.image?'<img src="'+esc(r.image)+'" alt="" referrerpolicy="no-referrer">':ico('box'))+'</span>'+
+    '<div class="grow" style="min-width:0"><div class="nm">'+name+'</div>'+
+    '<div class="meta" style="margin-top:4px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">'+
+      (r.sku?'<span class="skutag">'+esc(r.sku)+'</span>':'<span class="pill" style="background:var(--red);color:#fff">'+T('SKU नहीं','No SKU')+'</span>')+
+      (r.tracked?'<span class="pill ok">'+T('ट्रैकिंग चालू','Tracking on')+'</span>':'<span class="pill warn">'+T('ट्रैकिंग बंद','Tracking off')+'</span>')+
+      (r.barcode?'<span class="small muted mono">'+esc(r.barcode)+'</span>':'')+'</div>'+
+    '<div class="small" style="margin-top:6px">Shopify: <b class="num">'+(r.available===null||r.available===undefined?T('इस गोदाम में नहीं','not stocked here'):fmtQty(r.available))+'</b>'+
+      (inv?' · Invento: <b class="num">'+fmtQty(inv.qty)+'</b>'+(r.available!==null&&r.available!==undefined&&+inv.qty!==+r.available?' <span class="pill warn" style="font-size:9px">'+T('अलग','differs')+'</span>':''):(r.sku?' · <span class="muted">'+T('Invento में यह SKU नहीं','SKU not in Invento')+'</span>':''))+'</div></div>'+
+    '<button class="btn sm" data-sled="'+ix+'">'+ico('edit')+T('बदलें','Edit')+'</button></div></div>';
+}
+function slPaint(){
+  const T=(hi,en)=>langHi()?hi:en;
+  const g=$('#sl-gate');if(g)g.innerHTML=slGateHTML();
+  const sel=$('#sl-shop');
+  if(sel&&SH.shops.length&&sel.options.length!==SH.shops.length){
+    const cur=sel.value;
+    sel.innerHTML=SH.shops.map(d=>'<option value="'+esc(d)+'">'+esc(shName(d))+'</option>').join('');
+    if(SH.shops.indexOf(cur)>=0)sel.value=cur;
+  }
+  ['#sl-go','#sl-nosku','#sl-untr'].forEach(id=>{const b=$(id);if(b)b.disabled=!slReady()});
+  const res=$('#sl-res');if(!res)return;
+  res.innerHTML=(_slNote?'<div class="hint mb">'+_slNote+'</div>':'')+_slRows.map(slRowHTML).join('');
+  $$('#sl-res [data-sled]').forEach(b=>b.onclick=()=>slEdit(+b.dataset.sled));
+}
+async function slFind(mode){
+  const T=(hi,en)=>langHi()?hi:en;
+  if(!slReady())return;
+  const shop=slShop(),q=(($('#sl-q')||{}).value||'').trim();
+  if(mode==='search'&&q.length<2){toast(T('कम से कम 2 अक्षर लिखें','Type at least 2 characters'),'err');return}
+  _slMode=mode;
+  const seq=++_slSeq;
+  _slRows=[];_slNote=T('ढूँढ रहे हैं…','Searching Shopify…');slPaint();
+  try{
+    /* dryRun rides along so that an older function, which does not know these
+       actions, falls through to a harmless check instead of a live sync */
+    const d=(await shFn()({action:'findVariants',store:shop,mode:mode,q:q,dryRun:true})).data||{};
+    if(seq!==_slSeq)return;
+    if(d.editSupported!==true||!Array.isArray(d.rows)){SH.editSupported=false;_slRows=[];_slNote='';slPaint();return}
+    _slRows=d.rows;
+    const n=d.rows.length;
+    _slNote=n?(n+T(' मिले',' found'))+(mode!=='search'?' · '+T('देखे गए: ','looked at ')+(d.scanned||0)+(d.complete?'':T(' — और भी हैं, पहले '+n+' दिखा रहे हैं',' — there are more; showing the first '+n)):''):T('कुछ नहीं मिला।','Nothing found.');
+  }catch(e){if(seq!==_slSeq)return;_slRows=[];_slNote='<span style="color:var(--red)">'+esc(String(e&&e.message||e).slice(0,200))+'</span>'}
+  slPaint();
+}
+function slEdit(ix){
+  const T=(hi,en)=>langHi()?hi:en;
+  const r=_slRows[ix];if(!r)return;
+  const inv=slInvento(r.sku);
+  const stocked=!(r.available===null||r.available===undefined);
+  let h='<h3>'+esc(r.product||'')+(r.variant?' · '+esc(r.variant):'')+'</h3>';
+  h+='<div class="small muted mb">'+esc(shName(slShop()))+T(' पर बदलेगा — Invento का स्टॉक नहीं',' — changes Shopify only, never Invento\'s stock')+'</div>';
+  h+='<label class="lbl">'+T('Shopify मात्रा','Shopify quantity')+'</label>';
+  if(stocked){
+    h+='<div class="row" style="gap:6px"><input class="in grow num" id="se-qty" type="number" min="0" max="100000" step="1" inputmode="numeric" value="'+esc(String(r.available))+'">'+
+      (inv?'<button class="btn sm" id="se-useinv">'+T('Invento वाली ('+fmtQty(inv.qty)+')','Use Invento\'s ('+fmtQty(inv.qty)+')')+'</button>':'')+'</div>';
+  }else h+='<div class="hint">'+T('यह वेरिएंट इस गोदाम में स्टॉक नहीं है — मात्रा यहाँ से नहीं बदल सकती।','This variant is not stocked at the warehouse location — its quantity cannot be set from here.')+'</div>';
+  h+='<label class="lbl mt">SKU</label><input class="in mono" id="se-sku" maxlength="100" autocomplete="off" value="'+esc(r.sku||'')+'" placeholder="'+T('Invento से चुनें या लिखें','Pick from Invento below, or type')+'">';
+  h+='<div class="searchbar mt" style="margin-bottom:4px">'+ico('search')+'<input id="se-iq" placeholder="'+T('Invento में ढूँढें — नाम या SKU','Search Invento — name or SKU')+'" autocomplete="off"></div>';
+  h+='<div id="se-ires" class="ilist" style="max-height:26dvh;overflow:auto"></div>';
+  h+='<label class="row mt" style="gap:10px;align-items:center;cursor:pointer"><input type="checkbox" id="se-tr" style="width:22px;height:22px;accent-color:var(--saddle)"'+(r.tracked?' checked':'')+'>'+
+     '<span class="grow"><b>'+T('ट्रैकिंग','Track quantity')+'</b><div class="hint" style="margin:0">'+T('बंद होने पर Shopify मात्रा नहीं गिनता और स्टॉक खत्म होने पर भी बेचता रहता है।','When off, Shopify stops counting and keeps selling even at zero.')+'</div></span></label>';
+  h+='<div id="se-err" class="small mt" style="color:var(--red)"></div>';
+  h+='<div class="row mt" style="gap:8px"><button class="btn grow" id="se-no">'+T('रद्द','Cancel')+'</button><button class="btn pri grow" id="se-ok">'+T('आगे','Review change')+'</button></div>';
+  openModal(h);
+  const sku=$('#se-sku'),iq=$('#se-iq'),ires=$('#se-ires');
+  const ui=$('#se-useinv');if(ui&&inv)ui.onclick=()=>{$('#se-qty').value=String(Math.max(0,Math.round(+inv.qty||0)))};
+  const draw=()=>{
+    const v=(iq.value||'').trim().toLowerCase();
+    if(!v){ires.innerHTML='<div class="hint">'+T('Invento में प्रोडक्ट ढूँढकर उसका SKU टैप करें।','Find the product in Invento and tap its SKU.')+'</div>';return}
+    const pool=sortItems(S.items.filter(i=>matches(i,v))).slice(0,10);
+    ires.innerHTML=pool.length?pool.map(i=>{
+      const codes=skusOf(i).filter(Boolean);
+      return '<div class="irow" style="cursor:default"><span class="th">'+((i.img||i.thumb)?'<img src="'+esc(i.img||i.thumb)+'" alt="" referrerpolicy="no-referrer">':ico('box'))+'</span>'+
+        '<div class="grow"><div class="nm ellip">'+esc(i.name)+'</div><div class="meta">'+
+        (codes.length?codes.map(c=>'<button class="btn sm" style="margin:2px 4px 2px 0" data-sepick="'+esc(c)+'">'+esc(c)+'</button>').join(''):'<span class="muted">'+T('SKU नहीं','no SKU')+'</span>')+'</div></div></div>';
+    }).join(''):'<div class="hint">'+T('कुछ नहीं मिला।','Nothing found.')+'</div>';
+    $$('#se-ires [data-sepick]').forEach(b=>b.onclick=()=>{sku.value=b.dataset.sepick});
+  };
+  iq.oninput=draw;draw();
+  $('#se-no').onclick=closeModal;
+  $('#se-ok').onclick=()=>{
+    const err=$('#se-err');err.textContent='';
+    const set={},expect={};
+    const ns=(sku.value||'').trim();
+    if(ns!==String(r.sku||'')){
+      if(!ns){err.textContent=T('SKU खाली नहीं किया जा सकता।','A SKU cannot be cleared from here.');return}
+      if(/[\t\r\n]/.test(ns)){err.textContent=T('SKU में टैब/नई लाइन नहीं हो सकती।','No tabs or line breaks in a SKU.');return}
+      set.sku=ns;expect.sku=String(r.sku||'');
+    }
+    const nt=!!$('#se-tr').checked;
+    if(nt!==!!r.tracked){set.tracked=nt;expect.tracked=!!r.tracked}
+    if(stocked){
+      const raw=($('#se-qty').value||'').trim();
+      if(!/^\d+$/.test(raw)||+raw>100000){err.textContent=T('मात्रा 0 से 100000 के बीच पूरी संख्या हो।','Quantity must be a whole number from 0 to 100000.');return}
+      if(+raw!==+r.available){set.available=+raw;expect.available=r.available}
+    }
+    if(!Object.keys(set).length){err.textContent=T('कुछ बदला नहीं।','Nothing changed.');return}
+    closeModal();
+    slSave(ix,set,expect);
+  };
+}
+async function slSave(ix,set,expect){
+  const T=(hi,en)=>langHi()?hi:en;
+  const r=_slRows[ix];if(!r)return;
+  const shop=slShop();
+  const lab={sku:'SKU',tracked:T('ट्रैकिंग','Tracking'),available:T('मात्रा','Quantity')};
+  const show=(k,v)=>k==='tracked'?(v?T('चालू','on'):T('बंद','off')):(k==='sku'&&!v?T('(खाली)','(none)'):String(v));
+  const lines=Object.keys(set).map(k=>'<div>'+lab[k]+': <b>'+esc(show(k,expect[k]))+'</b> → <b>'+esc(show(k,set[k]))+'</b></div>').join('');
+  const yes=await confirmDlg(T('Shopify पर बदलें?','Change on Shopify?'),
+    '<b>'+esc(r.product||'')+(r.variant?' · '+esc(r.variant):'')+'</b> — '+esc(shName(shop))+'<div class="mt">'+lines+'</div>'+
+    '<div class="sub mt">'+T('सिर्फ़ यही एक वेरिएंट बदलेगा। Invento का स्टॉक नहीं बदलेगा।','Only this one variant changes. Invento\'s stock does not change.')+'</div>',T('बदलें','Change'),true);
+  if(!yes)return;
+  const send=async(allowShared)=>(await shFn()({action:'updateVariant',store:shop,inventoryItemId:r.inventoryItemId,set:set,expect:expect,allowShared:!!allowShared,dryRun:true})).data||{};
+  try{
+    let d=await send(false);
+    if(d.editSupported!==true){SH.editSupported=false;slPaint();toast(T('पुराना function — कुछ नहीं बदला','Old function — nothing was changed'),'err');return}
+    if(d.needsConfirm){
+      const list=(d.shared||[]).map(x=>'<div>• '+esc(x.product||'')+(x.variant?' · '+esc(x.variant):'')+'</div>').join('');
+      const ok2=await confirmDlg(T('यह SKU पहले से लगा है','That SKU is already in use'),
+        T('यह SKU इस स्टोर में इन पर पहले से है:','This SKU is already on:')+'<div class="mt">'+list+'</div><div class="sub mt">'+
+        T('दो वेरिएंट पर एक ही SKU होने से सिंक दोनों पर एक ही मात्रा लिखेगा। फिर भी लगाएँ?','With the same SKU on two variants, the sync writes the same number to both. Use it anyway?')+'</div>',T('फिर भी लगाएँ','Use it anyway'),true);
+      if(!ok2)return;
+      d=await send(true);
+    }
+    if(!d.after){toast(T('कुछ नहीं बदला','Nothing changed'),'err');return}
+    _slRows[ix]=Object.assign({},r,d.after);
+    const ch=Object.keys(set).map(k=>lab[k]+' '+show(k,expect[k])+'→'+show(k,(d.after||{})[k])).join(', ');
+    logTx('export',{detail:'Shopify edit · '+shName(shop)+' · '+(r.product||'')+(r.variant?' / '+r.variant:'')+' · '+ch+' · by '+userName()});
+    toast(T('Shopify पर बदल गया','Changed on Shopify'),'ok');
+  }catch(e){
+    const m=String(e&&e.message||e).slice(0,240);
+    toast(m,'err');
+    if(/since you looked/i.test(m)){slFind(_slMode);return}
+  }
+  slPaint();
+}
+function vShLook(){
+  if(!isAdminU()){toast(langHi()?'सिर्फ एडमिन':'Admins only','err');go('#more');return}
+  const T=(hi,en)=>langHi()?hi:en;
+  topTitle(T('Shopify में ढूँढें','Look up on Shopify'),'#shopify');
+  _slRows=[];_slNote='';_slSeq++;
+  let h='<h1 class="page">'+T('Shopify में ढूँढें','Look up on Shopify')+'</h1>';
+  h+='<div class="card pad mb"><div class="sub">'+T('Shopify स्टोर में सीधे ढूँढें — नाम, SKU या बारकोड से। एक-एक वेरिएंट की मात्रा, SKU, या ट्रैकिंग बदलें। जिन पर SKU नहीं है, उन्हें Invento से SKU दें। Invento का स्टॉक इससे कभी नहीं बदलता।',
+    'Search a Shopify store directly — by name, SKU or barcode. Change one variant at a time: its quantity, its SKU, or tracking. Give variants with no SKU one from Invento. This never changes Invento\'s stock.')+'</div></div>';
+  h+='<div id="sl-gate"></div>';
+  h+='<select class="in mb" id="sl-shop" style="width:100%"></select>';
+  h+='<div class="row mb" style="gap:6px"><div class="searchbar grow" style="margin:0">'+ico('search')+'<input id="sl-q" placeholder="'+T('नाम, SKU या बारकोड','Name, SKU or barcode')+'" autocomplete="off"></div>'+
+     '<button class="btn pri" id="sl-go" disabled>'+T('ढूँढें','Search')+'</button></div>';
+  h+='<div class="row mb" style="gap:6px"><button class="btn grow" id="sl-nosku" disabled>'+T('SKU नहीं है','No SKU')+'</button><button class="btn grow" id="sl-untr" disabled>'+T('ट्रैकिंग बंद','Tracking off')+'</button></div>';
+  h+='<div id="sl-res"></div>';
+  $('#main').innerHTML=h;
+  $('#sl-go').onclick=()=>slFind('search');
+  $('#sl-nosku').onclick=()=>slFind('nosku');
+  $('#sl-untr').onclick=()=>slFind('untracked');
+  const q=$('#sl-q');q.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();slFind('search')}});
+  $('#sl-shop').onchange=()=>{_slSeq++;_slRows=[];_slNote='';slPaint()};
+  slPaint();
+  shLoad().then(slPaint,slPaint);
+}
 function vShopify(){
   topTitle('Shopify','#more');
   const T=(hi,en)=>langHi()?hi:en;
@@ -5956,9 +6290,13 @@ function vShopify(){
   h+='<div class="row mb" style="gap:8px"><button class="btn grow" id="sh-dry">'+ico('search')+T('पहले जाँचें (कुछ नहीं बदलेगा)','Check first (changes nothing)')+'</button>'+
      '<button class="btn pri grow" id="sh-run"'+(SH.ok?'':' disabled')+'>'+ico('spark')+T('अभी भेजें','Sync now')+'</button></div>';
   h+='<div id="sh-out"></div>';
+  h+='<button class="btn block mb" id="sh-look">'+ico('search')+T('Shopify में ढूँढें — मात्रा, SKU, ट्रैकिंग बदलें','Look up on Shopify — fix quantity, SKU, tracking')+'</button>';
+  h+='<button class="btn block mb" id="sh-pick">'+ico('search')+T('सिर्फ़ चुने हुए प्रोडक्ट भेजें — नाम से ढूँढें','Send only the products you pick — search by name')+'</button>';
   h+=mpCardHTML();
   h+='<div class="card pad mt"><div class="eyebrow mb">'+T('आखिरी पूरा सिंक','Last full run')+'</div><div id="sh-last" class="sub">—</div></div>';
   $('#main').innerHTML=h;
+  const pk=$('#sh-pick');if(pk)pk.onclick=()=>go('#shpick');
+  const lk=$('#sh-look');if(lk)lk.onclick=()=>go('#shlook');
   $('#sh-run').onclick=shopifySyncGuard;
   $('#sh-dry').onclick=()=>shopifyRun(true);
   shPaint();
@@ -6015,6 +6353,8 @@ function vMore(){
   if(can('export'))rows.push(['#skulink',ico('csv'),'Link SKUs','Give an item a second code — Sortly, Unicommerce or Shopify']);
   if(isAdminU()){const fp=fixPlan();const n=fp.links.length+fp.deds.length+fp.awbs.length+fp.trash.length+fp.flags.length;if(n)rows.push(['#importfix',ico('spark'),'Import cleanup','Fix the 19 Sep Shopify import duplicates — needs doing once']);}
   if(isAdminU())rows.push(['#shopify',ico('spark'),'Shopify','Push Invento stock into your Shopify stores']);
+  if(isAdminU())rows.push(['#shlook',ico('search'),'Look up on Shopify','Search Shopify directly · fix quantity, SKU or tracking on one variant']);
+  if(isAdminU())rows.push(['#shpick',ico('search'),'Send products to Shopify','Search by name, pick a product or two, send only those']);
   rows.push(['#trash',ico('trash'),'Trash','Restore deleted items ('+S.trash.length+')']);
   if(can('dispatch')){const od=awbOverdue().length;rows.push(['#awb',ico('ticket'),'AWB / Shipments'+(od?' ('+od+')':''),'Accept, dispatch & track shipping labels'+(od?' — '+od+' overdue':'')]);}
   if(isAdminU())rows.push(['#orders',ico('truck'),'Dispatch orders','Review orders, SKUs, photos & data used']);
