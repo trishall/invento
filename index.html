@@ -1,4 +1,4 @@
-<!DOCTYPE html><!--INVENTO_BUILD 2026-10-17.2-->
+<!DOCTYPE html><!--INVENTO_BUILD 2026-10-17.3-->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -320,6 +320,9 @@ textarea.in{resize:vertical;min-height:70px}
 .irow{display:flex;align-items:center;gap:11px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:9px 11px;cursor:pointer;box-shadow:var(--shadow);position:relative}
 .irow .th{width:46px;height:46px;border-radius:9px;background:linear-gradient(135deg,#F0EBE2,#E5DECF);overflow:hidden;flex:0 0 auto;display:grid;place-items:center;color:#C9BFA9}
 .irow .th img{width:100%;height:100%;object-fit:cover}
+.sl-th{width:56px;height:56px;flex:0 0 56px;border-radius:9px;overflow:hidden;display:grid;place-items:center;background:var(--line);color:var(--muted,#999)}
+.sl-th img{width:100%;height:100%;object-fit:cover;display:block}
+.sl-th svg{width:20px;height:20px}
 .irow .th svg{width:20px;height:20px}
 .irow .nm{font-weight:700;font-size:14px}
 .irow .meta{font-size:11.5px;color:var(--muted);display:flex;gap:7px;align-items:center;margin-top:2px;flex-wrap:wrap}
@@ -912,7 +915,7 @@ const cap1=s=>{s=String(s||'');return s?s.charAt(0).toUpperCase()+s.slice(1):s};
    · FIRESTORE's offline copy of the data. That one stays -- without it the
      warehouse stops working the moment the wifi dips -- but it must say when it
      is what you are reading, instead of looking exactly like live data. */
-const APP_BUILD='2026-10-17.2';
+const APP_BUILD='2026-10-17.3';
 const shadows={};
 const dirty={};
 /* col -> true while its latest snapshot came from the offline copy, not the
@@ -6121,7 +6124,7 @@ function slRowHTML(r,ix){
   const inv=slInvento(r.sku);
   const name=esc(r.product||'')+(r.variant?' <span class="muted">· '+esc(r.variant)+'</span>':'');
   return '<div class="card pad mb" style="padding:10px 12px"><div class="row" style="gap:10px;align-items:flex-start">'+
-    '<span class="th" style="flex:0 0 auto">'+(r.image?'<img src="'+esc(r.image)+'" alt="" referrerpolicy="no-referrer">':ico('box'))+'</span>'+
+    '<span class="sl-th">'+(r.image?'<img src="'+esc(r.image)+'" alt="" loading="lazy" referrerpolicy="no-referrer">':ico('box'))+'</span>'+
     '<div class="grow" style="min-width:0"><div class="nm">'+name+'</div>'+
     '<div class="meta" style="margin-top:4px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">'+
       (r.sku?'<span class="skutag">'+esc(r.sku)+'</span>':'<span class="pill" style="background:var(--red);color:#fff">'+T('SKU नहीं','No SKU')+'</span>')+
