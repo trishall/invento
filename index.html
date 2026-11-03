@@ -1,4 +1,4 @@
-<!DOCTYPE html><!--INVENTO_BUILD 2026-10-17.3-->
+<!DOCTYPE html><!--INVENTO_BUILD 2026-11-03.1-->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -915,7 +915,7 @@ const cap1=s=>{s=String(s||'');return s?s.charAt(0).toUpperCase()+s.slice(1):s};
    · FIRESTORE's offline copy of the data. That one stays -- without it the
      warehouse stops working the moment the wifi dips -- but it must say when it
      is what you are reading, instead of looking exactly like live data. */
-const APP_BUILD='2026-10-17.3';
+const APP_BUILD='2026-11-03.1';
 const shadows={};
 const dirty={};
 /* col -> true while its latest snapshot came from the offline copy, not the
@@ -3983,6 +3983,36 @@ function scanSessionStart(){SCAN_SESSION++}
 function scanSessionEnd(){
   SCAN_SESSION=Math.max(0,SCAN_SESSION-1);
   if(!SCAN_SESSION&&_soQ.length)setTimeout(showStockoutPrompt,250);   // ask now, at the end
+}
+/* -------- Out of stock at inward --------
+   An item with nothing on the shelf cannot go into a parcel: dispatch would have
+   nothing to take. At the same moment it is put on a purchase order, so the
+   shortage is not forgotten. Only POs are written here -- never stock. */
+const _oosBusy={};
+async function outOfStockPO(it){
+  if(!it)return null;
+  const ex=openPOFor(it.id);
+  if(ex)return {number:ex.number,already:true};
+  if(!can('additem')&&!isAdminU())return {noperm:true};
+  if(_oosBusy[it.id])return _oosBusy[it.id];          // a double scan must not make two lines
+  _oosBusy[it.id]=(async()=>{
+    let p=S.pos.find(x=>x.status==='draft');
+    if(!p){const id=await createPO();p=S.pos.find(x=>x.id===id)}
+    const need=Math.max(round4((+it.min||0)-(+it.qty||0)),1);
+    if(!addLineToPO(p,it,need))return null;
+    await saveNow('pos');
+    logTx('po',{detail:it.name+' — out of stock at inward, added to '+p.number+' ('+fmtQty(need)+') · by '+userName()});
+    return {number:p.number,already:false};
+  })();
+  try{return await _oosBusy[it.id]}catch(e){console.error('oos po',e);return null}
+  finally{delete _oosBusy[it.id]}
+}
+/* pieces of this item already sitting in OTHER parcels that are inward and not yet out */
+function reservedElsewhere(itemId,skipAwb){
+  let n=0;
+  (S.awbs||[]).forEach(a=>{if(a.status!=='accepted'||(skipAwb&&a===skipAwb))return;
+    awbItems(a).forEach(x=>{if(x.itemId===itemId)n+=(+x.qty||0)})});
+  return round4(n);
 }
 function queueStockoutPrompt(itemId){
   if(!can('additem')&&!isAdminU())return;
@@ -9701,9 +9731,25 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
       if(q<=0){const left=items.filter(x=>x.itemId!==it.id);
         if(cur)await awbSetItems(cur,left);else pend.items=left;
         okBox(code,T('आइटम हटाया','item removed'));paintCur();return true}
+      if(q>(+it.qty||0)){
+        errBox(code,it.name+' — '+T('स्टॉक में सिर्फ़ ','only ')+fmtQty(+it.qty||0)+T(' हैं — '+fmtQty(q)+' नहीं डाल सकते',' in stock — cannot put '+fmtQty(q)+' in this parcel'));
+        alarmSound();return false;
+      }
       ex.qty=q;
       if(cur)await awbSetItems(cur,items);else pend.items=items;
       okBox(code,esc(it.name)+' × '+fmtQty(q)+T(' (हाथ से भरा)',' (typed)'));paintCur();return true;
+    }
+    if((+it.qty||0)<=0){
+      inp.value='';
+      errBox(code,it.name+' — '+T('स्टॉक 0 है, पार्सल में नहीं जोड़ सकते','stock is 0 — it cannot go into a parcel'));
+      alarmSound();
+      const po=await outOfStockPO(it);
+      const fd=$('#aw-feed2');
+      if(fd)fd.insertAdjacentHTML('beforeend','<div class="sub" style="margin-top:6px;font-weight:700;color:'+(po&&po.number?'var(--green)':'var(--red)')+'">'+
+        (po&&po.number?(po.already?T('पहले से PO पर: ','Already on PO: '):T('PO में जोड़ा: ','Added to PO: '))+esc(po.number)
+          :po&&po.noperm?T('PO नहीं बना — आपके पास अनुमति नहीं, एडमिन को बताएँ','No PO made — you do not have permission, tell an admin')
+          :T('PO नहीं बन सका — Workflows → PO में खुद जोड़ें','Could not make the PO — add it under Workflows → PO'))+'</div>');
+      paintCur();return false;
     }
     let rack;
     if(isMultiRack(it)){
@@ -9716,6 +9762,9 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
     items.push(entry);
     if(cur)await awbSetItems(cur,items);else pend.items=items;
     okBox(code,esc(it.name)+' × 1 · '+esc(shelfName(rack))+(how==='search'?T(' · नाम से जोड़ा',' · added by search'):'')+T(' · Enter दो बार दबाने पर दर्ज होगा',' · press Enter twice to register'));
+    {const held=reservedElsewhere(it.id,cur);
+     if(held+1>(+it.qty||0))feed.insertAdjacentHTML('beforeend','<div class="sub" style="margin-top:6px;font-weight:700;color:var(--amber)">⚠ '+
+       T('स्टॉक ','Stock ')+fmtQty(+it.qty||0)+T(', पर '+fmtQty(held)+' पहले से दूसरे पार्सल में हैं — गिन लें',' but '+fmtQty(held)+' already in other parcels waiting to go out — check the shelf')+'</div>');}
     paintCur();return true;
   };
   /* Search the catalog when a SKU barcode will not read. Stays open so several
