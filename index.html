@@ -1,4 +1,4 @@
-<!DOCTYPE html><!--INVENTO_BUILD 2026-11-03.1-->
+<!DOCTYPE html><!--INVENTO_BUILD 2026-11-21.1-->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -895,15 +895,30 @@ const isOwnerLogin=()=>!!(fbUser&&fbUser.email&&OWNER_EMAILS.indexOf(String(fbUs
 let myProfile=null;
 const isAdminU=()=>MODE!=='cloud'||(myProfile&&(myProfile.role==='admin'||myProfile.role==='mainframe'));
 const isMF=()=>MODE==='cloud'&&myProfile&&myProfile.role==='mainframe';
-const PERM_KEYS=['additem','delitem','adjqty','editloc','trash','export','dispatch','awbAccept','awbDispatch'];
-const PERM_LABELS={additem:'Add & edit items',delitem:'Delete items (to trash)',adjqty:'Add / remove stock quantity',editloc:'Create & edit locations',trash:'Restore & permanently delete',export:'Export / download data',dispatch:'Create dispatches (send orders out)',awbAccept:'AWB — accept (scan in) shipping labels',awbDispatch:'AWB — dispatch (send out)',awbReturn:'AWB — return to office',awbDelete:'AWB — delete records'};
-const PERM_DEFAULT={additem:true,delitem:true,adjqty:true,editloc:true,trash:true,export:true,dispatch:true,awbAccept:true,awbDispatch:true,awbReturn:true,awbDelete:false};
-const PERM_HINT={additem:'Create new items and edit existing ones (name, price, SKU, photo).',delitem:'Send items to Trash. Turn off to prevent accidental removals.',adjqty:'The daily floor job — add received stock, remove sold/damaged with a reason.',editloc:'Create, rename or delete locations.',trash:'Restore items from Trash or delete them permanently.',export:'Download CSV, backups, and use Import.',dispatch:'Open Dispatch, scan/photograph and send orders out (reduces stock).',awbAccept:'Scan shipping labels taken from office to accept them.',awbDispatch:'Scan AWBs outward to dispatch them.',awbReturn:'Return AWBs to office (regular users must scan; admins can tap).',awbDelete:'Permanently delete AWB records (off by default).'};
+const PERM_KEYS=['additem','delitem','adjqty','editloc','trash','export','dispatch','awbAccept','awbDispatch','awbReturn','po','awbAdmin','shopify'];
+const PERM_LABELS={additem:'Add & edit items',delitem:'Delete items (to trash)',adjqty:'Add / remove stock quantity',editloc:'Create & edit locations',trash:'Restore & permanently delete',export:'Export / download data',dispatch:'Create dispatches (send orders out)',awbAccept:'AWB — accept (scan in) shipping labels',awbDispatch:'AWB — dispatch (send out)',awbReturn:'AWB — return to office',awbDelete:'AWB — delete records',po:'Purchase orders — cancel & delete',awbAdmin:'AWB admin actions',shopify:'Shopify'};
+const PERM_DEFAULT={additem:true,delitem:true,adjqty:true,editloc:true,trash:true,export:true,dispatch:true,awbAccept:true,awbDispatch:true,awbReturn:true,awbDelete:false,po:false,awbAdmin:false,shopify:false};
+/* admins start with everything on -- exactly how it was before switches existed for them */
+const PERM_DEFAULT_ADMIN=Object.assign({},...Object.keys(PERM_DEFAULT).map(k=>({[k]:true})));
+const PERM_GROUPS=[['Stock & items',['additem','adjqty','delitem','editloc','trash','export']],['Orders & AWB',['dispatch','awbAccept','awbDispatch','awbReturn']],['Admin powers',['po','awbAdmin','shopify']]];
+const PERM_HINT={additem:'Create new items and edit existing ones (name, price, SKU, photo).',delitem:'Send items to Trash. Turn off to prevent accidental removals.',adjqty:'The daily floor job — add received stock, remove sold/damaged with a reason.',editloc:'Create, rename or delete locations.',trash:'Restore items from Trash or delete them permanently.',export:'Download CSV, backups, and use Import.',dispatch:'Open Dispatch, scan/photograph and send orders out (reduces stock).',awbAccept:'Scan shipping labels taken from office to accept them.',awbDispatch:'Scan AWBs outward to dispatch them.',awbReturn:'Return AWBs to office (regular users must scan; admins can tap).',awbDelete:'Permanently delete AWB records (off by default).',po:'Cancel a purchase order, delete one, or cancel a PO line. Creating POs and adding to them is not affected.',awbAdmin:'Force dispatch, return to office without scanning, delete AWB records, clear pending inward.',shopify:'Sync settings, Sync now, Send products, Look up on Shopify.'};
+/* Who can do what, in order:
+   1. the mainframe owner: everything, always -- so nobody can lock you out
+   2. a switch set for this one person (permsets/<uid>)
+   3. the default for their role: Users -> meta.perms, Admins -> permsets/admins
+   Only the mainframe can change any of these. If the permsets documents cannot
+   be read (rules not published yet), 2 and 3 fall back to how it was before. */
+let PSET_ME=null,PSET_ADMINS=null;
+function permDefaults(role){
+  return role==='admin'
+    ?Object.assign({},PERM_DEFAULT_ADMIN,PSET_ADMINS||{})
+    :Object.assign({},PERM_DEFAULT,(S.meta&&S.meta.perms)||{});
+}
 function can(act){
   if(MODE!=='cloud')return true;            // trial mode = full access
-  if(isAdminU())return true;                 // admin & mainframe = always allowed
-  const p=(S.meta&&S.meta.perms)||PERM_DEFAULT;
-  return p[act]!==false;                      // regular user: governed by toggle (default allow)
+  if(isMF())return true;                     // the owner = always allowed
+  if(PSET_ME&&typeof PSET_ME[act]==='boolean')return PSET_ME[act];
+  return permDefaults(myProfile&&myProfile.role)[act]!==false;
 }
 const cap1=s=>{s=String(s||'');return s?s.charAt(0).toUpperCase()+s.slice(1):s};
 /* ---------- knowing what you are looking at ----------
@@ -915,7 +930,7 @@ const cap1=s=>{s=String(s||'');return s?s.charAt(0).toUpperCase()+s.slice(1):s};
    · FIRESTORE's offline copy of the data. That one stays -- without it the
      warehouse stops working the moment the wifi dips -- but it must say when it
      is what you are reading, instead of looking exactly like live data. */
-const APP_BUILD='2026-11-03.1';
+const APP_BUILD='2026-11-21.1';
 const shadows={};
 const dirty={};
 /* col -> true while its latest snapshot came from the offline copy, not the
@@ -1179,6 +1194,12 @@ async function initCloud(cfg){
     if(p.status!=='active')location.reload();
     else if(bootDone&&was&&was.role!==p.role){toast('Your role is now '+p.role,'ok');route()}
   },()=>{});
+  /* this person's own switches and the admin defaults. A read that is refused
+     (rule not published yet) leaves them null = the old behaviour. */
+  try{
+    db.collection('permsets').doc('admins').onSnapshot(s=>{PSET_ADMINS=s.exists?((s.data()||{}).perms||null):null},()=>{PSET_ADMINS=null});
+    db.collection('permsets').doc(uref.id).onSnapshot(s=>{PSET_ME=s.exists?((s.data()||{}).perms||null):null},()=>{PSET_ME=null});
+  }catch(e){}
   const first=[],later=[];
   /* A listener that dies is the most dangerous failure this app has: everything
      keeps working, on data frozen at whatever the offline cache last held, and
@@ -4010,9 +4031,28 @@ async function outOfStockPO(it){
 /* pieces of this item already sitting in OTHER parcels that are inward and not yet out */
 function reservedElsewhere(itemId,skipAwb){
   let n=0;
-  (S.awbs||[]).forEach(a=>{if(a.status!=='accepted'||(skipAwb&&a===skipAwb))return;
-    awbItems(a).forEach(x=>{if(x.itemId===itemId)n+=(+x.qty||0)})});
+  heldByOthers(itemId,skipAwb).forEach(h=>{n+=h.qty});
   return round4(n);
+}
+/* Parcels that are inward (or packed) but not out yet HOLD what is in them.
+   One piece on the shelf, already in parcel A, cannot also go into parcel B.
+   Reads only -- nothing is written by holding. */
+function heldByOthers(itemId,skipAwb){
+  const out=[];
+  (S.awbs||[]).forEach(a=>{
+    if((a.status!=='accepted'&&a.status!=='packed')||(skipAwb&&(a===skipAwb||(a.id&&skipAwb.id&&a.id===skipAwb.id))))return;
+    let q=0;awbItems(a).forEach(x=>{if(x.itemId===itemId)q+=(+x.qty||0)});
+    if(q>0)out.push({awb:a.awb,qty:round4(q)});
+  });
+  return out;
+}
+function freeToPack(it,skipAwb){return round4((+it.qty||0)-reservedElsewhere(it.id,skipAwb))}
+function heldMsg(it,skipAwb,want){
+  const T=(hi,en)=>langHi()?hi:en;
+  const h=heldByOthers(it.id,skipAwb),free=Math.max(0,freeToPack(it,skipAwb));
+  const list=h.slice(0,4).map(x=>x.awb+(x.qty>1?' ×'+fmtQty(x.qty):'')).join(', ')+(h.length>4?' …+'+(h.length-4):'');
+  return it.name+' — '+T('स्टॉक ','stock ')+fmtQty(+it.qty||0)+T(', दूसरे पार्सल में रुके: ',', held by other parcels: ')+fmtQty(reservedElsewhere(it.id,skipAwb))+
+    (list?' ('+list+')':'')+T(' — खाली सिर्फ़ ',' — only ')+fmtQty(free)+T(' बचे',' free')+(want?T(', '+fmtQty(want)+' नहीं डाल सकते',', cannot put '+fmtQty(want)):'');
 }
 function queueStockoutPrompt(itemId){
   if(!can('additem')&&!isAdminU())return;
@@ -4050,7 +4090,7 @@ function guardPOBeforeAdd(it,retry){
   if(p.status==='draft'){toast((langHi()?'नोट: यह आइटम ड्राफ्ट ':'Note: also on draft ')+p.number+(langHi()?' पर भी है':''),'warn');return false}
   openModal('<h3>'+(langHi()?'पहले PO निपटाएँ':'PO pending for this item')+'</h3><p class="sub mb">'+esc(it.name)+(langHi()?' पहले से ':' is already on ')+'<b>'+esc(p.number)+'</b> ('+(PO_STATUS[p.status]||['?'])[0]+'). '+(langHi()?'पहले उस PO को receive या cancel करें, तभी स्टॉक जोड़ें — ताकि PO का हिसाब बना रहे।':'Receive or cancel that PO first so it stays acknowledged, then add stock.')+'</p>'+
     '<button class="btn pri block mb" id="gpo-open">'+(langHi()?'खोलें ':'Open ')+esc(p.number)+'</button>'+
-    (isAdminU()?'<button class="btn block mb" id="gpo-cancel">'+(langHi()?'इसकी PO लाइन cancel करके जोड़ें':'Cancel its PO line & add anyway')+'</button>':'')+
+    (can('po')?'<button class="btn block mb" id="gpo-cancel">'+(langHi()?'इसकी PO लाइन cancel करके जोड़ें':'Cancel its PO line & add anyway')+'</button>':'')+
     '<button class="btn block" onclick="closeModal()">'+(langHi()?'वापस':'Back')+'</button>');
   const go1=$('#gpo-open');if(go1)go1.onclick=()=>{closeModal();go('#po/'+p.id)};
   const gc=$('#gpo-cancel');if(gc)gc.onclick=()=>{closeModal();
@@ -4331,7 +4371,7 @@ function vPO(id){
   if(p.status==='draft')h+='<button class="btn pri grow" id="po-order" '+(p.items.length?'':'disabled')+'>'+ico('check')+'Mark as ordered</button>';
   if(p.status==='ordered'||p.status==='partial')h+='<button class="btn pri grow" id="po-recv">'+ico('down')+'Receive items</button>';
   h+='</div>';
-  h+='<div class="row wrap" style="gap:9px"><button class="btn grow" id="po-print">'+ico('print')+'Print PO</button><button class="btn grow" id="po-csv">'+ico('csv')+'CSV</button>'+(!ro&&isAdminU()?'<button class="btn" id="po-cancel" style="color:var(--red);border-color:var(--red-bg)">'+ico('x')+(langHi()?'PO रद्द करें':'Cancel PO')+'</button>':'')+(!ro&&isAdminU()?'<button class="btn danger" id="po-del">'+ico('trash')+'</button>':'')+'</div>';
+  h+='<div class="row wrap" style="gap:9px"><button class="btn grow" id="po-print">'+ico('print')+'Print PO</button><button class="btn grow" id="po-csv">'+ico('csv')+'CSV</button>'+(!ro&&can('po')?'<button class="btn" id="po-cancel" style="color:var(--red);border-color:var(--red-bg)">'+ico('x')+(langHi()?'PO रद्द करें':'Cancel PO')+'</button>':'')+(!ro&&can('po')?'<button class="btn danger" id="po-del">'+ico('trash')+'</button>':'')+'</div>';
   $('#main').innerHTML=h;
 
   const vIn=$('#po-v');if(vIn&&editable)vIn.onchange=()=>{p.vendor=vIn.value.trim();p.updatedAt=Date.now();save('pos')};
@@ -5119,7 +5159,7 @@ function shSetHTML(){
   const T=(hi,en)=>langHi()?hi:en;
   if(!SH.loaded)return '<div class="card pad mb"><div class="sub">'+T('सेटिंग लोड हो रही है…','Loading sync settings…')+'</div></div>';
   if(!SH.ok)return shNeedFnHTML();
-  const adm=isAdminU(),d=_shDraft||shCopy(SH.settings),saved=SH.settings;
+  const adm=can('shopify'),d=_shDraft||shCopy(SH.settings),saved=SH.settings;
   const dis=adm?'':' disabled';
   const seg=(key,cur)=>'<div class="row" style="gap:6px">'+SHA_MODES.map(m=>'<button class="btn grow sh-dir'+(m===cur?' pri':'')+'" data-k="'+esc(key)+'" data-dir="'+m+'"'+dis+'>'+shModeLabel(m)+'</button>').join('')+'</div>';
   const allMode=shStore(SH.shops[0]||'',d).mode;
@@ -5161,7 +5201,7 @@ function shPaint(){
 }
 async function shSave(){
   const T=(hi,en)=>langHi()?hi:en;
-  if(!isAdminU()||!_shDraft)return;
+  if(!can('shopify')||!_shDraft)return;
   const d=_shDraft,on=SH.shops.filter(sh=>shStore(sh,d).on);
   const txt=SH.shops.map(sh=>{const x=shStore(sh,d);return '<li><b>'+esc(shName(sh))+'</b> — '+(x.on?shModeLabel(x.mode):T('बंद','Off'))+'</li>'}).join('');
   const yes=await confirmDlg(T('सेटिंग सेव करें?','Save sync settings?'),
@@ -5214,7 +5254,7 @@ async function shopifyRun(dryRun){
    settings, the stores named out loud, and SYNC typed. Admins only. */
 async function shopifySyncGuard(){
   const T=(hi,en)=>langHi()?hi:en;
-  if(!isAdminU()){toast(T('सिर्फ एडमिन','Admins only'),'err');return}
+  if(!can('shopify')){toast(T('Shopify की अनुमति नहीं','No Shopify permission'),'err');return}
   if(!SH.ok){toast(T('पहले function अपडेट करें','Deploy the function update first'),'err');return}
   if(_shDraft&&!shSame(_shDraft,SH.settings)){toast(T('पहले सेटिंग सेव करें या रद्द करें','Save or discard the settings first'),'err');return}
   const on=shOnShops();
@@ -5269,7 +5309,7 @@ function mpPaint(){
 }
 function mpCardHTML(){
   const T=(hi,en)=>langHi()?hi:en;
-  if(!isAdminU())return '';
+  if(!can('shopify'))return '';
   return '<div class="card pad mb"><div class="eyebrow">'+T('चुने हुए SKU भेजें','Push specific SKUs')+'</div>'+
     '<div class="hint" style="margin:4px 0 8px">'+T('सिर्फ़ इन SKU की मात्रा, चुने हुए स्टोर पर, उसी स्टोर की सेव की हुई दिशा में। स्कैनर से भी डाल सकते हैं — हर स्कैन नई लाइन।','Only these SKUs, to the chosen store, in that store\'s saved direction. Paste them, or scan — each scan lands on a new line.')+'</div>'+
     '<textarea class="in mono" id="mp-skus" rows="4" placeholder="MTWB0000066&#10;MTBT0000209" style="width:100%;resize:vertical"></textarea>'+
@@ -5362,7 +5402,8 @@ let _packSeed='';
    SKU must be given, and a name and reason go on the record. Admins only. */
 async function forceDispatchDlg(preCode){
   const T=(hi,en)=>langHi()?hi:en;
-  if(!isAdminU()){toast(T('सिर्फ एडमिन','Admins only'),'err');return false}
+  if(!can('awbAdmin')){toast(T('इसकी अनुमति नहीं','No permission for this'),'err');return false}
+  if(awbLockList().length){awbLockDlg('force');return false}
   let awb=(preCode||'').trim(),lines=[];
   const done=await new Promise(res=>{
     const draw=()=>{
@@ -6097,7 +6138,7 @@ async function spCall(dryRun){
   spPaint();
 }
 function vShPick(){
-  if(!isAdminU()){toast(langHi()?'सिर्फ एडमिन':'Admins only','err');go('#more');return}
+  if(!can('shopify')){toast(langHi()?'Shopify की अनुमति नहीं':'No Shopify permission','err');go('#more');return}
   const T=(hi,en)=>langHi()?hi:en;
   topTitle(T('चुने हुए प्रोडक्ट Shopify पर','Send products to Shopify'),'#shopify');
   _spOK=null;
@@ -6291,7 +6332,7 @@ async function slSave(ix,set,expect){
   slPaint();
 }
 function vShLook(){
-  if(!isAdminU()){toast(langHi()?'सिर्फ एडमिन':'Admins only','err');go('#more');return}
+  if(!can('shopify')){toast(langHi()?'Shopify की अनुमति नहीं':'No Shopify permission','err');go('#more');return}
   const T=(hi,en)=>langHi()?hi:en;
   topTitle(T('Shopify में ढूँढें','Look up on Shopify'),'#shopify');
   _slRows=[];_slNote='';_slSeq++;
@@ -6314,6 +6355,7 @@ function vShLook(){
   shLoad().then(slPaint,slPaint);
 }
 function vShopify(){
+  if(!can('shopify')){toast(langHi()?'Shopify की अनुमति नहीं':'No Shopify permission','err');go('#more');return}
   topTitle('Shopify','#more');
   const T=(hi,en)=>langHi()?hi:en;
   let h='<h1 class="page">Shopify</h1>';
@@ -6385,9 +6427,9 @@ function vMore(){
   if(isAdminU())rows.push(['#workers',ico('users'),'Who is working','Add your team and give each one a 6-digit code']);
   if(can('export'))rows.push(['#skulink',ico('csv'),'Link SKUs','Give an item a second code — Sortly, Unicommerce or Shopify']);
   if(isAdminU()){const fp=fixPlan();const n=fp.links.length+fp.deds.length+fp.awbs.length+fp.trash.length+fp.flags.length;if(n)rows.push(['#importfix',ico('spark'),'Import cleanup','Fix the 19 Sep Shopify import duplicates — needs doing once']);}
-  if(isAdminU())rows.push(['#shopify',ico('spark'),'Shopify','Push Invento stock into your Shopify stores']);
-  if(isAdminU())rows.push(['#shlook',ico('search'),'Look up on Shopify','Search Shopify directly · fix quantity, SKU or tracking on one variant']);
-  if(isAdminU())rows.push(['#shpick',ico('search'),'Send products to Shopify','Search by name, pick a product or two, send only those']);
+  if(can('shopify'))rows.push(['#shopify',ico('spark'),'Shopify','Push Invento stock into your Shopify stores']);
+  if(can('shopify'))rows.push(['#shlook',ico('search'),'Look up on Shopify','Search Shopify directly · fix quantity, SKU or tracking on one variant']);
+  if(can('shopify'))rows.push(['#shpick',ico('search'),'Send products to Shopify','Search by name, pick a product or two, send only those']);
   rows.push(['#trash',ico('trash'),'Trash','Restore deleted items ('+S.trash.length+')']);
   if(can('dispatch')){const od=awbOverdue().length;rows.push(['#awb',ico('ticket'),'AWB / Shipments'+(od?' ('+od+')':''),'Accept, dispatch & track shipping labels'+(od?' — '+od+' overdue':'')]);}
   if(isAdminU())rows.push(['#orders',ico('truck'),'Dispatch orders','Review orders, SKUs, photos & data used']);
@@ -6396,8 +6438,8 @@ function vMore(){
   if(isAdminU())rows.push(['#dash',ico('chart'),'Dashboard','Sales, best sellers, reorder & risk analysis']);
   if(isAdminU())rows.push(['#backups',ico('undo'),'Recovery points','Auto snapshot every 15 days · restore anytime']);
   if(isAdminU()){const np=pendingApprovals().length;rows.push(['#approvals',ico('inbox'),'Approvals'+(np?' ('+np+')':''),'Requests needing an admin'+(np?' — '+np+' pending':'')]);}
-  if(MODE==='cloud'&&isAdminU())rows.push(['#users',ico('flows'),'Team members','Approve, revoke, promote accounts']);
-  if(MODE==='cloud'&&isAdminU())rows.push(['#perms',ico('lock'),'Permissions','Choose what regular users can do']);
+  if(MODE==='cloud'&&isMF())rows.push(['#users',ico('flows'),'Team members','Approve, revoke, promote accounts']);
+  if(MODE==='cloud'&&isMF())rows.push(['#perms',ico('lock'),'Permissions','What Users and Admins can do · per-person switches on Team members']);
   h+='<div class="ilist mb">'+
     rows
     .map(x=>'<div class="irow" data-go="'+x[0]+'"><span class="th" style="background:var(--saddle-bg);color:var(--saddle)">'+x[1]+'</span><div class="grow"><div class="nm">'+x[2]+'</div><div class="meta">'+x[3]+'</div></div>'+ico('chev','muted')+'</div>').join('')+'</div>';
@@ -6595,28 +6637,86 @@ function vTrash(){
    ============================================================ */
 const ROLE_PILL={mainframe:['Mainframe','info'],admin:['Admin','warn'],user:['User','gray']};
 const STAT_PILL={active:['Active','ok'],pending:['Pending','warn'],revoked:['Revoked','low']};
+function permRulesMissingHTML(){
+  return '<div class="card pad mb" style="border-left:4px solid var(--red)"><b style="color:var(--red)">Firestore rule needed</b>'+
+    '<div class="sub mt">Admin and per-person switches are saved in a new place (<span class="mono">permsets</span>). Add the rule from the steps file, then try again. Nothing was changed.</div></div>';
+}
 function vPerms(){
-  if(MODE!=='cloud'||!isAdminU()){go('#more');return}
+  if(MODE!=='cloud'||!isMF()){go('#more');return}
   topTitle('Permissions','#more');
-  const p=Object.assign({},PERM_DEFAULT,(S.meta&&S.meta.perms)||{});
+  const pu=permDefaults('user'),pa=permDefaults('admin');
   let h='<h1 class="page">Permissions</h1>';
-  h+='<div class="sub mb">These switches control what a <b>regular user</b> can do. Admins and the mainframe owner always have full access. Changes apply to everyone instantly.</div>';
-  h+='<div class="card pad mb">';
-  PERM_KEYS.forEach((k,ix)=>{
-    h+='<label class="row" style="gap:12px;align-items:flex-start;padding:11px 0;'+(ix?'border-top:1px solid var(--line)':'')+'">'+
-      '<input type="checkbox" data-pk="'+k+'" '+(p[k]!==false?'checked':'')+' style="width:20px;height:20px;flex:0 0 auto;margin-top:1px">'+
-      '<div class="grow"><div style="font-weight:700;font-size:14.5px">'+esc(PERM_LABELS[k])+'</div><div class="small muted">'+esc(PERM_HINT[k])+'</div></div></label>';
+  h+='<div class="sub mb">Defaults for each role. To give one person something different, open <b>Team members</b> → <b>Permissions</b> on their card. You (mainframe) always have everything.</div>';
+  h+='<div id="pm-warn"></div>';
+  PERM_GROUPS.forEach(([g,keys])=>{
+    h+='<div class="section-h"><h2>'+esc(g)+'</h2></div><div class="card pad mb" style="padding-top:4px">';
+    h+='<div class="row small muted" style="gap:8px;padding:6px 0;border-bottom:1px solid var(--line)"><span class="grow"></span><b style="width:56px;text-align:center">Users</b><b style="width:56px;text-align:center">Admins</b></div>';
+    keys.forEach((k,ix)=>{
+      h+='<div class="row" style="gap:8px;align-items:flex-start;padding:10px 0;'+(ix?'border-top:1px solid var(--line)':'')+'">'+
+        '<div class="grow" style="min-width:0"><div style="font-weight:700;font-size:14px">'+esc(PERM_LABELS[k])+'</div><div class="small muted">'+esc(PERM_HINT[k])+'</div></div>'+
+        '<label style="width:56px;display:grid;place-items:center;cursor:pointer"><input type="checkbox" data-pu="'+k+'" '+(pu[k]!==false?'checked':'')+' style="width:22px;height:22px;accent-color:var(--saddle)"></label>'+
+        '<label style="width:56px;display:grid;place-items:center;cursor:pointer"><input type="checkbox" data-pa="'+k+'" '+(pa[k]!==false?'checked':'')+' style="width:22px;height:22px;accent-color:var(--saddle)"></label></div>';
+    });
+    h+='</div>';
   });
-  h+='</div>';
-  h+='<div class="hint mb">Tip: keep "Add / remove stock quantity" on for floor staff (that is the daily job), and switch off Delete and Locations so they cannot remove records by mistake.</div>';
+  h+='<div class="hint mb">Tip: keep "Add / remove stock quantity" on for floor staff (that is the daily job). Turning a switch off for Admins also hides it from them.</div>';
   h+='<button class="btn pri block" id="pm-save">'+ico('check')+'Save permissions</button>';
   $('#main').innerHTML=h;
   $('#pm-save').onclick=async()=>{
-    const np={};PERM_KEYS.forEach(k=>{np[k]=$('#main [data-pk="'+k+'"]').checked});
-    S.meta.perms=np;
+    const nu={},na={};
+    PERM_KEYS.forEach(k=>{nu[k]=!!$('#main [data-pu="'+k+'"]').checked;na[k]=!!$('#main [data-pa="'+k+'"]').checked});
+    const offA=PERM_KEYS.filter(k=>!na[k]).map(k=>PERM_LABELS[k]);
+    const onU=['po','awbAdmin','shopify'].filter(k=>nu[k]).map(k=>PERM_LABELS[k]);
+    const ok=await confirmDlg('Save permissions?',
+      (offA.length?'<b>Admins lose:</b> '+esc(offA.join(', '))+'<br>':'')+(onU.length?'<b>All Users get:</b> '+esc(onU.join(', '))+'<br>':'')+
+      'Applies to everyone on their next screen change.','Save');
+    if(!ok)return;
+    const b=$('#pm-save');b.disabled=true;
+    try{
+      await db.collection('permsets').doc('admins').set({perms:na,by:userName(),at:Date.now()});
+    }catch(e){$('#pm-warn').innerHTML=permRulesMissingHTML();b.disabled=false;toast('Not saved','err');return}
+    S.meta.perms=nu;
     await saveNow('meta');
-    logTx('list',{detail:'Updated user permissions'});
-    toast('Permissions saved','ok');
+    PSET_ADMINS=na;
+    logTx('list',{detail:'Permissions changed · Users off: '+(PERM_KEYS.filter(k=>!nu[k]).join(', ')||'none')+' · Admins off: '+(PERM_KEYS.filter(k=>!na[k]).join(', ')||'none')+' · by '+userName()});
+    toast('Permissions saved','ok');b.disabled=false;
+  };
+}
+/* One person's switches: Default (follow their role), Allow, or Block. */
+async function personPermsDlg(u){
+  let cur={};
+  try{const d=await db.collection('permsets').doc(u.id).get();cur=d.exists?((d.data()||{}).perms||{}):{}}
+  catch(e){openModal('<h3>'+esc(u.name||u.userid)+'</h3>'+permRulesMissingHTML()+'<button class="btn block" onclick="closeModal()">Close</button>');return}
+  const def=permDefaults(u.role);
+  const roleName=u.role==='admin'?'Admin':'User';
+  let h='<h3>'+esc(u.name||u.userid)+' — permissions</h3>';
+  h+='<div class="sub mb">"Default" follows the '+roleName+' setting on the Permissions screen. Allow or Block applies to '+esc(u.name||u.userid)+' only.</div>';
+  h+='<div style="max-height:60dvh;overflow:auto">';
+  PERM_GROUPS.forEach(([g,keys])=>{
+    h+='<div class="eyebrow" style="margin:10px 0 4px">'+esc(g)+'</div>';
+    keys.forEach(k=>{
+      const v=typeof cur[k]==='boolean'?(cur[k]?'allow':'block'):'default';
+      h+='<div class="row" style="gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line)"><span class="grow small" style="font-weight:700">'+esc(PERM_LABELS[k])+'</span>'+
+        '<select class="in" data-pp="'+k+'" style="width:auto;min-width:140px;padding:6px 8px">'+
+          '<option value="default"'+(v==='default'?' selected':'')+'>Default ('+(def[k]!==false?'on':'off')+')</option>'+
+          '<option value="allow"'+(v==='allow'?' selected':'')+'>Allow</option>'+
+          '<option value="block"'+(v==='block'?' selected':'')+'>Block</option></select></div>';
+    });
+  });
+  h+='</div><div class="row mt" style="gap:8px"><button class="btn grow" id="pp-no">Cancel</button><button class="btn pri grow" id="pp-ok">'+ico('check')+'Save</button></div>';
+  openModal(h);
+  $('#pp-no').onclick=closeModal;
+  $('#pp-ok').onclick=async()=>{
+    const np={};
+    $$('#modal [data-pp]').forEach(sel=>{if(sel.value==='allow')np[sel.dataset.pp]=true;else if(sel.value==='block')np[sel.dataset.pp]=false});
+    const b=$('#pp-ok');b.disabled=true;
+    try{
+      if(Object.keys(np).length)await db.collection('permsets').doc(u.id).set({perms:np,name:u.name||u.userid||'',by:userName(),at:Date.now()});
+      else await db.collection('permsets').doc(u.id).delete();
+    }catch(e){b.disabled=false;toast('Not saved: '+((e&&e.code)||e),'err');return}
+    const desc=Object.keys(np).map(k=>(np[k]?'+':'−')+k).join(' ')||'all default';
+    logTx('list',{detail:'Permissions for '+(u.name||u.userid)+': '+desc+' · by '+userName()});
+    closeModal();toast('Saved','ok');paintUsers();
   };
 }
 function vApprovals(){
@@ -6661,7 +6761,7 @@ function vApprovals(){
 }
 
 function vUsers(){
-  if(MODE!=='cloud'||!isAdminU()){go('#more');return}
+  if(MODE!=='cloud'||!isMF()){go('#more');return}
   topTitle('Team members','#more');
   $('#main').innerHTML='<h1 class="page">Team members</h1><div id="us-resets"></div><div class="sub mb" id="us-note">Loading…</div><div id="us-list">'+[1,2,3].map(()=>'<div class="skel" style="height:64px;margin-bottom:9px"></div>').join('')+'</div>';
   paintUsers();paintResets();
@@ -6695,12 +6795,15 @@ async function paintResets(){
     catch(e){toast('Could not clear: '+((e&&e.code)||e),'err')}
   });
 }
+var PSETS_ALL=null;
 async function paintUsers(){
   const wrap=$('#us-list');if(!wrap)return;
   let docs;
   try{const q=await db.collection('users').get();docs=q.docs.map(d=>d.data())}
   catch(e){$('#us-note').textContent='Could not load users: '+((e&&e.message)||e);return}
   docs.sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  PSETS_ALL={};
+  try{const q=await db.collection('permsets').get();q.docs.forEach(d=>{if(d.id!=='admins'){const pm=(d.data()||{}).perms;if(pm&&Object.keys(pm).length)PSETS_ALL[d.id]=pm}})}catch(e){PSETS_ALL=null}
   const note=$('#us-note');
   const pend=docs.filter(u=>u.status==='pending').length;
   note.innerHTML=docs.length+' account'+(docs.length!==1?'s':'')+(pend?' · <b style="color:var(--amber)">'+pend+' waiting for approval</b>':'')+(isMF()?'':' · Only the mainframe account can manage admins.');
@@ -6716,6 +6819,7 @@ async function paintUsers(){
       if(u.status==='revoked')btns+='<button class="btn sm" data-ua="approve" data-id="'+u.id+'">Reactivate</button>';
       if(isMF()&&u.status==='active'&&u.role==='user')btns+='<button class="btn sm" data-ua="promote" data-id="'+u.id+'">Make admin</button>';
       if(isMF()&&u.role==='admin')btns+='<button class="btn sm" data-ua="demote" data-id="'+u.id+'">Make user</button>';
+      if(isMF()&&u.status==='active')btns+='<button class="btn sm" data-ua="perms" data-id="'+u.id+'">'+ico('lock')+'Permissions'+(PSETS_ALL&&PSETS_ALL[u.id]?' ('+Object.keys(PSETS_ALL[u.id]).length+' custom)':'')+'</button>';
       if(isMF())btns+='<button class="btn sm danger" data-ua="delete" data-id="'+u.id+'">'+ico('trash')+'Delete</button>';
     }
     h+='<div class="irow" style="cursor:default;flex-wrap:wrap"><span class="th" style="background:var(--saddle-bg);color:var(--saddle);font-weight:800;font-size:15px">'+esc(cap1((u.name||u.userid||'?').charAt(0)))+'</span>'+
@@ -6728,6 +6832,7 @@ async function paintUsers(){
   wrap.innerHTML=h;
   $$('#us-list [data-ua]').forEach(b=>b.onclick=async()=>{
     const act=b.dataset.ua,id=b.dataset.id;const u=docs.find(x=>x.id===id);if(!u)return;
+    if(act==='perms'){personPermsDlg(u);return}
     if(act==='delete'){
       const ok=await confirmDlg('Delete '+esc(u.name||u.userid)+'?','Their account record is removed and they lose all access immediately. To also stop them logging in again, delete their account in Firebase Console → Authentication.','Delete account',true);
       if(!ok)return;
@@ -7791,6 +7896,38 @@ function startAwbNag(){
 }
 
 function myOverdueAwbs(){const me=userName();return awbOverdue().filter(a=>(a.acceptedBy||'')===me)}
+/* ---- 3-day lock ----
+   A parcel inwarded and still not out after 3 days locks NEW inward and force
+   dispatch -- for everyone. Normal dispatch and Return to office stay open:
+   those are the two ways the lock clears. Nothing else in the app is touched,
+   and the lock itself writes nothing. Both languages are always shown. */
+const AWB_LOCK_DAYS=3;
+function awbLockList(){
+  const cut=Date.now()-AWB_LOCK_DAYS*86400000;
+  return awbPending().filter(a=>(+a.acceptedAt||0)>0&&(+a.acceptedAt)<cut).sort((a,b)=>(a.acceptedAt||0)-(b.acceptedAt||0));
+}
+function awbLockText(n){
+  return {hi:n+' पार्सल '+AWB_LOCK_DAYS+' दिन से ज़्यादा से डिस्पैच नहीं हुए। जब तक ये बाहर नहीं जाते (या ऑफिस वापस नहीं होते), नया इनवर्ड और ज़बरदस्ती डिस्पैच बंद है।',
+          en:n+' parcel'+(n>1?'s have':' has')+' not been dispatched for more than '+AWB_LOCK_DAYS+' days. Until '+(n>1?'they go':'it goes')+' out (or '+(n>1?'are':'is')+' returned to office), new Inward and Force dispatch are locked.'};
+}
+function awbLockBannerHTML(){
+  const L=awbLockList();if(!L.length)return '';
+  const t=awbLockText(L.length);
+  return '<div class="splitbox mb" id="aw-lockban" style="background:var(--red-bg);border:2px solid var(--red)"><div class="row" style="gap:8px;align-items:flex-start"><span style="color:var(--red)">'+ico('lock')+'</span><div class="grow">'+
+    '<b style="color:var(--red)">इनवर्ड बंद है · Inward is locked</b>'+
+    '<div class="small" style="margin-top:4px">'+esc(t.hi)+'</div><div class="small" style="margin-top:4px">'+esc(t.en)+'</div>'+
+    '<div class="small muted" style="margin-top:6px">'+L.slice(0,6).map(a=>'<span class="mono">'+esc(a.awb)+'</span> ('+awbAgeDays(a)+'d)').join(' · ')+(L.length>6?' …+'+(L.length-6):'')+'</div></div></div></div>';
+}
+function awbLockDlg(what){
+  const L=awbLockList();
+  const t=awbLockText(L.length);
+  openModal('<h3 style="color:var(--red)">'+ico('lock')+' '+(what==='force'?'ज़बरदस्ती डिस्पैच बंद · Force dispatch locked':'इनवर्ड बंद · Inward locked')+'</h3>'+
+    '<p class="sub" style="margin:6px 0">'+esc(t.hi)+'</p><p class="sub mb">'+esc(t.en)+'</p>'+
+    '<div class="ilist mb" style="max-height:40dvh;overflow:auto">'+L.map(a=>'<div class="awbcard over"><div class="awb-no">'+esc(a.awb)+'</div><div class="awb-meta">'+awbAgeDays(a)+' दिन · days'+(a.acceptedBy?' · '+esc(a.acceptedBy):'')+(a.orderNo?' · #'+esc(a.orderNo):'')+'</div></div>').join('')+'</div>'+
+    '<div class="hint mb">इन्हें डिस्पैच करें या ऑफिस वापस करें — फिर लॉक अपने-आप खुल जाएगा।<br>Dispatch them, or return them to office — the lock opens by itself.</div>'+
+    '<button class="btn block" id="aw-lockok">ठीक है · OK</button>');
+  $('#aw-lockok').onclick=closeModal;
+}
 /* Indian labels carry several barcodes: AWB, order number, sometimes a manifest
    or reverse-pickup code. A parcel keeps them all in a.codes[] and ANY of them
    finds it — the packer never has to hunt for the "right" one. */
@@ -8194,10 +8331,10 @@ async function returnAwbRec(a){
 
 function vAwb(sub,arg){
   if(!(can('awbAccept')||can('awbDispatch')||can('dispatch')||isAdminU())){toast('You do not have permission for AWBs','err');go('#home');return}
-  if(sub==='in'){return awbInwardChoose();}
+  if(sub==='in'){if(awbLockList().length){go('#awb');setTimeout(()=>awbLockDlg('in'),50);return}return awbInwardChoose();}
   if(sub==='out'){return awbOutwardFlow();}
   if(sub==='ret'){return awbCustReturnFlow();}
-  if(sub==='return'){ if(!isAdminU()){toast(langHi()?'वापसी सिर्फ एडमिन कर सकते हैं':'Only admins can return AWBs','err');go('#awb');return} return awbReturnScanFlow();}
+  if(sub==='return'){ if(!can('awbAdmin')){toast(langHi()?'ऑफिस वापसी की अनुमति नहीं':'No permission to return AWBs to office','err');go('#awb');return} return awbReturnScanFlow();}
   // hub: two big buttons + three columns
   topTitle('AWB / Shipments','#home');
   const pend=awbPending().slice().sort((a,b)=>(a.acceptedAt||0)-(b.acceptedAt||0)); // oldest first
@@ -8208,6 +8345,7 @@ function vAwb(sub,arg){
   const waiting=awbToPack().length, ready=awbPacked().length;
   const T2=(hi,en)=>langHi()?hi:en;
   /* overdue first — it blocks the person from taking more labels */
+  h+=awbLockBannerHTML();
   if(myOver.length)h+='<div class="splitbox mb" style="background:var(--red-bg);border:1px solid var(--red)"><div class="row" style="gap:8px;align-items:center"><span style="color:var(--red)">'+ico('alert')+'</span><div><b style="color:var(--red)">'+T2('ऑफिस भेजें: ','Send to office: ')+myOver.length+T2(' AWB बहुत पुराने',' overdue AWB'+(myOver.length>1?'s':''))+'</b><div class="small muted">'+T2('ये '+AWB_OVERDUE_DAYS+'+ दिन पुराने हैं। नए लेबल लेने से पहले इन्हें ऑफिस भेजें।','They are '+AWB_OVERDUE_DAYS+'+ days old. Send them to office before accepting more.')+'</div></div></div></div>';
   /* the four things that happen all day */
   h+='<div class="seclabel">'+T2('रोज़ का काम','Everyday')+'</div>';
@@ -8223,9 +8361,9 @@ function vAwb(sub,arg){
   h+='<div class="secgrid">'+
     '<button class="srow" id="aw-status">'+ico('search')+'<span>'+T2('शिपमेंट की स्थिति','Shipment status')+'<small>'+T2('देखें या ऑर्डर रद्द करें','Check or cancel an order')+'</small></span></button>'+
     '<button class="srow" id="aw-back">'+ico('undo')+'<span>'+T2('वापस अंदर लें','Bring back in')+'<small>'+T2('डिस्पैच हुआ पार्सल','A parcel that already went out')+'</small></span></button>'+
-    (isAdminU()?'<button class="srow warn" id="aw-force2">'+ico('bolt')+'<span>'+T2('ज़बरदस्ती डिस्पैच','Force dispatch')+'<small>'+T2('जो अंदर स्कैन नहीं हुआ','A parcel that was never inwarded')+'</small></span></button>':'')+
+    (can('awbAdmin')&&!awbLockList().length?'<button class="srow warn" id="aw-force2">'+ico('bolt')+'<span>'+T2('ज़बरदस्ती डिस्पैच','Force dispatch')+'<small>'+T2('जो अंदर स्कैन नहीं हुआ','A parcel that was never inwarded')+'</small></span></button>':'')+
     (isAdminU()?'<button class="srow" id="aw-aix">'+ico('spark')+'<span>'+T2('AI इनवॉइस','AI invoices')+'<small>'+T2('इनवॉइस से एक साथ inward','Read invoices — bulk inward')+'</small></span></button>':'')+
-    (isAdminU()?'<button class="srow" id="aw-ret">'+ico('undo')+'<span>'+T2('ऑफिस वापस','Return to office')+'<small>'+T2('बिना इस्तेमाल हुए AWB','Unused AWBs going back')+'</small></span></button>':'')+
+    (can('awbAdmin')?'<button class="srow" id="aw-ret">'+ico('undo')+'<span>'+T2('ऑफिस वापस','Return to office')+'<small>'+T2('बिना इस्तेमाल हुए AWB','Unused AWBs going back')+'</small></span></button>':'')+
     '<button class="srow" id="aw-sales">'+ico('trend')+'<span>'+T2('सेल्स और रीऑर्डर','Sales & reorder')+'<small>'+T2('क्या तेज़ बिक रहा है','What is selling, what to reorder')+'</small></span></button>'+
     '</div>';
   // three columns
@@ -8237,7 +8375,7 @@ function vAwb(sub,arg){
      '<b class="grow">'+(langHi()?'हिस्ट्री':'History')+' <span class="muted num" style="font-weight:600">'+disp.length+(langHi()?' डिस्पैच · ':' dispatched · ')+ret.length+(langHi()?' वापस':' returned')+'</span></b>'+
      '<button class="btn sm" id="aw-hist">'+(langHi()?'देखें':'View')+'</button><button class="btn sm" id="aw-csv">'+ico('csv')+'CSV</button></div>'+
      (pend.length?'<button class="btn sm block mt" id="aw-bulkret" style="color:var(--saddle);border-color:var(--saddle);font-weight:700">'+ico('undo')+(langHi()?'सब ऑफिस वापस ('+pend.length+')':'Return all to office ('+pend.length+')')+'</button>':'')+
-     (isAdminU()&&pend.length?'<button class="btn sm block mt" id="aw-clear" style="color:var(--red);border-color:var(--red-bg)">'+ico('trash')+(langHi()?'सारे बाकी AWB हटाएँ ('+pend.length+')':'Clear all pending inward ('+pend.length+')')+'</button>':'')+
+     (isAdminU()&&can('awbAdmin')&&pend.length?'<button class="btn sm block mt" id="aw-clear" style="color:var(--red);border-color:var(--red-bg)">'+ico('trash')+(langHi()?'सारे बाकी AWB हटाएँ ('+pend.length+')':'Clear all pending inward ('+pend.length+')')+'</button>':'')+
      '<div class="hint" style="margin-top:6px">'+(langHi()?'डिस्पैच हो चुके नंबर यहाँ रहते हैं — '+AWB_KEEP_DAYS+' दिन तक दोबारा स्कैन नहीं होगा।':'Dispatched numbers live here — duplicate scans stay blocked for '+AWB_KEEP_DAYS+' days.')+'</div>'+
      '<div id="aw-histbox" style="display:none;margin-top:10px"></div></div>';
   $('#main').innerHTML=h;
@@ -8252,7 +8390,7 @@ function vAwb(sub,arg){
   $('#aw-in').onclick=()=>startInward();
   $('#aw-out').onclick=()=>{ if(!can('awbDispatch')){toast('No permission to dispatch AWBs','err');return} go('#awb/out'); };
   const rb=$('#aw-ret');
-  if(rb)rb.onclick=()=>{ if(!isAdminU()){toast(langHi()?'वापसी सिर्फ एडमिन कर सकते हैं':'Only admins can return AWBs','err');return} go('#awb/return'); };
+  if(rb)rb.onclick=()=>{ if(!can('awbAdmin')){toast(langHi()?'ऑफिस वापसी की अनुमति नहीं':'No permission to return AWBs to office','err');return} go('#awb/return'); };
   const hb=$('#aw-hist');
   if(hb)hb.onclick=()=>{
     const box=$('#aw-histbox');
@@ -8277,7 +8415,7 @@ function vAwb(sub,arg){
   const brb=$('#aw-bulkret');if(brb)brb.onclick=()=>awbBulkReturnFlow();
   const clr=$('#aw-clear');
   if(clr)clr.onclick=async()=>{
-    if(!isAdminU()){toast(langHi()?'सिर्फ एडमिन':'Admins only','err');return}
+    if(!(isAdminU()&&can('awbAdmin'))){toast(langHi()?'इसकी अनुमति नहीं':'No permission for this','err');return}
     const list=(S.awbs||[]).filter(a=>a.status==='accepted');
     if(!list.length){toast(langHi()?'कुछ बाकी नहीं':'Nothing pending','err');return}
     const ok=await confirmDlg(
@@ -8303,6 +8441,7 @@ function vAwb(sub,arg){
 }
 function startInward(){
   if(!can('awbAccept')){toast('No permission to accept AWBs','err');return}
+  if(awbLockList().length){awbLockDlg('in');return}
   const myOver=myOverdueAwbs();
   if(myOver.length && !isAdminU()){
     openModal('<h3 style="color:var(--red)">Return overdue AWBs first</h3><p class="sub mb">You are holding '+myOver.length+' AWB'+(myOver.length>1?'s':'')+' older than '+AWB_OVERDUE_DAYS+' days. Return '+(myOver.length>1?'them':'it')+' to office before accepting any more.</p>'+
@@ -8367,7 +8506,10 @@ function editAwbDlg(a,back){
       const ix=+inp.dataset.edq,items2=awbItems(a).slice(),v=round4(parseFloat(inp.value));
       if(isNaN(v)||v<0){toast(T('सही मात्रा भरें','Enter a valid quantity'),'err');draw();return}
       if(v===0){inp.value=fmtQty(items2[ix].qty);toast(T('हटाने के लिए ✕ दबाएँ','Use ✕ to remove it'),'err');return}
-      const was=items2[ix].qty;items2[ix]=Object.assign({},items2[ix],{qty:v});
+      const was=items2[ix].qty;
+      if(v>was){const it0=iById(items2[ix].itemId);
+        if(it0&&v>freeToPack(it0,a)){inp.value=fmtQty(was);toast(heldMsg(it0,a,v),'err');return}}
+      items2[ix]=Object.assign({},items2[ix],{qty:v});
       await awbSetItems(a,items2);
       logTx('shipment',{detail:'AWB '+a.awb+' — '+items2[ix].name+' qty '+fmtQty(was)+' → '+fmtQty(v)+' · by '+userName()});
       toast(T('बदला','Updated'),'ok');draw();
@@ -8405,6 +8547,7 @@ function editAwbDlg(a,back){
           const it=iById(r.dataset.ea);if(!it)return;
           const items2=awbItems(a).slice();
           if(items2.find(x=>x.itemId===it.id)){toast(T('पहले से इसमें है — मात्रा बदलें','Already on this parcel — change its quantity'),'err');return}
+          if(freeToPack(it,a)<1){toast((+it.qty||0)<=0?it.name+' — '+T('स्टॉक 0 है','stock is 0'):heldMsg(it,a,1),'err');return}
           let rack;
           if(isMultiRack(it)){rack=await pickRackDlg(it,1,a.awb);if(rack===null||rack===undefined)return}
           else rack=(pilesOf(it)[0]||{}).f;
@@ -8640,7 +8783,7 @@ function awbColHTML(title,list,kind){
       (a.items&&a.items.length?'<div class="awb-meta ellip">'+esc(a.items.map(x=>x.name+' ×'+fmtQty(x.qty)).join(', '))+'</div>':'<div class="awb-meta" style="color:var(--amber)">'+(langHi()?'कोई आइटम दर्ज नहीं':'no items recorded')+'</div>')+
       '<div class="awb-meta">'+(kind==='accept'?('held by '+esc(a.acceptedBy||'—')+' · '+awbAgeDays(a)+'d'+(od?' · OVERDUE':'')):(kind==='dispatch'?'out · '+ago(a.resolvedAt):'returned · '+ago(a.resolvedAt)))+'</div>'+
       (kind!=='accept'?'<div class="row mt"><button class="btn sm grow" data-awback="'+a.id+'" style="color:var(--saddle);border-color:var(--saddle)">'+ico('undo')+(langHi()?'वापस अंदर लें':'Bring back in')+'</button></div>':'')+
-      (kind==='accept'?'<div class="row mt" style="gap:6px"><button class="btn sm" data-awedit="'+a.id+'" style="flex:0 0 auto">'+ico('edit')+'</button><button class="btn sm pri grow" data-awdisp="'+a.id+'">Dispatch</button>'+(isAdminU()?'<button class="btn sm grow" data-awret="'+a.id+'">Return</button>':'')+(isAdminU()?'<button class="btn sm danger" data-awdel="'+a.id+'" style="flex:0 0 auto;padding:6px 9px">'+ico('trash')+'</button>':'')+'</div>':(isAdminU()?'<div class="row mt"><button class="btn sm danger" data-awdel="'+a.id+'">'+ico('trash')+'Delete</button></div>':''))+
+      (kind==='accept'?'<div class="row mt" style="gap:6px"><button class="btn sm" data-awedit="'+a.id+'" style="flex:0 0 auto">'+ico('edit')+'</button><button class="btn sm pri grow" data-awdisp="'+a.id+'">Dispatch</button>'+(can('awbAdmin')?'<button class="btn sm grow" data-awret="'+a.id+'">Return</button>':'')+(can('awbAdmin')?'<button class="btn sm danger" data-awdel="'+a.id+'" style="flex:0 0 auto;padding:6px 9px">'+ico('trash')+'</button>':'')+'</div>':(can('awbAdmin')?'<div class="row mt"><button class="btn sm danger" data-awdel="'+a.id+'">'+ico('trash')+'Delete</button></div>':''))+
       '</div>';
   });
   h+='</div>';
@@ -8663,9 +8806,9 @@ function wireAwbColActions(){
     const a=(S.awbs||[]).find(x=>x.id===b.dataset.awedit);if(a)editAwbDlg(a,()=>vAwb());
   });
   $$('#main [data-awdel]').forEach(b=>b.onclick=async()=>{
-    if(!isAdminU()){toast(langHi()?'सिर्फ एडमिन AWB डिलीट कर सकते हैं':'Only admins can delete AWB records','err');return}
+    if(!can('awbAdmin')){toast(langHi()?'AWB डिलीट की अनुमति नहीं':'No permission to delete AWB records','err');return}
     const a=(S.awbs||[]).find(x=>x.id===b.dataset.awdel);if(!a)return;
-    if(a.status!=='accepted'&&a.status!=='packed'&&!isAdminU()){toast(langHi()?'यह ऑर्डर जा चुका है — सिर्फ एडमिन हटा सकते हैं':'This order has gone out — only an admin can remove it','err');return}
+    if(a.status!=='accepted'&&a.status!=='packed'&&!can('awbAdmin')){toast(langHi()?'यह ऑर्डर जा चुका है — सिर्फ एडमिन हटा सकते हैं':'This order has gone out — only an admin can remove it','err');return}
     const why=await reasonDlg(langHi()?'AWB हटाएँ?':'Remove this AWB?',
       '<b class="mono">'+esc(a.awb)+'</b>'+(awbItems(a).length?' · '+awbItems(a).map(x=>esc(x.name)+' ×'+fmtQty(x.qty)).join(', '):'')+
       (langHi()?' — यह रिकॉर्ड से हट जाएगा। वजह लिखना ज़रूरी है, और आपका नाम दर्ज होगा।':' — this will be taken off the records. A reason is required and your name is recorded.'),
@@ -8679,7 +8822,7 @@ function wireAwbColActions(){
 // Admin: tap to return. Regular user: must scan (handled by awbReturnScanFlow).
 async function awbReturnOne(awbId){
   const a=(S.awbs||[]).find(x=>x.id===awbId);if(!a||(a.status!=='accepted'&&a.status!=='packed'))return;
-  if(!isAdminU()){toast(langHi()?'वापसी सिर्फ एडमिन कर सकते हैं':'Only admins can return AWBs','err');return}
+  if(!can('awbAdmin')){toast(langHi()?'ऑफिस वापसी की अनुमति नहीं':'No permission to return AWBs to office','err');return}
   const ok=await confirmDlg('Return to office?',esc(a.awb)+' will be marked returned.','Mark returned',false);
   if(!ok)return;
   await returnAwbRec(a);toast('Returned to office','ok');vAwb();
@@ -8898,6 +9041,7 @@ function awbScanFlow(mode){
   // mode: 'in' (accept) | 'out' (dispatch)
   const accept=mode==='in';
   if(accept && !can('awbAccept')){toast('No permission','err');go('#awb');return}
+  if(accept && awbLockList().length){go('#awb');setTimeout(()=>awbLockDlg('in'),50);return}
   if(!accept && !can('awbDispatch')){toast('No permission','err');go('#awb');return}
   scanSessionStart();
   /* The step strip inside the modal walks through the three stages, so the
@@ -9519,7 +9663,7 @@ function awbCustReturnFlow(){
   paint();
 }
 function awbReturnScanFlow(prefill){
-  if(!isAdminU()){toast(langHi()?'वापसी सिर्फ एडमिन कर सकते हैं':'Only admins can return AWBs','err');go('#awb');return}
+  if(!can('awbAdmin')){toast(langHi()?'ऑफिस वापसी की अनुमति नहीं':'No permission to return AWBs to office','err');go('#awb');return}
   awbScanModal(langHi()?'AWB ऑफिस वापस करें':'Return AWBs to office',
     langHi()?'जो AWB इस्तेमाल नहीं हुए, उन्हें एक-एक स्कैन करें।':'Scan each unused AWB you are returning to office.',
     async(code)=>{const a=awbByNo(code);
@@ -9735,13 +9879,15 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
         errBox(code,it.name+' — '+T('स्टॉक में सिर्फ़ ','only ')+fmtQty(+it.qty||0)+T(' हैं — '+fmtQty(q)+' नहीं डाल सकते',' in stock — cannot put '+fmtQty(q)+' in this parcel'));
         alarmSound();return false;
       }
+      if(q>ex.qty&&q>freeToPack(it,cur)){errBox(code,heldMsg(it,cur,q));alarmSound();return false}
       ex.qty=q;
       if(cur)await awbSetItems(cur,items);else pend.items=items;
       okBox(code,esc(it.name)+' × '+fmtQty(q)+T(' (हाथ से भरा)',' (typed)'));paintCur();return true;
     }
-    if((+it.qty||0)<=0){
+    const heldOut=(+it.qty||0)>0&&freeToPack(it,cur)<1;
+    if((+it.qty||0)<=0||heldOut){
       inp.value='';
-      errBox(code,it.name+' — '+T('स्टॉक 0 है, पार्सल में नहीं जोड़ सकते','stock is 0 — it cannot go into a parcel'));
+      errBox(code,heldOut?heldMsg(it,cur,1):it.name+' — '+T('स्टॉक 0 है, पार्सल में नहीं जोड़ सकते','stock is 0 — it cannot go into a parcel'));
       alarmSound();
       const po=await outOfStockPO(it);
       const fd=$('#aw-feed2');
@@ -9762,9 +9908,6 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
     items.push(entry);
     if(cur)await awbSetItems(cur,items);else pend.items=items;
     okBox(code,esc(it.name)+' × 1 · '+esc(shelfName(rack))+(how==='search'?T(' · नाम से जोड़ा',' · added by search'):'')+T(' · Enter दो बार दबाने पर दर्ज होगा',' · press Enter twice to register'));
-    {const held=reservedElsewhere(it.id,cur);
-     if(held+1>(+it.qty||0))feed.insertAdjacentHTML('beforeend','<div class="sub" style="margin-top:6px;font-weight:700;color:var(--amber)">⚠ '+
-       T('स्टॉक ','Stock ')+fmtQty(+it.qty||0)+T(', पर '+fmtQty(held)+' पहले से दूसरे पार्सल में हैं — गिन लें',' but '+fmtQty(held)+' already in other parcels waiting to go out — check the shelf')+'</div>');}
     paintCur();return true;
   };
   /* Search the catalog when a SKU barcode will not read. Stays open so several
@@ -9821,7 +9964,7 @@ function awbScanModal(title,subtitle,onCode,onDone,withExtra,group){
       $('#aw-pack').onclick=()=>{_packSeed=r.code||r.awb.awb||'';closeModal();go('#pack')};
       return;
     }
-    if(isAdminU()&&(!r||r.why==='notinward'))
+    if(can('awbAdmin')&&!awbLockList().length&&(!r||r.why==='notinward'))
       box.innerHTML='<button class="btn block mb" id="aw-force" style="border-color:var(--amber);color:var(--amber)">'+ico('bolt')+T('ज़बरदस्ती डिस्पैच (अंदर स्कैन नहीं हुआ)','Force dispatch — never scanned inward')+'</button>';
     else box.innerHTML='';
     const fcb=$('#aw-force');if(fcb)fcb.onclick=async()=>{if(await forceDispatchDlg(lastCode))n++;};
