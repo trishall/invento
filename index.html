@@ -1,4 +1,4 @@
-<!DOCTYPE html><!--INVENTO_BUILD 2026-11-21.1-->
+<!DOCTYPE html><!--INVENTO_BUILD 2026-11-21.2-->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -930,7 +930,7 @@ const cap1=s=>{s=String(s||'');return s?s.charAt(0).toUpperCase()+s.slice(1):s};
    · FIRESTORE's offline copy of the data. That one stays -- without it the
      warehouse stops working the moment the wifi dips -- but it must say when it
      is what you are reading, instead of looking exactly like live data. */
-const APP_BUILD='2026-11-21.1';
+const APP_BUILD='2026-11-21.2';
 const shadows={};
 const dirty={};
 /* col -> true while its latest snapshot came from the offline copy, not the
@@ -2534,6 +2534,7 @@ function vItem(id){
       '<div class="stat"><div class="eyebrow">'+(langHi()?'30 दिन में गया':'Out · 30 days')+'</div><div class="v num" style="color:var(--red)">−'+fmtQty(sumOut)+'</div></div>'+
       '<div class="stat"><div class="eyebrow">'+(langHi()?'अभी है':'On hand')+'</div><div class="v num">'+fmtQty(i.qty)+'</div></div>'+
     '</div>';
+  h+=itemHeldHTML(i);
   h+=myTx.length?('<div class="card" style="padding:2px 12px"><div class="hist">'+myTx.map(t=>{
       const dl=txDelta(t),tone=ACT_TONE[t.act]||'var(--saddle)';
       const chip=dl==null?'':'<span class="num" style="flex:0 0 auto;font-weight:800;padding:2px 9px;border-radius:999px;background:'+(dl<0?'var(--red-bg)':'var(--green-bg)')+';color:'+(dl<0?'var(--red)':'var(--green)')+'">'+(dl<0?'−':'+')+fmtQty(Math.abs(dl))+' '+esc(i.unit||'')+'</span>';
@@ -4029,6 +4030,32 @@ async function outOfStockPO(it){
   finally{delete _oosBusy[it.id]}
 }
 /* pieces of this item already sitting in OTHER parcels that are inward and not yet out */
+/* Item page: which parcels are holding this item right now (inward or packed,
+   not out yet). Read-only. */
+function itemHeldHTML(i){
+  const T=(hi,en)=>langHi()?hi:en;
+  const rows=[];
+  (S.awbs||[]).forEach(a=>{
+    if(a.status!=='accepted'&&a.status!=='packed')return;
+    let q=0;awbItems(a).forEach(x=>{if(x.itemId===i.id)q+=(+x.qty||0)});
+    if(q>0)rows.push({a,q:round4(q)});
+  });
+  if(!rows.length)return '<div class="hint mb">'+T('कोई पार्सल इसे रोके हुए नहीं है।','No parcel is holding this item.')+'</div>';
+  rows.sort((x,y)=>(x.a.acceptedAt||0)-(y.a.acceptedAt||0));
+  const held=round4(rows.reduce((s,r)=>s+r.q,0)),free=round4((+i.qty||0)-held);
+  return '<div class="card pad mb" style="border-left:4px solid var(--amber)">'+
+    '<div class="row" style="gap:12px;flex-wrap:wrap;align-items:baseline">'+
+      '<div><div class="eyebrow">'+T('पार्सल में रुका','Held in parcels')+'</div><div class="num" style="font-size:22px;font-weight:800;color:var(--amber)">'+fmtQty(held)+'</div></div>'+
+      '<div><div class="eyebrow">'+T('पैक के लिए खाली','Free to pack')+'</div><div class="num" style="font-size:22px;font-weight:800;color:'+(free>0?'var(--green)':'var(--red)')+'">'+fmtQty(Math.max(0,free))+'</div></div>'+
+      (free<0?'<div class="small" style="color:var(--red);font-weight:700">'+T('स्टॉक से '+fmtQty(-free)+' ज़्यादा रुका है — गिनती करें','Held is '+fmtQty(-free)+' more than on hand — count the shelf')+'</div>':'')+
+    '</div>'+
+    '<div class="small muted" style="margin:8px 0 4px">'+T('ये पार्सल अंदर हैं पर अभी बाहर नहीं गए:','These parcels are inward but not out yet:')+'</div>'+
+    rows.map(r=>'<div class="row" style="gap:8px;padding:5px 0;border-top:1px solid var(--line);align-items:center">'+
+      '<span class="mono grow ellip" style="font-weight:700">'+esc(r.a.awb)+'</span>'+
+      '<span class="small muted">'+(r.a.status==='packed'?T('पैक','packed'):T('इनवर्ड','inward'))+' · '+awbAgeDays(r.a)+T(' दिन','d')+(r.a.acceptedBy?' · '+esc(r.a.acceptedBy):'')+(r.a.orderNo?' · #'+esc(r.a.orderNo):'')+'</span>'+
+      '<span class="num" style="font-weight:800">×'+fmtQty(r.q)+'</span></div>').join('')+
+  '</div>';
+}
 function reservedElsewhere(itemId,skipAwb){
   let n=0;
   heldByOthers(itemId,skipAwb).forEach(h=>{n+=h.qty});
